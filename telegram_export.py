@@ -1,8 +1,9 @@
 import os
 import shutil
-from config import CHAT_USERNAME, CHANNEL_USERNAME, OUTPUT_DIR
+from datetime import datetime
+from config import CHAT_USERNAME, OUTPUT_DIR
 from telegram_client import connect_to_telegram
-from message_processor import filter_messages, process_message
+from message_processor import process_message
 from html_generator import generate_html
 
 def main():
@@ -20,13 +21,10 @@ def main():
     # Скачиваем все сообщения
     all_posts = client.iter_messages(chat, limit=None)
 
-    # Фильтруем сообщения
-    filtered_posts = filter_messages(all_posts, CHANNEL_USERNAME, client)
-
     # Обрабатываем и сохраняем сообщения
-    for post in filtered_posts:
+    for post in all_posts:
         post_data = process_message(post, client)
-        post_date = post.date.strftime('%Y-%m-%d_%H-%М-%S')
+        post_date = post.date.strftime('%d %B %Y, %H:%M')  # Читаемый формат даты
         generate_html(post_data, OUTPUT_DIR, post.id, post_date)
 
     # Отключаем клиента

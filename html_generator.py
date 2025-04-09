@@ -6,6 +6,7 @@ def generate_html(post_data, output_dir, post_id, post_date):
     sender_avatar = post_data["sender_avatar"]
     sender_link = post_data["sender_link"]
     formatted_text = post_data["formatted_text"]
+    poll_html = post_data.get("poll_html", "")
     media_html = post_data.get("media_html", "")
     reactions_html = post_data.get("reactions_html", "")
     reply_html = post_data.get("reply_html", "")
@@ -36,6 +37,7 @@ def generate_html(post_data, output_dir, post_id, post_date):
         {repost_html}
         {reply_html}
         <p>{formatted_text}</p>
+        {poll_html}
         {media_html}
         {reactions_html}
     </body>
