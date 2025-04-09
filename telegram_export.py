@@ -12,8 +12,8 @@ load_dotenv()
 api_id = int(os.getenv("API_ID"))  # Ваш api_id (число)
 api_hash = os.getenv("API_HASH")  # Ваш api_hash
 phone = os.getenv("PHONE")  # Номер телефона с кодом страны
-channel_username = os.getenv("CHANNEL_USERNAME")  # Канал для экспорта
-parent_channel_username = os.getenv("PARENT_CHANNEL_USERNAME")  # Родительский канал
+chat_username = os.getenv("CHAT_USERNAME")  # Чат для экспорта
+channel_username = os.getenv("CHANNEL_USERNAME")  # Родительский канал
 output_dir = os.getenv("OUTPUT_DIR", "telegram_export")  # Папка для сохранения
 
 # Очищаем каталог перед загрузкой файлов
@@ -29,11 +29,11 @@ if not client.is_user_authorized():
     client.send_code_request(phone)
     client.sign_in(phone, input('Введите код из Telegram: '))
 
-# Получаем канал
-channel = client.get_entity(channel_username)
+# Получаем чат
+chat = client.get_entity(chat_username)
 
 # Скачиваем все посты
-all_posts = client.iter_messages(channel, limit=None)  # None = все сообщения
+all_posts = client.iter_messages(chat, limit=None)  # None = все сообщения
 
 # Обрабатываем каждый пост
 for post in all_posts:
@@ -45,10 +45,10 @@ for post in all_posts:
     if post.fwd_from:
         if post.fwd_from.from_id:  # Если есть ID источника репоста
             source_entity = client.get_entity(post.fwd_from.from_id)
-            if hasattr(source_entity, 'username') and source_entity.username != parent_channel_username:
+            if hasattr(source_entity, 'username') and source_entity.username != channel_username:
                 continue  # Пропускаем сообщения, которые не из указанного канала
         elif post.fwd_from.from_name:  # Если имя источника указано явно
-            if post.fwd_from.from_name != parent_channel_username:
+            if post.fwd_from.from_name != channel_username:
                 continue  # Пропускаем сообщения, которые не из указанного канала
         else:
             continue  # Пропускаем сообщения без информации об источнике
@@ -125,7 +125,7 @@ for post in all_posts:
     # Добавляем ссылку на родительское сообщение
     reply_html = ""
     if post.reply_to_msg_id:
-        parent_message = client.get_messages(channel, ids=post.reply_to_msg_id)
+        parent_message = client.get_messages(chat, ids=post.reply_to_msg_id)
         if parent_message:
             reply_text = html.unparse(parent_message.message, parent_message.entities) if parent_message.message else "Сообщение без текста"
             reply_html = f'<div class="reply">Цитата: <a href="#post_{parent_message.id}">{reply_text}</a></div>'
