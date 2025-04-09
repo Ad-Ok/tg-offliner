@@ -54,6 +54,7 @@ def generate_html(post_data, output_dir, post_id, post_date):
             .comments {{ margin-top: 20px; }}
             .comments ul {{ list-style-type: none; padding: 0; }}
             .comments li {{ margin-bottom: 10px; }}
+            audio, video {{ width: 100%; margin-top: 10px; }}
         </style>
     </head>
     <body>
