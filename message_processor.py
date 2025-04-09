@@ -51,12 +51,19 @@ def process_message(message, client):
         # Скачивание аватара
         avatar_dir = os.path.join(OUTPUT_DIR, "avatars")
         os.makedirs(avatar_dir, exist_ok=True)
-        avatar_path = client.download_profile_photo(
-            sender,
-            file=os.path.join(avatar_dir, f"avatar_{sender.id}.jpg")
-        )
-        if avatar_path:
-            sender_avatar = f"avatars/{os.path.basename(avatar_path)}"
+
+        # Проверяем, есть ли фото у отправителя
+        if sender.photo:
+            avatar_path = client.download_profile_photo(
+                sender,
+                file=os.path.join(avatar_dir, f"avatar_{sender.id}.jpg")
+            )
+            if avatar_path:
+                sender_avatar = f"avatars/{os.path.basename(avatar_path)}"
+            else:
+                print(f"Не удалось скачать аватар для {sender_name} (ID: {sender.id})")
+        else:
+            print(f"У {sender_name} (ID: {sender.id}) нет аватара")
 
     # Обработка текста сообщения
     formatted_text = html.unparse(message.message, message.entities) if message.message else ""
