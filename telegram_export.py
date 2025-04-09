@@ -3,7 +3,7 @@ import shutil
 from datetime import datetime
 from config import CHANNEL_USERNAME, OUTPUT_DIR
 from telegram_client import connect_to_telegram
-from message_processor import process_message
+from message_processing.process_message import process_message
 from html_generator import generate_html
 
 def main():
