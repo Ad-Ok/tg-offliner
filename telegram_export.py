@@ -1,7 +1,7 @@
 import os
 import shutil
 from datetime import datetime
-from config import CHAT_USERNAME, OUTPUT_DIR
+from config import CHANNEL_USERNAME, OUTPUT_DIR
 from telegram_client import connect_to_telegram
 from message_processor import process_message
 from html_generator import generate_html
@@ -15,16 +15,16 @@ def main():
     # Подключаемся к Telegram
     client = connect_to_telegram()
 
-    # Получаем чат
-    chat = client.get_entity(CHAT_USERNAME)
+    # Получаем канал
+    channel = client.get_entity(CHANNEL_USERNAME)
 
-    # Скачиваем все сообщения
-    all_posts = client.iter_messages(chat, limit=None)
+    # Скачиваем все сообщения из канала
+    all_posts = client.iter_messages(channel, limit=None)
 
     # Обрабатываем и сохраняем сообщения
     for post in all_posts:
         post_data = process_message(post, client)
-        post_date = post.date.strftime('%d %B %Y, %H:%M')  # Читаемый формат даты
+        post_date = post.date.strftime('%d %B %Y, %H:%M')
         generate_html(post_data, OUTPUT_DIR, post.id, post_date)
 
     # Отключаем клиента
