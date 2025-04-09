@@ -11,6 +11,7 @@ def generate_html(post_data, output_dir, post_id, post_date):
     reactions_html = post_data.get("reactions_html", "")
     reply_html = post_data.get("reply_html", "")
     repost_html = post_data.get("repost_html", "")
+    comments_html = post_data.get("comments_html", "")
 
     html_content = f"""
     <!DOCTYPE html>
@@ -26,6 +27,9 @@ def generate_html(post_data, output_dir, post_id, post_date):
             .reactions {{ margin-top: 20px; }}
             .reply {{ margin-top: 20px; font-style: italic; color: gray; }}
             .repost {{ margin-top: 20px; font-style: italic; color: blue; }}
+            .comments {{ margin-top: 20px; }}
+            .comments ul {{ list-style-type: none; padding: 0; }}
+            .comments li {{ margin-bottom: 10px; }}
         </style>
     </head>
     <body>
@@ -40,6 +44,7 @@ def generate_html(post_data, output_dir, post_id, post_date):
         {poll_html}
         {media_html}
         {reactions_html}
+        {comments_html}
     </body>
     </html>
     """
