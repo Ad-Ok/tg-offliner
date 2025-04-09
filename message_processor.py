@@ -66,6 +66,17 @@ def process_message(message, client):
             poll_html += f"<li>{answer_text} — {votes} голосов</li>"
         poll_html += "</ul>"
 
+    # Обработка реакций
+    reactions_html = ""
+    if message.reactions:
+        reactions_html = "<div class='reactions'>"
+        for reaction in message.reactions.results:
+            # Извлекаем эмодзи
+            emoji = reaction.reaction.emoticon if hasattr(reaction.reaction, 'emoticon') else str(reaction.reaction)
+            count = reaction.count  # Количество реакций
+            reactions_html += f"<span>{emoji} {count}</span> "
+        reactions_html += "</div>"
+
     # Обработка медиа
     media_html = ""
     media_dir = os.path.join(OUTPUT_DIR, "media")
@@ -90,7 +101,7 @@ def process_message(message, client):
         "formatted_text": formatted_text,
         "poll_html": poll_html,
         "media_html": media_html,
-        "reactions_html": "",
+        "reactions_html": reactions_html,
         "reply_html": "",
         "repost_html": "",
     }
