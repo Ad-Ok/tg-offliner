@@ -34,6 +34,20 @@ def process_message(message, client):
         )
         sender_avatar = f"avatars/{os.path.basename(avatar_path)}" if avatar_path else ""
 
+# Проверка на системное сообщение
+    if message.action:
+        system_message = f"Системное сообщение: {type(message.action).__name__}"
+        return {
+            "sender_name": sender_name,
+            "sender_avatar": sender_avatar,
+            "sender_link": sender_link,
+            "formatted_text": system_message,
+            "media_html": "",
+            "reactions_html": "",
+            "reply_html": "",
+            "repost_html": "",
+        }
+
     # Обработка текста сообщения
     formatted_text = html.unparse(message.message, message.entities) if message.message else ""
 
