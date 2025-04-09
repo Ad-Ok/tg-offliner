@@ -1,5 +1,6 @@
 import os
 import shutil
+import time  # Для замера времени выполнения
 from datetime import datetime
 from config import CHANNEL_USERNAME, OUTPUT_DIR
 from telegram_client import connect_to_telegram
@@ -7,6 +8,8 @@ from message_processing.process_message import process_message
 from html_generator import generate_html
 
 def main():
+    start_time = time.time()  # Начало замера времени
+
     # Очищаем каталог перед загрузкой файлов
     if os.path.exists(OUTPUT_DIR):
         shutil.rmtree(OUTPUT_DIR)
@@ -29,7 +32,24 @@ def main():
 
     # Отключаем клиента
     client.disconnect()
-    print("Экспорт завершён!")
+
+    elapsed_time = time.time() - start_time  # Конец замера времени
+
+    # Преобразуем время в часы, минуты и секунды
+    hours = int(elapsed_time // 3600)
+    minutes = int((elapsed_time % 3600) // 60)
+    seconds = int(elapsed_time % 60)
+
+    # Формируем строку времени
+    time_parts = []
+    if hours > 0:
+        time_parts.append(f"{hours} ч.")
+    if minutes > 0 or hours > 0:  # Показываем минуты, если есть часы
+        time_parts.append(f"{minutes} мин.")
+    time_parts.append(f"{seconds} сек.")
+
+    time_string = " ".join(time_parts)
+    print(f"Экспорт завершён за {time_string}")
 
 if __name__ == "__main__":
     main()
