@@ -26,7 +26,6 @@ def process_message(message, client):
     # Обработка текста сообщения
     formatted_text = message.message or ""
 
-
     # Обработка голосования, реакций и медиа
     poll_html = process_poll(message)
     reactions_html = process_reactions(message)
@@ -39,9 +38,19 @@ def process_message(message, client):
         discussion_chat = client.get_entity(PeerChannel(message.peer_id.channel_id))  # Получаем чат обсуждений
         replies = client.iter_messages(discussion_chat, reply_to=message.id, limit=10)  # Получаем до 10 комментариев
         for reply in replies:
-            reply_author = reply.sender.first_name if reply.sender and hasattr(reply.sender, 'first_name') else "Аноним"
-            reply_text = reply.message if reply.message else "Без текста"
-            comments_html += f"<li><strong>{reply_author}:</strong> {reply_text}</li>"
+            # Обрабатываем комментарий как полноценное сообщение
+            reply_data = process_message(reply, client)
+            comments_html += f"""
+            <li>
+                <div class="comment-author">
+                    <img src="{reply_data['sender_avatar']}" alt="Avatar" width="30" height="30">
+                    <a href="{reply_data['sender_link']}" target="_blank">{reply_data['sender_name']}</a>
+                </div>
+                <p>{reply_data['formatted_text']}</p>
+                {reply_data['media_html']}
+                {reply_data['reactions_html']}
+            </li>
+            """
         comments_html += "</ul></div>"
 
     return {
