@@ -9,6 +9,10 @@ Ensure dependencies are installed:
 ```
 pip install telethon
 ```
+or
+```
+pip install -r requirements.txt
+```
 
 Make sure the telethon library is installed. If not, install it using:
 Run the script:
