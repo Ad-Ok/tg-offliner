@@ -22,6 +22,29 @@ def process_message(message, client):
     else:
         message_date = "Неизвестно"
 
+    # Обработка репоста
+    repost_html = ""
+    if message.fwd_from:
+        # Попытка получить имя источника
+        repost_source = message.fwd_from.from_name or "Неизвестный источник"
+        
+        # Если from_name отсутствует, пробуем получить информацию через from_id
+        if not message.fwd_from.from_name and message.fwd_from.from_id:
+            try:
+                source_entity = client.get_entity(message.fwd_from.from_id)
+                repost_source = getattr(source_entity, 'title', None) or getattr(source_entity, 'first_name', None) or "Неизвестный источник"
+            except Exception as e:
+                print(f"Ошибка при получении информации об источнике репоста: {e}")
+
+        # Форматируем дату оригинального сообщения
+        repost_date = message.fwd_from.date.strftime("%d %B %Y %H:%M") if message.fwd_from.date else "Неизвестно"
+        repost_html = f"""
+        <div class="repost">
+            <p>Репост из: <strong>{repost_source}</strong></p>
+            <p>Дата оригинального сообщения: {repost_date}</p>
+        </div>
+        """
+
     if system_message:
         return {
             "sender_name": sender_name,
@@ -31,7 +54,7 @@ def process_message(message, client):
             "media_html": "",
             "reactions_html": "",
             "reply_html": "",
-            "repost_html": "",
+            "repost_html": repost_html,
             "comments_html": "",
             "message_date": message_date,
         }
@@ -69,7 +92,7 @@ def process_message(message, client):
         "media_html": media_html,
         "reactions_html": reactions_html,
         "reply_html": "",
-        "repost_html": "",
+        "repost_html": repost_html,
         "comments_html": comments_html,
         "message_date": message_date,
     }
