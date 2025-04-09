@@ -8,7 +8,7 @@ from html_generator import generate_message_html
 
 def process_message(message, client):
     """Обрабатывает одно сообщение и возвращает данные для HTML."""
-    sender_name, sender_avatar, sender_link = process_author(message.sender, client)
+    sender_name, sender_avatar, sender_link = process_author(message.sender, client, message.peer_id)
     system_message = process_system_message(message)
 
     if system_message:
