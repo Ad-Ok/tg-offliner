@@ -1,4 +1,18 @@
 import os
+import shutil  # Для копирования директорий
+
+def copy_static_files(output_dir):
+    """Копирует папку static в папку с экспортом."""
+    # Путь к папке static относительно корня проекта
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    target_dir = os.path.join(output_dir, "static")
+
+    # Проверяем, существует ли папка static
+    if os.path.exists(static_dir):
+        # Копируем папку static в папку с экспортом
+        shutil.copytree(static_dir, target_dir, dirs_exist_ok=True)
+    else:
+        print(f"Папка static не найдена по пути: {static_dir}")
 
 def generate_message_html(sender_name, sender_avatar, sender_link, formatted_text, poll_html, media_html, reactions_html, reply_html, repost_html, message_date):
     """Генерирует HTML для одного сообщения."""
@@ -20,6 +34,9 @@ def generate_message_html(sender_name, sender_avatar, sender_link, formatted_tex
 
 def generate_html(post_data, output_dir, post_id, post_date):
     """Генерирует HTML для одного сообщения."""
+    # Копируем статические файлы (если ещё не скопированы)
+    copy_static_files(output_dir)
+
     sender_name = post_data["sender_name"]
     sender_avatar = post_data["sender_avatar"]
     sender_link = post_data["sender_link"]
@@ -41,21 +58,9 @@ def generate_html(post_data, output_dir, post_id, post_date):
     <html>
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Пост от {post_date}</title>
-        <style>
-            body {{ font-family: Arial; max-width: 800px; margin: auto; }}
-            .media {{ margin: 20px 0; max-width: 100%; }}
-            .author {{ display: flex; align-items: center; margin-bottom: 20px; }}
-            .author img {{ width: 50px; height: 50px; border-radius: 50%; margin-right: 10px; }}
-            .author .date, .repost .date {{ margin-left: auto; font-size: 12px; color: gray; }}
-            .reactions {{ margin-top: 20px; }}
-            .reply {{ margin-top: 20px; font-style: italic; color: gray; }}
-            .repost {{ margin-top: 20px; font-style: italic; color: blue; }}
-            .comments {{ margin-top: 20px; }}
-            .comments ul {{ list-style-type: none; padding: 0; }}
-            .comments li {{ margin-bottom: 10px; }}
-            audio, video {{ width: 100%; margin-top: 10px; }}
-        </style>
+        <link rel="stylesheet" href="static/styles.css">
     </head>
     <body>
         {message_html}
