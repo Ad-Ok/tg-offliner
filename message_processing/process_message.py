@@ -4,6 +4,7 @@ from .polls import process_poll
 from .reactions import process_reactions
 from .media import process_media
 from telethon.tl.types import PeerChannel
+from html_generator import generate_message_html
 
 def process_message(message, client):
     """Обрабатывает одно сообщение и возвращает данные для HTML."""
@@ -34,24 +35,17 @@ def process_message(message, client):
     # Обработка комментариев
     comments_html = ""
     if message.replies and message.replies.replies > 0:  # Если есть комментарии
-        comments_html = "<div class='comments'><h3>Комментарии:</h3><ul>"
         discussion_chat = client.get_entity(PeerChannel(message.peer_id.channel_id))  # Получаем чат обсуждений
-        replies = client.iter_messages(discussion_chat, reply_to=message.id, limit=10)  # Получаем до 10 комментариев
+        replies = client.iter_messages(discussion_chat, reply_to=message.id, limit=10, reverse=True)  # Получаем до 10 комментариев
         for reply in replies:
             # Обрабатываем комментарий как полноценное сообщение
             reply_data = process_message(reply, client)
-            comments_html += f"""
-            <li>
-                <div class="comment-author">
-                    <img src="{reply_data['sender_avatar']}" alt="Avatar" width="30" height="30">
-                    <a href="{reply_data['sender_link']}" target="_blank">{reply_data['sender_name']}</a>
-                </div>
-                <p>{reply_data['formatted_text']}</p>
-                {reply_data['media_html']}
-                {reply_data['reactions_html']}
-            </li>
-            """
-        comments_html += "</ul></div>"
+            comments_html += generate_message_html(
+                reply_data["sender_name"], reply_data["sender_avatar"], reply_data["sender_link"],
+                reply_data["formatted_text"], reply_data.get("poll_html", ""),
+                reply_data.get("media_html", ""), reply_data.get("reactions_html", ""),
+                reply_data.get("reply_html", ""), reply_data.get("repost_html", "")
+            )
 
     return {
         "sender_name": sender_name,

@@ -1,5 +1,22 @@
 import os
 
+def generate_message_html(sender_name, sender_avatar, sender_link, formatted_text, poll_html, media_html, reactions_html, reply_html, repost_html):
+    """Генерирует HTML для одного сообщения."""
+    return f"""
+    <div class="message">
+        <div class="author">
+            <img src="{sender_avatar}" alt="Avatar">
+            <a href="{sender_link}" target="_blank">{sender_name}</a>
+        </div>
+        {repost_html}
+        {reply_html}
+        <p>{formatted_text}</p>
+        {poll_html}
+        {media_html}
+        {reactions_html}
+    </div>
+    """
+
 def generate_html(post_data, output_dir, post_id, post_date):
     """Генерирует HTML для одного сообщения."""
     sender_name = post_data["sender_name"]
@@ -12,6 +29,10 @@ def generate_html(post_data, output_dir, post_id, post_date):
     reply_html = post_data.get("reply_html", "")
     repost_html = post_data.get("repost_html", "")
     comments_html = post_data.get("comments_html", "")
+
+    message_html = generate_message_html(
+        sender_name, sender_avatar, sender_link, formatted_text, poll_html, media_html, reactions_html, reply_html, repost_html
+    )
 
     html_content = f"""
     <!DOCTYPE html>
@@ -33,17 +54,7 @@ def generate_html(post_data, output_dir, post_id, post_date):
         </style>
     </head>
     <body>
-        <div class="author">
-            <img src="{sender_avatar}" alt="Avatar">
-            <a href="{sender_link}" target="_blank">{sender_name}</a>
-        </div>
-        <h1>Дата: {post_date}</h1>
-        {repost_html}
-        {reply_html}
-        <p>{formatted_text}</p>
-        {poll_html}
-        {media_html}
-        {reactions_html}
+        {message_html}
         {comments_html}
     </body>
     </html>
