@@ -1,12 +1,13 @@
 import os
 
-def generate_message_html(sender_name, sender_avatar, sender_link, formatted_text, poll_html, media_html, reactions_html, reply_html, repost_html):
+def generate_message_html(sender_name, sender_avatar, sender_link, formatted_text, poll_html, media_html, reactions_html, reply_html, repost_html, message_date):
     """Генерирует HTML для одного сообщения."""
     return f"""
     <div class="message">
         <div class="author">
             <img src="{sender_avatar}" alt="Avatar">
             <a href="{sender_link}" target="_blank">{sender_name}</a>
+            <span class="date">{message_date}</span>
         </div>
         {repost_html}
         {reply_html}
@@ -29,9 +30,10 @@ def generate_html(post_data, output_dir, post_id, post_date):
     reply_html = post_data.get("reply_html", "")
     repost_html = post_data.get("repost_html", "")
     comments_html = post_data.get("comments_html", "")
+    message_date = post_data["message_date"]
 
     message_html = generate_message_html(
-        sender_name, sender_avatar, sender_link, formatted_text, poll_html, media_html, reactions_html, reply_html, repost_html
+        sender_name, sender_avatar, sender_link, formatted_text, poll_html, media_html, reactions_html, reply_html, repost_html, message_date
     )
 
     html_content = f"""
@@ -45,6 +47,7 @@ def generate_html(post_data, output_dir, post_id, post_date):
             .media {{ margin: 20px 0; max-width: 100%; }}
             .author {{ display: flex; align-items: center; margin-bottom: 20px; }}
             .author img {{ width: 50px; height: 50px; border-radius: 50%; margin-right: 10px; }}
+            .author .date {{ margin-left: auto; font-size: 12px; color: gray; }}
             .reactions {{ margin-top: 20px; }}
             .reply {{ margin-top: 20px; font-style: italic; color: gray; }}
             .repost {{ margin-top: 20px; font-style: italic; color: blue; }}
