@@ -21,8 +21,14 @@ def main():
     # Получаем канал
     channel = client.get_entity(CHANNEL_USERNAME)
 
-    # Скачиваем все сообщения из канала
+    # Получаем лимит сообщений из настроек
+    message_limit = EXPORT_SETTINGS.get("message_limit", False)
+
+    # Скачиваем сообщения
     all_posts = client.iter_messages(channel, limit=None)
+
+    # Счётчик обработанных сообщений
+    processed_count = 0
 
     # Обрабатываем и сохраняем сообщения
     for post in all_posts:
@@ -42,6 +48,13 @@ def main():
         post_data = process_message(post, client)
         post_date = post.date.strftime('%d %B %Y, %H:%M')
         generate_html(post_data, OUTPUT_DIR, post.id, post_date)
+
+        # Увеличиваем счётчик обработанных сообщений
+        processed_count += 1
+
+        # Прерываем цикл, если достигнут лимит
+        if message_limit and processed_count >= message_limit:
+            break
 
     # Отключаем клиента
     client.disconnect()
