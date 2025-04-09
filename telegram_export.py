@@ -2,7 +2,7 @@ import os
 import shutil
 import time  # Для замера времени выполнения
 from datetime import datetime
-from config import CHANNEL_USERNAME, OUTPUT_DIR
+from config import CHANNEL_USERNAME, OUTPUT_DIR, EXPORT_SETTINGS
 from telegram_client import connect_to_telegram
 from message_processing.process_message import process_message
 from html_generator import generate_html
@@ -26,6 +26,19 @@ def main():
 
     # Обрабатываем и сохраняем сообщения
     for post in all_posts:
+        # Пропускаем системные сообщения, если они отключены
+        if not EXPORT_SETTINGS["include_system_messages"] and post.action:
+            continue
+
+        # Пропускаем репосты, если они отключены
+        if not EXPORT_SETTINGS["include_reposts"] and post.fwd_from:
+            continue
+
+        # Пропускаем голосования, если они отключены
+        if not EXPORT_SETTINGS["include_polls"] and post.poll:
+            continue
+
+        # Обрабатываем сообщение
         post_data = process_message(post, client)
         post_date = post.date.strftime('%d %B %Y, %H:%M')
         generate_html(post_data, OUTPUT_DIR, post.id, post_date)
