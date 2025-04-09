@@ -47,7 +47,7 @@ def generate_html(post_data, output_dir, post_id, post_date):
             .media {{ margin: 20px 0; max-width: 100%; }}
             .author {{ display: flex; align-items: center; margin-bottom: 20px; }}
             .author img {{ width: 50px; height: 50px; border-radius: 50%; margin-right: 10px; }}
-            .author .date {{ margin-left: auto; font-size: 12px; color: gray; }}
+            .author .date, .repost .date {{ margin-left: auto; font-size: 12px; color: gray; }}
             .reactions {{ margin-top: 20px; }}
             .reply {{ margin-top: 20px; font-style: italic; color: gray; }}
             .repost {{ margin-top: 20px; font-style: italic; color: blue; }}

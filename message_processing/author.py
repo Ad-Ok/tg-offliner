@@ -1,12 +1,26 @@
 import os
 from config import OUTPUT_DIR
 
-def process_author(sender, client, peer_id=None):
-    """Обрабатывает автора сообщения."""
+def download_avatar(entity, client):
+    """Скачивает аватар для указанного объекта (пользователь, чат или канал)."""
+    avatar_dir = os.path.join(OUTPUT_DIR, "avatars")
+    os.makedirs(avatar_dir, exist_ok=True)
+
+    if entity and entity.photo:
+        avatar_path = client.download_profile_photo(
+            entity,
+            file=os.path.join(avatar_dir, f"avatar_{entity.id}.jpg")
+        )
+        return f"avatars/{os.path.basename(avatar_path)}" if avatar_path else ""
+    return ""
+
+def process_author(sender, client, peer_id=None, from_id=None):
+    """Обрабатывает автора сообщения или оригинального поста из репоста."""
     sender_name = ""
     sender_avatar = ""
     sender_link = ""
 
+    # Если передан sender (автор сообщения)
     if sender:
         if hasattr(sender, 'first_name') or hasattr(sender, 'last_name'):  # Пользователь
             sender_name = sender.first_name or sender.last_name or "Без имени"
@@ -14,24 +28,16 @@ def process_author(sender, client, peer_id=None):
                 sender_link = f"https://t.me/{sender.username}"
             elif sender.id:
                 sender_link = f"https://t.me/user?id={sender.id}"
-        elif hasattr(sender, 'title'):  # Канал
+        elif hasattr(sender, 'title'):  # Канал или группа
             sender_name = sender.title
             if sender.username:
                 sender_link = f"https://t.me/{sender.username}"
             elif sender.id:
                 sender_link = f"https://t.me/c/{sender.id}"
 
-        # Скачивание аватара
-        avatar_dir = os.path.join(OUTPUT_DIR, "avatars")
-        os.makedirs(avatar_dir, exist_ok=True)
-        if sender.photo:
-            avatar_path = client.download_profile_photo(
-                sender,
-                file=os.path.join(avatar_dir, f"avatar_{sender.id}.jpg")
-            )
-            sender_avatar = f"avatars/{os.path.basename(avatar_path)}" if avatar_path else ""
+        sender_avatar = download_avatar(sender, client)
 
-    # Если sender отсутствует, используем peer_id
+    # Если sender отсутствует, но есть peer_id (например, для чата)
     elif peer_id:
         # Получаем информацию о чате
         chat = client.get_entity(peer_id)
@@ -41,14 +47,27 @@ def process_author(sender, client, peer_id=None):
         elif chat.id:
             sender_link = f"https://t.me/c/{chat.id}"
 
-        # Скачивание аватара чата
-        avatar_dir = os.path.join(OUTPUT_DIR, "avatars")
-        os.makedirs(avatar_dir, exist_ok=True)
-        if chat.photo:
-            avatar_path = client.download_profile_photo(
-                chat,
-                file=os.path.join(avatar_dir, f"avatar_{chat.id}.jpg")
-            )
-            sender_avatar = f"avatars/{os.path.basename(avatar_path)}" if avatar_path else ""
+        sender_avatar = download_avatar(chat, client)
+
+    # Если передан from_id (например, для автора оригинального поста из репоста)
+    elif from_id:
+        try:
+            entity = client.get_entity(from_id)
+            if hasattr(entity, 'first_name') or hasattr(entity, 'last_name'):  # Пользователь
+                sender_name = entity.first_name or entity.last_name or "Без имени"
+                if entity.username:
+                    sender_link = f"https://t.me/{entity.username}"
+                elif entity.id:
+                    sender_link = f"https://t.me/user?id={entity.id}"
+            elif hasattr(entity, 'title'):  # Канал или группа
+                sender_name = entity.title
+                if entity.username:
+                    sender_link = f"https://t.me/{entity.username}"
+                elif entity.id:
+                    sender_link = f"https://t.me/c/{entity.id}"
+
+            sender_avatar = download_avatar(entity, client)
+        except Exception as e:
+            print(f"Ошибка при получении информации об авторе: {e}")
 
     return sender_name, sender_avatar, sender_link
