@@ -7,6 +7,7 @@ from telegram_client import connect_to_telegram
 from message_processing.process_message import process_message
 from message_processing.media import process_media  # Импортируем process_media
 from html_generator import generate_html
+from utils.time_utils import format_elapsed_time
 
 def main():
     start_time = time.time()  # Начало замера времени
@@ -93,20 +94,8 @@ def main():
 
     elapsed_time = time.time() - start_time  # Конец замера времени
 
-    # Преобразуем время в часы, минуты и секунды
-    hours = int(elapsed_time // 3600)
-    minutes = int((elapsed_time % 3600) // 60)
-    seconds = int(elapsed_time % 60)
-
-    # Формируем строку времени
-    time_parts = []
-    if hours > 0:
-        time_parts.append(f"{hours} ч.")
-    if minutes > 0 or hours > 0:  # Показываем минуты, если есть часы
-        time_parts.append(f"{minutes} мин.")
-    time_parts.append(f"{seconds} сек.")
-
-    time_string = " ".join(time_parts)
+    # Преобразуем время в строку
+    time_string = format_elapsed_time(elapsed_time)
     print(f"Экспорт завершён за {time_string}")
 
 if __name__ == "__main__":
