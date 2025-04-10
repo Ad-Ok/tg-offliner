@@ -61,3 +61,14 @@ audio, video {
     width: 100%;
     margin-top: 10px;
 }
+
+.spoiler,
+tg-spoiler {
+    background-color: black;
+    color: black;
+    cursor: pointer;
+}
+
+.spoiler:hover {
+    color: white;
+}
