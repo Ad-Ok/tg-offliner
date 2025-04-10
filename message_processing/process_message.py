@@ -6,6 +6,7 @@ from .media import process_media
 from telethon.tl.types import PeerChannel
 from html_generator import generate_message_html
 from datetime import datetime
+from utils.date_utils import format_message_date
 
 def process_message(message, client):
     """Обрабатывает одно сообщение и возвращает данные для HTML."""
@@ -13,20 +14,13 @@ def process_message(message, client):
     system_message = process_system_message(message)
 
     # Форматируем дату сообщения
-    months = {
-        1: "января", 2: "февраля", 3: "марта", 4: "апреля", 5: "мая", 6: "июня",
-        7: "июля", 8: "августа", 9: "сентября", 10: "октября", 11: "ноября", 12: "декабря"
-    }
-    if message.date:
-        message_date = f"{message.date.day} {months[message.date.month]} {message.date.year} {message.date.strftime('%H:%M')}"
-    else:
-        message_date = "Неизвестно"
+    message_date = format_message_date(message.date)
 
     # Обработка репоста
     repost_html = ""
     if message.fwd_from:
         repost_source, repost_avatar, repost_link = process_author(None, client, from_id=message.fwd_from.from_id)
-        repost_date = message.fwd_from.date.strftime("%d %B %Y %H:%M") if message.fwd_from.date else "Неизвестно"
+        repost_date = format_message_date(message.fwd_from.date)
         repost_html = f"""
         <div class="repost">
             <p>Репост от: <strong><a href="{repost_link}" target="_blank">{repost_source}</a></strong></p>
