@@ -1,6 +1,7 @@
 import os
 import shutil
 from jinja2 import Environment, FileSystemLoader
+from utils.date_utils import format_file_date
 
 def copy_static_files(output_dir):
     """Копирует папку static в папку с экспортом."""
@@ -59,8 +60,11 @@ def generate_html(post_data, output_dir, post_id, post_date):
         post_date=post_date,
     )
 
+    # Формируем имя файла с использованием format_file_date
+    file_name_date = format_file_date(post_date)
+    html_filename = os.path.join(output_dir, f"post_{post_id}_{file_name_date}.html")
+
     # Сохраняем HTML
-    html_filename = os.path.join(output_dir, f"post_{post_id}_{post_date}.html")
     with open(html_filename, 'w', encoding='utf-8') as f:
         f.write(html_content)
 
