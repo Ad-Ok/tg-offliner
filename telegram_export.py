@@ -33,19 +33,23 @@ def main():
             continue
 
         if post.grouped_id:
+            # Если сообщение принадлежит группе, добавляем его в группу
             if post.grouped_id not in grouped_messages:
                 grouped_messages[post.grouped_id] = []
+                processed_count += 1  # Увеличиваем счётчик только для новой группы
             grouped_messages[post.grouped_id].append(post)
         else:
+            # Обрабатываем одиночное сообщение
             post_data = process_message(post, client)
             post_date = post.date.strftime('%d %B %Y, %H:%M')
             generate_html(post_data, OUTPUT_DIR, post.id, post_date)
+            processed_count += 1  # Увеличиваем счётчик для одиночного сообщения
 
-        processed_count += 1
-
+        # Прерываем цикл, если достигнут лимит
         if message_limit and processed_count >= message_limit:
             break
 
+    # Обрабатываем группы сообщений
     for group_id, posts in grouped_messages.items():
         main_post = posts[-1]
         post_data = process_message(main_post, client)

@@ -13,7 +13,7 @@ OUTPUT_DIR = os.getenv("OUTPUT_DIR", "telegram_export")
 
 EXPORT_SETTINGS = {
     "include_system_messages": False,
-    "include_reposts": False,
-    "include_polls": False,
-    "message_limit": 2  # False для безлимитного скачивания, либо число
+    "include_reposts": True,
+    "include_polls": True,
+    "message_limit": False  # False для безлимитного скачивания, либо число
 }
