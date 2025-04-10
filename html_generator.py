@@ -13,7 +13,7 @@ def copy_static_files(output_dir):
         print(f"Папка static не найдена по пути: {static_dir}")
 
 def generate_message_html(sender_name, sender_avatar, sender_link, formatted_text, poll_html, media_html, reactions_html, reply_html, repost_html, message_date):
-    """Генерирует HTML для одного сообщения."""
+    """Генерирует HTML для одного сообщения или комментария."""
     templates_dir = os.path.join(os.path.dirname(__file__), "templates")
     env = Environment(loader=FileSystemLoader(templates_dir))
     template = env.get_template("message.html")
