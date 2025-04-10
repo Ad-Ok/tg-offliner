@@ -7,6 +7,7 @@ from telethon.tl.types import PeerChannel
 from html_generator import generate_message_html
 from datetime import datetime
 from utils.date_utils import format_message_date
+from utils.text_format import parse_entities_to_html
 
 def process_message(message, client):
     """Обрабатывает одно сообщение и возвращает данные для HTML."""
@@ -42,8 +43,9 @@ def process_message(message, client):
             "message_date": message_date,
         }
 
-    # Обработка текста сообщения
-    formatted_text = message.message or ""
+    # Обработка текста сообщения с учётом форматирования
+    raw_text = message.message or ""
+    formatted_text = parse_entities_to_html(raw_text, message.entities)
 
     # Обработка голосования, реакций и медиа
     poll_html = process_poll(message)
@@ -70,7 +72,7 @@ def process_message(message, client):
         "sender_name": sender_name,
         "sender_avatar": sender_avatar,
         "sender_link": sender_link,
-        "formatted_text": formatted_text,
+        "formatted_text": formatted_text,  # Используем отформатированный текст
         "poll_html": poll_html,
         "media_html": media_html,
         "reactions_html": reactions_html,
