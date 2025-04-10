@@ -14,6 +14,7 @@ def process_media(message, client):
         )
         if media_path:
             file_extension = media_path.lower().split('.')[-1]
+            mime_type = getattr(message.document, 'mime_type', None)  # Проверяем наличие mime_type
             if file_extension in ('png', 'jpg', 'jpeg', 'gif', 'webp'):
                 # Обработка изображений
                 media_html = f'<img src="media/{os.path.basename(media_path)}" alt="Media" class="media">'
@@ -21,17 +22,15 @@ def process_media(message, client):
                 # Обработка видео
                 media_html = f'''
                 <video controls class="media">
-                    <source src="media/{os.path.basename(media_path)}" type="video/{file_extension}">
+                    <source src="media/{os.path.basename(media_path)}" type="{mime_type or f'video/{file_extension}'}">
                     Ваш браузер не поддерживает видео.
                 </video>
                 '''
             elif file_extension in ('mp3', 'wav', 'ogg', 'oga'):
                 # Обработка аудио
-                if file_extension == 'oga':
-                    file_extension = 'ogg'
                 media_html = f'''
                 <audio controls class="media">
-                    <source src="media/{os.path.basename(media_path)}" type="audio/{file_extension}">
+                    <source src="media/{os.path.basename(media_path)}" type="{mime_type or f'audio/{file_extension}'}">
                     Ваш браузер не поддерживает аудио.
                 </audio>
                 '''

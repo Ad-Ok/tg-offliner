@@ -69,6 +69,7 @@ tg-spoiler {
     cursor: pointer;
 }
 
-.spoiler:hover {
+.spoiler:hover,
+tg-spoiler:hover {
     color: white;
 }
