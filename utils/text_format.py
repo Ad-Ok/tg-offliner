@@ -7,7 +7,8 @@ from telethon.tl.types import (
 def parse_entities_to_html(message_text, entities):
     """Преобразует текст сообщения с форматированием в HTML."""
     if not entities:
-        return message_text  # Если нет форматирования, возвращаем текст как есть
+        # Если нет форматирования, заменяем \n на <br> для разбиения на строки
+        return message_text.replace('\n', '<br>')
 
     html_text = message_text
     offset_adjustment = 0  # Для корректировки смещения после вставки тегов
@@ -41,4 +42,6 @@ def parse_entities_to_html(message_text, entities):
             html_text = html_text[:start] + f'<a href="https://t.me/{html_text[start:end]}">' + html_text[start:end] + "</a>" + html_text[end:]
             offset_adjustment += len(f'<a href="https://t.me/"></a>') - entity.length
 
+    # Заменяем оставшиеся \n на <br> для разбиения на строки
+    html_text = html_text.replace('\n', '<br>')
     return html_text
