@@ -37,9 +37,9 @@ def generate_pdf_from_html_files(output_dir, pdf_filename="posts_feed.pdf"):
             combined_html += f.read()
     combined_html += "</body></html>"
 
-    # Генерируем PDF
+    # Генерируем PDF с указанием base_url
     print(f"Генерация PDF-файла: {pdf_path}")
-    HTML(string=combined_html).write_pdf(pdf_path)
+    HTML(string=combined_html, base_url=output_dir).write_pdf(pdf_path)
     print(f"PDF-файл успешно создан: {pdf_path}")
 
 def main(download_posts=True, generate_pdf=True):
