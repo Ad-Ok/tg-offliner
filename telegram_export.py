@@ -106,7 +106,7 @@ def main(download_posts=True, generate_pdf=True, generate_index=True):
 
     if generate_index:
         # Генерация индексного файла
-        generate_index_file(OUTPUT_DIR)
+        generate_index_file(OUTPUT_DIR, CHANNEL_USERNAME)
 
     if generate_pdf:
         # Генерация PDF после завершения экспорта

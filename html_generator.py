@@ -70,11 +70,12 @@ def generate_html(post_data, output_dir, post_id, post_date):
 
     print(f"Сохранён пост: {html_filename}")
 
-def generate_index_file(output_dir):
+def generate_index_file(output_dir, channel_username):
     """
-    Генерирует индексный HTML-файл со ссылками на все посты.
+    Генерирует индексный HTML-файл со ссылками на все посты и их оригиналы в Telegram.
     
     :param output_dir: Папка, где находятся HTML-файлы постов.
+    :param channel_username: Имя канала в Telegram (без @).
     """
     # Список всех HTML-файлов в папке
     html_files = sorted(
@@ -87,7 +88,11 @@ def generate_index_file(output_dir):
 
     # Генерируем ссылки на все файлы
     links = "\n".join(
-        [f'<li><a href="{file}">{file}</a></li>' for file in html_files]
+        [
+            f'<li><a href="{file}">{file}</a> - '
+            f'<a href="https://t.me/{channel_username}/{file.split("_")[1]}">Оригинал в Telegram</a></li>'
+            for file in html_files
+        ]
     )
 
     # Создаём содержимое индексного файла
