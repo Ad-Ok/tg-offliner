@@ -15,5 +15,5 @@ EXPORT_SETTINGS = {
     "include_system_messages": False,
     "include_reposts": True,
     "include_polls": True,
-    "message_limit": False  # False для безлимитного скачивания, либо число
+    "message_limit": 20  # False для безлимитного скачивания, либо число
 }

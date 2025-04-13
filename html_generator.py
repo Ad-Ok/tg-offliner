@@ -69,3 +69,49 @@ def generate_html(post_data, output_dir, post_id, post_date):
         f.write(html_content)
 
     print(f"Сохранён пост: {html_filename}")
+
+def generate_index_file(output_dir):
+    """
+    Генерирует индексный HTML-файл со ссылками на все посты.
+    
+    :param output_dir: Папка, где находятся HTML-файлы постов.
+    """
+    # Список всех HTML-файлов в папке
+    html_files = sorted(
+        [f for f in os.listdir(output_dir) if f.endswith(".html") and not f.startswith("index")]
+    )
+
+    if not html_files:
+        print("Нет HTML-файлов для создания индексного файла.")
+        return
+
+    # Генерируем ссылки на все файлы
+    links = "\n".join(
+        [f'<li><a href="{file}">{file}</a></li>' for file in html_files]
+    )
+
+    # Создаём содержимое индексного файла
+    index_content = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Index of Posts</title>
+        <link rel="stylesheet" href="static/styles.css">
+    </head>
+    <body>
+        <h1>Index of Posts</h1>
+        <ul>
+            {links}
+        </ul>
+    </body>
+    </html>
+    """
+
+    # Сохраняем индексный файл
+    index_file_path = os.path.join(output_dir, "index.html")
+    with open(index_file_path, "w", encoding="utf-8") as f:
+        f.write(index_content)
+
+    print(f"Индексный файл создан: {index_file_path}")

@@ -7,7 +7,7 @@ from config import CHANNEL_USERNAME, OUTPUT_DIR, EXPORT_SETTINGS
 from telegram_client import connect_to_telegram
 from message_processing.process_message import process_message
 from message_processing.media import process_media
-from html_generator import generate_html
+from html_generator import generate_html, generate_index_file
 from utils.time_utils import format_elapsed_time
 from weasyprint import HTML
 
@@ -42,7 +42,7 @@ def generate_pdf_from_html_files(output_dir, pdf_filename="posts_feed.pdf"):
     HTML(string=combined_html, base_url=output_dir).write_pdf(pdf_path)
     print(f"PDF-файл успешно создан: {pdf_path}")
 
-def main(download_posts=True, generate_pdf=True):
+def main(download_posts=True, generate_pdf=True, generate_index=True):
     start_time = time.time()
 
     if download_posts:
@@ -104,6 +104,10 @@ def main(download_posts=True, generate_pdf=True):
         time_string = format_elapsed_time(elapsed_time)
         print(f"Экспорт завершён за {time_string}")
 
+    if generate_index:
+        # Генерация индексного файла
+        generate_index_file(OUTPUT_DIR)
+
     if generate_pdf:
         # Генерация PDF после завершения экспорта
         generate_pdf_from_html_files(OUTPUT_DIR)
@@ -120,11 +124,16 @@ if __name__ == "__main__":
         action="store_true",
         help="Генерировать PDF из уже скачанных HTML-файлов без обновления постов."
     )
+    parser.add_argument(
+        "--no-index",
+        action="store_true",
+        help="Не генерировать индексный файл со ссылками на посты."
+    )
     args = parser.parse_args()
 
     if args.only_pdf:
-        main(download_posts=False, generate_pdf=True)
+        main(download_posts=False, generate_pdf=True, generate_index=False)
     elif args.no_pdf:
-        main(download_posts=True, generate_pdf=False)
+        main(download_posts=True, generate_pdf=False, generate_index=not args.no_index)
     else:
-        main(download_posts=True, generate_pdf=True)
+        main(download_posts=True, generate_pdf=True, generate_index=not args.no_index)

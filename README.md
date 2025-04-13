@@ -66,10 +66,18 @@ The script supports the following flags to control its behavior:
    python telegram_export.py --only-pdf
    ```
 
-3. **Default behavior (no flags):**  
+3. **`--no-index`**  
+   Use this flag to skip generating the index file with links to all posts.  
+   Example:
+   ```bash
+   python telegram_export.py --no-index
+   ```
+
+4. **Default behavior (no flags):**  
    If no flags are provided, the script will:
    - Download posts as HTML.
-   - Generate a PDF from the downloaded HTML files.  
+   - Generate a PDF from the downloaded HTML files.
+   - Generate an index file with links to all posts.  
    Example:
    ```bash
    python telegram_export.py
@@ -89,7 +97,17 @@ The script supports the following flags to control its behavior:
   python telegram_export.py --only-pdf
   ```
 
-- **Perform both actions (default):**
+- **Download only HTML files without generating an index file:**
+  ```bash
+  python telegram_export.py --no-pdf --no-index
+  ```
+
+- **Generate a PDF from existing HTML files without generating an index file:**
+  ```bash
+  python telegram_export.py --only-pdf --no-index
+  ```
+
+- **Perform all actions (default):**
   ```bash
   python telegram_export.py
   ```
@@ -100,5 +118,6 @@ The script supports the following flags to control its behavior:
 
 - Export Telegram posts as individual HTML files.
 - Combine all exported posts into a single PDF file.
+- Generate an index file with links to all posts.
 - Support for grouped messages and media attachments.
 - Flexible command-line options for controlling the export process.
