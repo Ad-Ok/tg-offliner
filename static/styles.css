@@ -67,9 +67,19 @@ tg-spoiler {
     background-color: black;
     color: black;
     cursor: pointer;
+    transition: color 0.3s ease, background-color 0.3s ease;
 }
 
 .spoiler:hover,
 tg-spoiler:hover {
     color: white;
+    background-color: #444;
+}
+
+@media print {
+    .spoiler,
+    tg-spoiler {
+        background-color: #444;
+        color: white;
+    }
 }
