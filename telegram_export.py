@@ -3,7 +3,7 @@ import shutil
 import time
 import argparse
 from datetime import datetime
-from config import CHANNEL_USERNAME, OUTPUT_DIR, EXPORT_SETTINGS
+from config import OUTPUT_DIR, EXPORT_SETTINGS
 from telegram_client import connect_to_telegram
 from message_processing.process_message import process_message
 from message_processing.media import process_media
@@ -42,7 +42,7 @@ def generate_pdf_from_html_files(output_dir, pdf_filename="posts_feed.pdf"):
     HTML(string=combined_html, base_url=output_dir).write_pdf(pdf_path)
     print(f"PDF-файл успешно создан: {pdf_path}")
 
-def main(download_posts=True, generate_pdf=True, generate_index=True):
+def main(download_posts=True, generate_pdf=True, generate_index=True, channel_username=None):
     start_time = time.time()
 
     if download_posts:
@@ -51,7 +51,7 @@ def main(download_posts=True, generate_pdf=True, generate_index=True):
         os.makedirs(OUTPUT_DIR, exist_ok=True)
 
         client = connect_to_telegram()
-        channel = client.get_entity(CHANNEL_USERNAME)
+        channel = client.get_entity(channel_username)
         message_limit = EXPORT_SETTINGS.get("message_limit", False)
 
         all_posts = client.iter_messages(channel, limit=None)
@@ -106,7 +106,7 @@ def main(download_posts=True, generate_pdf=True, generate_index=True):
 
     if generate_index:
         # Генерация индексного файла
-        generate_index_file(OUTPUT_DIR, CHANNEL_USERNAME)
+        generate_index_file(OUTPUT_DIR, channel_username)
 
     if generate_pdf:
         # Генерация PDF после завершения экспорта
@@ -114,6 +114,11 @@ def main(download_posts=True, generate_pdf=True, generate_index=True):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Экспорт постов Telegram в HTML и PDF.")
+    parser.add_argument(
+        "--channel",
+        required=True,
+        help="Имя Telegram-канала (без @), из которого нужно экспортировать посты."
+    )
     parser.add_argument(
         "--no-pdf",
         action="store_true",
@@ -131,9 +136,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    # Передаём имя канала из аргументов
+    channel_username = args.channel
+
     if args.only_pdf:
-        main(download_posts=False, generate_pdf=True, generate_index=False)
+        main(download_posts=False, generate_pdf=True, generate_index=not args.no_index, channel_username=channel_username)
     elif args.no_pdf:
-        main(download_posts=True, generate_pdf=False, generate_index=not args.no_index)
+        main(download_posts=True, generate_pdf=False, generate_index=not args.no_index, channel_username=channel_username)
     else:
-        main(download_posts=True, generate_pdf=True, generate_index=not args.no_index)
+        main(download_posts=True, generate_pdf=True, generate_index=not args.no_index, channel_username=channel_username)

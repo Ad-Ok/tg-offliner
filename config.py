@@ -8,7 +8,6 @@ load_dotenv()
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 PHONE = os.getenv("PHONE")
-CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME")
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "telegram_export")
 
 EXPORT_SETTINGS = {

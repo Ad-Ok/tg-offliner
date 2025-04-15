@@ -27,8 +27,10 @@ pip install -r requirements.txt
 Navigate to the folder where the `telegram_export.py` file is located and execute the following command:
 
 ```bash
-python telegram_export.py
+python telegram_export.py --channel <channel_name>
 ```
+
+Replace `<channel_name>` with the username of the Telegram channel (without `@`).
 
 ---
 
@@ -52,35 +54,42 @@ If you moved sensitive data to a `.env` file, ensure the `.env` file is in the s
 
 The script supports the following flags to control its behavior:
 
-1. **`--no-pdf`**  
+1. **`--channel`** (required)  
+   Use this flag to specify the Telegram channel to export posts from (without `@`).  
+   Example:
+   ```bash
+   python telegram_export.py --channel example_channel
+   ```
+
+2. **`--no-pdf`**  
    Use this flag to download posts as HTML without generating a PDF.  
    Example:
    ```bash
-   python telegram_export.py --no-pdf
+   python telegram_export.py --channel example_channel --no-pdf
    ```
 
-2. **`--only-pdf`**  
+3. **`--only-pdf`**  
    Use this flag to generate a PDF from already downloaded HTML files without downloading new posts.  
    Example:
    ```bash
-   python telegram_export.py --only-pdf
+   python telegram_export.py --channel example_channel --only-pdf
    ```
 
-3. **`--no-index`**  
+4. **`--no-index`**  
    Use this flag to skip generating the index file with links to all posts.  
    Example:
    ```bash
-   python telegram_export.py --no-index
+   python telegram_export.py --channel example_channel --no-index
    ```
 
-4. **Default behavior (no flags):**  
+5. **Default behavior (no flags):**  
    If no flags are provided, the script will:
    - Download posts as HTML.
    - Generate a PDF from the downloaded HTML files.
    - Generate an index file with links to all posts.  
    Example:
    ```bash
-   python telegram_export.py
+   python telegram_export.py --channel example_channel
    ```
 
 ---
@@ -89,27 +98,27 @@ The script supports the following flags to control its behavior:
 
 - **Download only HTML files:**
   ```bash
-  python telegram_export.py --no-pdf
+  python telegram_export.py --channel example_channel --no-pdf
   ```
 
 - **Generate a PDF from existing HTML files:**
   ```bash
-  python telegram_export.py --only-pdf
+  python telegram_export.py --channel example_channel --only-pdf
   ```
 
 - **Download only HTML files without generating an index file:**
   ```bash
-  python telegram_export.py --no-pdf --no-index
+  python telegram_export.py --channel example_channel --no-pdf --no-index
   ```
 
 - **Generate a PDF from existing HTML files without generating an index file:**
   ```bash
-  python telegram_export.py --only-pdf --no-index
+  python telegram_export.py --channel example_channel --only-pdf --no-index
   ```
 
 - **Perform all actions (default):**
   ```bash
-  python telegram_export.py
+  python telegram_export.py --channel example_channel
   ```
 
 ---
