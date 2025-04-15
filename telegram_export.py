@@ -7,7 +7,7 @@ from config import OUTPUT_DIR, EXPORT_SETTINGS
 from telegram_client import connect_to_telegram
 from message_processing.process_message import process_message
 from message_processing.media import process_media
-from html_generator import generate_html, generate_index_file
+from html_generator import generate_html, generate_index_file, generate_main_page
 from utils.time_utils import format_elapsed_time
 from weasyprint import HTML
 
@@ -52,6 +52,20 @@ def main(download_posts=True, generate_pdf=True, generate_index=True, channel_us
 
         client = connect_to_telegram()
         channel = client.get_entity(channel_username)
+
+        # Получаем информацию о канале
+        channel_info = {
+            "name": channel.title,
+            "tagline": "Информация о канале",
+            "avatar": f"media/{channel.photo.photo_id}.jpg" if channel.photo else "static/default_avatar.png",
+            "username": channel.username,
+            "creation_date": channel.date.strftime('%d %B %Y'),
+            "subscribers": channel.participants_count
+        }
+
+        # Генерируем заглавную страницу
+        generate_main_page(OUTPUT_DIR, channel_info)
+
         message_limit = EXPORT_SETTINGS.get("message_limit", False)
 
         all_posts = client.iter_messages(channel, limit=None)

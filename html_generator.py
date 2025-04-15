@@ -120,3 +120,31 @@ def generate_index_file(output_dir, channel_username):
         f.write(index_content)
 
     print(f"Индексный файл создан: {index_file_path}")
+
+def generate_main_page(output_dir, channel_info):
+    """
+    Генерирует заглавную страницу с информацией о канале.
+    
+    :param output_dir: Папка, где будет сохранён файл.
+    :param channel_info: Словарь с информацией о канале (название, таглайн, аватар и т.д.).
+    """
+    templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+    env = Environment(loader=FileSystemLoader(templates_dir))
+    template = env.get_template("main_page.html")
+
+    # Рендерим HTML-контент
+    html_content = template.render(
+        channel_name=channel_info["name"],
+        channel_tagline=channel_info["tagline"],
+        channel_avatar=channel_info["avatar"],
+        channel_username=channel_info["username"],
+        channel_creation_date=channel_info["creation_date"],
+        channel_subscribers=channel_info["subscribers"]
+    )
+
+    # Сохраняем файл
+    main_page_path = os.path.join(output_dir, "page_00.html")
+    with open(main_page_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    print(f"Заглавная страница создана: {main_page_path}")
