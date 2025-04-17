@@ -1,8 +1,5 @@
-import os
-import shutil
-import time
-import argparse
-from datetime import datetime
+from telethon.sync import TelegramClient
+from telethon.tl.functions.channels import GetFullChannelRequest
 from config import OUTPUT_DIR, EXPORT_SETTINGS
 from telegram_client import connect_to_telegram
 from message_processing.process_message import process_message
@@ -11,6 +8,11 @@ from html_generator import generate_html, generate_index_file, generate_main_pag
 from utils.time_utils import format_elapsed_time
 from weasyprint import HTML
 from message_processing.author import download_avatar
+import os
+import shutil
+import time
+import argparse
+from datetime import datetime
 
 def generate_pdf_from_html_files(output_dir, pdf_filename="posts_feed.pdf"):
     """
@@ -54,7 +56,11 @@ def main(download_posts=True, generate_pdf=True, generate_index=True, channel_us
         client = connect_to_telegram()
         channel = client.get_entity(channel_username)
 
-        # Сохраняем аватар канала с использованием download_avatar
+        # Получаем полную информацию о канале
+        full_info = client(GetFullChannelRequest(channel=channel))
+        participants_count = full_info.full_chat.participants_count
+
+        # Сохраняем аватар канала
         avatar_path = download_avatar(channel, client)
 
         # Получаем информацию о канале
@@ -64,7 +70,7 @@ def main(download_posts=True, generate_pdf=True, generate_index=True, channel_us
             "avatar": avatar_path if avatar_path else "static/default_avatar.png",
             "username": channel.username,
             "creation_date": channel.date.strftime('%d %B %Y'),
-            "subscribers": channel.participants_count
+            "subscribers": participants_count if participants_count is not None else "Unknown"
         }
 
         # Генерируем заглавную страницу
