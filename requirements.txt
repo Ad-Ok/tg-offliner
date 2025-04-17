@@ -1,3 +1,7 @@
+flask
+flask-sqlalchemy
+flask-cors
+
 beautifulsoup4==4.13.3
 Brotli==1.1.0
 cffi==1.17.1
@@ -15,6 +19,7 @@ pydyf==0.11.0
 pyphen==0.17.2
 Pypubsub==4.0.3
 python-dotenv==1.1.0
+requests
 rsa==4.9
 six==1.16.0
 soupsieve==2.6

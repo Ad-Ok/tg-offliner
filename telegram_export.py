@@ -15,6 +15,7 @@ import time
 import argparse
 from datetime import datetime
 from telethon.tl.types import User, Channel, Chat
+import requests
 
 def generate_pdf_from_html_files(output_dir, pdf_filename="posts_feed.pdf"):
     """
@@ -78,37 +79,35 @@ def main(download_posts=True, generate_pdf=True, generate_index=True, channel_us
             if not EXPORT_SETTINGS["include_polls"] and post.poll:
                 continue
 
-            if post.grouped_id:
-                # Если сообщение принадлежит группе, добавляем его в группу
-                if post.grouped_id not in grouped_messages:
-                    grouped_messages[post.grouped_id] = []
-                    processed_count += 1  # Увеличиваем счётчик только для новой группы
-                grouped_messages[post.grouped_id].append(post)
-            else:
-                # Обрабатываем одиночное сообщение
-                post_data = process_message(post, client)
-                post_date = post.date.strftime('%d %B %Y, %H:%M')
-                generate_html(post_data, OUTPUT_DIR, post.id, post_date)
-                processed_count += 1  # Увеличиваем счётчик для одиночного сообщения
+            post_data = process_message(post, client)
+            post_date = post.date.strftime('%d %B %Y, %H:%M')
+
+            # Сохраняем пост в HTML
+            generate_html(post_data, OUTPUT_DIR, post.id, post_date)
+
+            # Сохраняем пост в базу данных через API
+            api_data = {
+                "telegram_id": str(post.id),
+                "title": post_data.get("title", None),
+                "content": post_data.get("formatted_text", ""),
+                "date": post_date,
+                "media": post_data.get("media_html", None),
+                "channel_name": channel_info["name"]
+            }
+            try:
+                response = requests.post("http://127.0.0.1:5000/api/posts", json=api_data)
+                if response.status_code == 201:
+                    print(f"Пост {post.id} успешно добавлен в базу данных.")
+                else:
+                    print(f"Ошибка при добавлении поста {post.id}: {response.text}")
+            except Exception as e:
+                print(f"Ошибка при подключении к API: {e}")
+
+            processed_count += 1
 
             # Прерываем цикл, если достигнут лимит
             if message_limit and processed_count >= message_limit:
                 break
-
-        # Обрабатываем группы сообщений
-        for group_id, posts in grouped_messages.items():
-            main_post = posts[-1]
-            post_data = process_message(main_post, client)
-            formatted_text = post_data.get("formatted_text", "")
-            media_html = post_data.get("media_html", "")
-            for post in posts[:-1]:
-                media_html += process_media(post, client)
-
-            post_data["media_html"] = media_html
-            post_data["formatted_text"] = formatted_text
-
-            post_date = main_post.date.strftime('%d %B %Y, %H:%M')
-            generate_html(post_data, OUTPUT_DIR, main_post.id, post_date)
 
         client.disconnect()
 
