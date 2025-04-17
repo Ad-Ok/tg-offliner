@@ -7,6 +7,8 @@ from models import db, Post
 from database import create_app, init_db
 import os
 
+MEDIA_DIR = os.path.join(os.path.dirname(__file__), 'media')
+
 app = create_app()
 CORS(app, resources={r"/*": {"origins": "http://localhost:8080"}})  # Разрешаем CORS для фронтенда
 init_db(app)
@@ -18,7 +20,9 @@ def get_posts():
     return jsonify([{
         "id": post.id,
         "date": post.date,
-        "message": post.message  # Добавляем текст сообщения
+        "message": post.message,
+        "media_url": post.media_url,
+        "media_type": post.media_type
     } for post in posts])
 
 @app.route('/api/posts', methods=['POST'])
@@ -28,7 +32,9 @@ def add_post():
     new_post = Post(
         telegram_id=data['telegram_id'],
         date=data['date'],
-        message=data.get('message', '')  # Текст сообщения (по умолчанию пустая строка)
+        message=data.get('message', ''),  # Текст сообщения (по умолчанию пустая строка)
+        media_url=data.get('media_url'),  # Сохраняем ссылку на медиа
+        media_type=data.get('media_type')  # Сохраняем тип медиа
     )
     db.session.add(new_post)
     db.session.commit()
@@ -49,8 +55,7 @@ def delete_posts():
 @app.route('/media/<path:filename>')
 def serve_media(filename):
     """Раздаёт медиафайлы из папки media."""
-    media_dir = os.path.join(os.getcwd(), 'media')
-    return send_from_directory(media_dir, filename)
+    return send_from_directory(MEDIA_DIR, filename)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

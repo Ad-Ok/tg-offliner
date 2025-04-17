@@ -6,8 +6,17 @@
       <div v-for="post in posts" :key="post.id" class="message">
         <!-- Дата сообщения -->
         <p><strong>Дата:</strong> {{ post.date }}</p>
-        <!-- Текст сообщения с форматированием -->
+        <!-- Текст сообщения -->
         <p v-html="post.message"></p>
+        <!-- Медиа -->
+        <div v-if="post.media_url">
+          <p><strong>Медиа ({{ post.media_type }}):</strong></p>
+          <img v-if="post.media_type === 'MessageMediaPhoto'" :src="post.media_url" alt="Медиа" />
+          <video v-else-if="post.media_type === 'MessageMediaDocument'" controls>
+            <source :src="post.media_url" />
+          </video>
+          <a v-else :href="post.media_url" target="_blank">Скачать файл</a>
+        </div>
       </div>
     </div>
   </div>

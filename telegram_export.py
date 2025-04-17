@@ -5,6 +5,10 @@ import time
 import argparse
 import requests
 from utils.text_format import parse_entities_to_html
+import os
+
+MEDIA_DIR = "media"  # Папка для сохранения медиафайлов
+os.makedirs(MEDIA_DIR, exist_ok=True)  # Создаём папку, если её нет
 
 def main(channel_username=None):
     start_time = time.time()
@@ -32,12 +36,23 @@ def main(channel_username=None):
         # Преобразуем текст и entities в HTML
         formatted_message = parse_entities_to_html(post.message or "", post.entities or [])
 
-        # Сохраняем ID, дату и отформатированный текст сообщения
+        # Скачиваем медиа, если оно есть
+        media_path = None
+        media_type = None
+        if post.media:
+            media_path = client.download_media(post.media, file=os.path.join(MEDIA_DIR, f"{post.id}_media"))
+            media_type = type(post.media).__name__  # Тип медиа (например, MessageMediaPhoto)
+            print(f"Медиа скачано: {media_path}, тип: {media_type}")
+
+        # Сохраняем ID, дату, текст сообщения, ссылку на медиа и его тип
         api_data = {
             "telegram_id": post.id,
             "date": post.date.strftime('%Y-%m-%dT%H:%M:%S'),  # Преобразуем дату в строку
-            "message": formatted_message  # Сохраняем отформатированный текст
+            "message": formatted_message,  # Сохраняем отформатированный текст
+            "media_url": f"http://127.0.0.1:5000/media/{os.path.basename(media_path)}" if media_path else None,
+            "media_type": media_type
         }
+        print("Отправляемые данные:", api_data)
         try:
             response = requests.post("http://127.0.0.1:5000/api/posts", json=api_data)
             if response.status_code == 201:
