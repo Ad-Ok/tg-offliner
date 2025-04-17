@@ -13,6 +13,7 @@ import shutil
 import time
 import argparse
 from datetime import datetime
+from telethon.tl.types import User, Channel, Chat
 
 def generate_pdf_from_html_files(output_dir, pdf_filename="posts_feed.pdf"):
     """
@@ -56,22 +57,56 @@ def main(download_posts=True, generate_pdf=True, generate_index=True, channel_us
         client = connect_to_telegram()
         channel = client.get_entity(channel_username)
 
-        # Получаем полную информацию о канале
-        full_info = client(GetFullChannelRequest(channel=channel))
-        participants_count = full_info.full_chat.participants_count
+        # Проверяем, является ли объект каналом, чатом или пользователем
+        if isinstance(channel, Channel):
+            # Получаем полную информацию о канале
+            full_info = client(GetFullChannelRequest(channel=channel))
+            participants_count = full_info.full_chat.participants_count
 
-        # Сохраняем аватар канала
-        avatar_path = download_avatar(channel, client)
+            # Сохраняем аватар канала
+            avatar_path = download_avatar(channel, client)
 
-        # Получаем информацию о канале
-        channel_info = {
-            "name": channel.title,
-            "tagline": "Информация о канале",
-            "avatar": avatar_path if avatar_path else "static/default_avatar.png",
-            "username": channel.username,
-            "creation_date": channel.date.strftime('%d %B %Y'),
-            "subscribers": participants_count if participants_count is not None else "Unknown"
-        }
+            # Формируем информацию о канале
+            channel_info = {
+                "name": channel.title,
+                "tagline": "Информация о канале",
+                "avatar": avatar_path if avatar_path else "static/default_avatar.png",
+                "username": channel.username if channel.username else "Unknown",
+                "creation_date": channel.date.strftime('%d %B %Y'),
+                "subscribers": participants_count if participants_count is not None else "Unknown"
+            }
+
+        elif isinstance(channel, User):
+            # Сохраняем аватар пользователя
+            avatar_path = download_avatar(channel, client)
+
+            # Формируем информацию о пользователе
+            channel_info = {
+                "name": f"{channel.first_name} {channel.last_name or ''}".strip(),
+                "tagline": "Чат с пользователем",
+                "avatar": avatar_path if avatar_path else "static/default_avatar.png",
+                "username": channel.username if channel.username else "Unknown",
+                "creation_date": "Unknown",
+                "subscribers": "N/A"
+            }
+
+        elif isinstance(channel, Chat):
+            # Сохраняем аватар чата
+            avatar_path = download_avatar(channel, client)
+
+            # Формируем информацию о чате
+            channel_info = {
+                "name": channel.title,
+                "tagline": "Групповой чат",
+                "avatar": avatar_path if avatar_path else "static/default_avatar.png",
+                "username": "Unknown",
+                "creation_date": "Unknown",
+                "subscribers": "N/A"
+            }
+
+        else:
+            print("Неизвестный тип объекта. Экспорт невозможен.")
+            return
 
         # Генерируем заглавную страницу
         generate_main_page(OUTPUT_DIR, channel_info)
