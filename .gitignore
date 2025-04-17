@@ -1,6 +1,8 @@
 
 telegram_export
 *.session
+media
+posts.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

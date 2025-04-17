@@ -1,15 +1,13 @@
 <template>
   <div id="app">
     <h1>Лента постов</h1>
-    <div v-if="loading">Загрузка...</div>
+    <div v-if="loading" class="loading">Загрузка...</div>
     <div v-else>
-      <div v-for="post in posts" :key="post.id" class="post">
-        <h2>{{ post.title }}</h2>
-        <p>{{ post.content }}</p>
-        <small>{{ post.date }}</small>
-        <div v-if="post.media" class="media">
-          <img :src="post.media" alt="Media" />
-        </div>
+      <div v-for="post in posts" :key="post.id" class="message">
+        <!-- Дата сообщения -->
+        <p><strong>Дата:</strong> {{ post.date }}</p>
+        <!-- Текст сообщения с форматированием -->
+        <p v-html="post.message"></p>
       </div>
     </div>
   </div>
@@ -39,31 +37,3 @@ export default {
   },
 };
 </script>
-
-<style>
-#app {
-  font-family: Arial, sans-serif;
-  margin: 20px;
-}
-
-.post {
-  border: 1px solid #ddd;
-  padding: 10px;
-  margin-bottom: 10px;
-  border-radius: 5px;
-}
-
-.post h2 {
-  margin: 0 0 10px;
-}
-
-.post small {
-  color: #888;
-}
-
-.media img {
-  max-width: 100%;
-  height: auto;
-  margin-top: 10px;
-}
-</style>

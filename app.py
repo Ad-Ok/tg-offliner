@@ -8,7 +8,7 @@ from database import create_app, init_db
 import os
 
 app = create_app()
-CORS(app)  # Разрешаем CORS для всех маршрутов
+CORS(app, resources={r"/*": {"origins": "http://localhost:8080"}})  # Разрешаем CORS для фронтенда
 init_db(app)
 
 @app.route('/api/posts', methods=['GET'])
@@ -17,12 +17,8 @@ def get_posts():
     posts = Post.query.all()
     return jsonify([{
         "id": post.id,
-        "telegram_id": post.telegram_id,
-        "title": post.title,
-        "content": post.content,
         "date": post.date,
-        "media": post.media,
-        "channel_name": post.channel_name
+        "message": post.message  # Добавляем текст сообщения
     } for post in posts])
 
 @app.route('/api/posts', methods=['POST'])
@@ -31,11 +27,8 @@ def add_post():
     data = request.json
     new_post = Post(
         telegram_id=data['telegram_id'],
-        title=data.get('title'),
-        content=data['content'],
         date=data['date'],
-        media=data.get('media'),
-        channel_name=data['channel_name']
+        message=data.get('message', '')  # Текст сообщения (по умолчанию пустая строка)
     )
     db.session.add(new_post)
     db.session.commit()

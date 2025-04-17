@@ -1,0 +1,85 @@
+body {
+    font-family: Arial;
+    max-width: 800px;
+    margin: auto;
+}
+
+.media {
+    margin: 20px 0;
+    max-width: 100%;
+}
+
+.author {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.author img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.author .date, .repost .date {
+    margin-left: auto;
+    font-size: 12px;
+    color: gray;
+}
+
+.reactions {
+    margin-top: 20px;
+}
+
+.reply {
+    margin-top: 20px;
+    font-style: italic;
+    color: gray;
+}
+
+.repost {
+    margin-top: 20px;
+    font-style: italic;
+    color: blue;
+}
+
+.comments {
+    margin-top: 20px;
+}
+
+.comments ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.comments li {
+    margin-bottom: 10px;
+}
+
+audio, video {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.spoiler,
+tg-spoiler {
+    background-color: black;
+    color: black;
+    cursor: pointer;
+    transition: color 0.3s ease, background-color 0.3s ease;
+}
+
+.spoiler:hover,
+tg-spoiler:hover {
+    color: white;
+    background-color: #444;
+}
+
+@media print {
+    .spoiler,
+    tg-spoiler {
+        background-color: #444;
+        color: white;
+    }
+}
