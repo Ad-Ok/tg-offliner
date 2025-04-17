@@ -52,6 +52,17 @@ def main(download_posts=True, generate_pdf=True, generate_index=True, channel_us
     start_time = time.time()
 
     if download_posts:
+        # Очистка базы данных перед началом скачивания
+        try:
+            response = requests.delete("http://127.0.0.1:5000/api/posts")
+            if response.status_code == 200:
+                print(response.json()["message"])
+            else:
+                print(f"Ошибка при очистке базы данных: {response.text}")
+        except Exception as e:
+            print(f"Ошибка при подключении к API для очистки базы данных: {e}")
+            return
+
         if os.path.exists(OUTPUT_DIR):
             shutil.rmtree(OUTPUT_DIR)
         os.makedirs(OUTPUT_DIR, exist_ok=True)

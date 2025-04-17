@@ -1,11 +1,14 @@
 import multiprocessing
 multiprocessing.set_start_method("fork", force=True)
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
+from flask_cors import CORS
 from models import db, Post
 from database import create_app, init_db
+import os
 
 app = create_app()
+CORS(app)  # Разрешаем CORS для всех маршрутов
 init_db(app)
 
 @app.route('/api/posts', methods=['GET'])
@@ -37,6 +40,24 @@ def add_post():
     db.session.add(new_post)
     db.session.commit()
     return jsonify({"message": "Post added successfully!"}), 201
+
+@app.route('/api/posts', methods=['DELETE'])
+def delete_posts():
+    """Удаляет все посты из базы данных."""
+    try:
+        num_deleted = db.session.query(Post).delete()
+        db.session.commit()
+        return jsonify({"message": f"{num_deleted} постов удалено из базы данных."}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+# Маршрут для раздачи медиафайлов
+@app.route('/media/<path:filename>')
+def serve_media(filename):
+    """Раздаёт медиафайлы из папки media."""
+    media_dir = os.path.join(os.getcwd(), 'media')
+    return send_from_directory(media_dir, filename)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
