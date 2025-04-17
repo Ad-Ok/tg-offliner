@@ -6,6 +6,7 @@ import argparse
 import requests
 from utils.text_format import parse_entities_to_html
 import os
+from message_processing.polls import process_poll
 
 MEDIA_DIR = "media"  # Папка для сохранения медиафайлов
 os.makedirs(MEDIA_DIR, exist_ok=True)  # Создаём папку, если её нет
@@ -34,12 +35,17 @@ def main(channel_username=None):
 
     for post in all_posts:
         # Преобразуем текст и entities в HTML
-        formatted_message = parse_entities_to_html(post.message or "", post.entities or [])
+        formatted_message = parse_entities_to_html(post.message or "", post.entities or "")
+
+        # Обрабатываем опрос, если он есть
+        if post.poll:
+            poll_html = process_poll(post)
+            formatted_message += f"<br>{poll_html}"
 
         # Скачиваем медиа, если оно есть
         media_path = None
         media_type = None
-        if post.media:
+        if post.media and not post.poll:  # Пропускаем скачивание медиа для опросов
             media_path = client.download_media(post.media, file=os.path.join(MEDIA_DIR, f"{post.id}_media"))
             media_type = type(post.media).__name__  # Тип медиа (например, MessageMediaPhoto)
             print(f"Медиа скачано: {media_path}, тип: {media_type}")
