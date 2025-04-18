@@ -19,26 +19,19 @@
           :link="post.repost_author_link"
         />
       </div>
+
       <!-- Текст сообщения -->
       <p v-html="post.message"></p>
+
       <!-- Медиа -->
       <div v-if="post.media_url">
-        <p><strong>Медиа ({{ post.media_type }} - {{ post.mime_type }}):</strong></p>
-        <div v-if="post.media_type === 'MessageMediaDocument'">
-          <img v-if="post.mime_type && post.mime_type.startsWith('image/')" :src="`http://127.0.0.1:5000/downloads/${post.media_url}`" alt="Медиа" />
-          <video v-else-if="post.mime_type && post.mime_type.startsWith('video/')" controls>
-            <source :src="`http://127.0.0.1:5000/downloads/${post.media_url}`" />
-          </video>
-          <audio v-else-if="post.mime_type && post.mime_type.startsWith('audio/')" controls class="media">
-              <source :src="`http://127.0.0.1:5000/downloads/${post.media_url}`" :type="post.mime_type" />
-              Ваш браузер не поддерживает аудио.
-          </audio>
-          <a v-else :href="post.media_url" target="_blank">Скачать файл</a>
-        </div>
-        <div v-else-if="post.media_type === 'MessageMediaPhoto'">
-          <img :src="`http://127.0.0.1:5000/downloads/${post.media_url}`" alt="Медиа" />
-        </div>
+        <PostMedia
+          :mediaUrl="post.media_url"
+          :mediaType="post.media_type"
+          :mimeType="post.mime_type"
+        />
       </div>
+
       <!-- Реакции -->
       <div v-if="post.reactions" class="reactions">
         <div v-for="reaction in parsedReactions(post.reactions.recent_reactions)" :key="reaction.reaction" class="reaction">
@@ -51,11 +44,13 @@
 
 <script>
 import axios from 'axios';
-import PostAuthor from './components/PostAuthor.vue'; // Обновляем импорт
+import PostAuthor from './components/PostAuthor.vue';
+import PostMedia from './components/PostMedia.vue';
 
 export default {
   components: {
-    PostAuthor, // Обновляем имя компонента
+    PostAuthor,
+    PostMedia,
   },
   data() {
     return {
