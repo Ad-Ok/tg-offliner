@@ -9,6 +9,7 @@ API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 PHONE = os.getenv("PHONE")
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "telegram_export")
+DOWNLOADS_DIR = "downloads"
 
 EXPORT_SETTINGS = {
     "include_system_messages": False,

@@ -8,10 +8,13 @@ class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     telegram_id = db.Column(db.Integer, unique=True, nullable=False)
     date = db.Column(db.String, nullable=False)
-    message = db.Column(db.Text, nullable=True)  # Поле для текста сообщения
-    media_url = db.Column(db.String, nullable=True)  # Ссылка на медиафайл
-    media_type = db.Column(db.String, nullable=True)  # Тип медиафайла
-    mime_type = db.Column(db.String, nullable=True)  # MIME-тип медиафайла
+    message = db.Column(db.Text, nullable=True)
+    media_url = db.Column(db.String, nullable=True)
+    media_type = db.Column(db.String, nullable=True)
+    mime_type = db.Column(db.String, nullable=True)
+    author_name = db.Column(db.String, nullable=True)  # Имя автора
+    author_avatar = db.Column(db.String, nullable=True)  # Ссылка на аватар автора
+    author_link = db.Column(db.String, nullable=True)  # Ссылка на профиль автора
 
     def __repr__(self):
         return f"<Post {self.telegram_id}>"

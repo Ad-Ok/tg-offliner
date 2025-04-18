@@ -7,9 +7,11 @@ import requests
 from utils.text_format import parse_entities_to_html
 import os
 from message_processing.polls import process_poll
-from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument, InputMessagesFilterEmpty
+from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument
+from message_processing.author import process_author
 
-MEDIA_DIR = "media"  # Папка для сохранения медиафайлов
+DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
+MEDIA_DIR = os.path.join(DOWNLOADS_DIR, 'media')
 os.makedirs(MEDIA_DIR, exist_ok=True)  # Создаём папку, если её нет
 
 def main(channel_username=None):
@@ -73,21 +75,27 @@ def main(channel_username=None):
         if post.media and not post.poll:  # Пропускаем скачивание медиа для опросов
             media_path = client.download_media(post.media, file=os.path.join(MEDIA_DIR, f"{post.id}_media"))
             media_type = type(post.media).__name__  # Тип медиа (например, MessageMediaPhoto)
-
-            # Проверяем, является ли media объектом MessageMediaDocument и содержит ли Document
             if isinstance(post.media, MessageMediaDocument) and isinstance(post.media.document, Document):
-                mime_type = getattr(post.media.document, 'mime_type', None)  # Извлекаем MIME-тип
+                mime_type = getattr(post.media.document, 'mime_type', None)
 
-            print(f"Медиа скачано: {media_path}, тип: {media_type}, MIME-тип: {mime_type}")
+            # Сохраняем относительный путь
+            if media_path:
+                media_path = os.path.relpath(media_path, DOWNLOADS_DIR)  # Относительный путь от папки downloads
 
-        # Сохраняем ID, дату, текст сообщения, ссылку на медиа, его тип и MIME-тип
+        # Обрабатываем автора сообщения
+        sender_name, sender_avatar, sender_link = process_author(post.sender, client, peer_id=post.peer_id, from_id=post.from_id)
+
+        # Сохраняем ID, дату, текст сообщения, ссылку на медиа, его тип, MIME-тип, автора и аватар
         api_data = {
             "telegram_id": post.id,
             "date": post.date.strftime('%Y-%m-%dT%H:%M:%S'),  # Преобразуем дату в строку
             "message": formatted_message,  # Сохраняем отформатированный текст
-            "media_url": f"http://127.0.0.1:5000/media/{os.path.basename(media_path)}" if media_path else None,
+            "media_url": media_path,  # Относительный путь
             "media_type": media_type,
-            "mime_type": mime_type  # Добавляем MIME-тип
+            "mime_type": mime_type,  # Добавляем MIME-тип
+            "author_name": sender_name,  # Имя автора
+            "author_avatar": sender_avatar,  # Ссылка на аватар
+            "author_link": sender_link  # Ссылка на автора
         }
         print("Отправляемые данные:", api_data)
         try:

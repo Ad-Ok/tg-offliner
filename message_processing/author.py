@@ -1,17 +1,27 @@
+from config import DOWNLOADS_DIR
 import os
-from config import OUTPUT_DIR
 
 def download_avatar(entity, client):
-    """Скачивает аватар для указанного объекта (пользователь, чат или канал)."""
-    avatar_dir = os.path.join(OUTPUT_DIR, "avatars")
-    os.makedirs(avatar_dir, exist_ok=True)
+    """
+    Скачивает аватар для указанного объекта (пользователь, чат или канал).
+    :param entity: Объект (пользователь, чат или канал), для которого нужно скачать аватар.
+    :param client: Экземпляр TelegramClient.
+    :return: Относительный путь к сохранённому аватару или пустая строка, если аватар отсутствует.
+    """
+    avatar_dir = os.path.join(DOWNLOADS_DIR, "avatars")
+    os.makedirs(avatar_dir, exist_ok=True)  # Создаём папку, если её нет
 
-    if entity and entity.photo:
-        avatar_path = client.download_profile_photo(
-            entity,
-            file=os.path.join(avatar_dir, f"avatar_{entity.id}.jpg")
-        )
-        return f"avatars/{os.path.basename(avatar_path)}" if avatar_path else ""
+    if entity and entity.photo:  # Проверяем, есть ли фото у объекта
+        try:
+            avatar_path = client.download_profile_photo(
+                entity,
+                file=os.path.join(avatar_dir, f"avatar_{entity.id}.jpg")
+            )
+            if avatar_path:
+                print(f"Аватар сохранён: {avatar_path}")
+                return f"avatars/{os.path.basename(avatar_path)}"  # Возвращаем относительный путь
+        except Exception as e:
+            print(f"Ошибка при скачивании аватара: {e}")
     return ""
 
 def process_author(sender, client, peer_id=None, from_id=None):

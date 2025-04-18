@@ -8,6 +8,7 @@ from database import create_app, init_db
 import os
 
 MEDIA_DIR = os.path.join(os.path.dirname(__file__), 'media')
+DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
 
 app = create_app()
 CORS(app, resources={r"/*": {"origins": "http://localhost:8080"}})  # Разрешаем CORS для фронтенда
@@ -23,7 +24,10 @@ def get_posts():
         "message": post.message,
         "media_url": post.media_url,
         "media_type": post.media_type,
-        "mime_type": post.mime_type  # Добавляем MIME-тип
+        "mime_type": post.mime_type,
+        "author_name": post.author_name,  # Имя автора
+        "author_avatar": post.author_avatar,  # Ссылка на аватар автора
+        "author_link": post.author_link  # Ссылка на профиль автора
     } for post in posts])
 
 @app.route('/api/posts', methods=['POST'])
@@ -36,7 +40,10 @@ def add_post():
         message=data.get('message', ''),  # Текст сообщения (по умолчанию пустая строка)
         media_url=data.get('media_url'),  # Сохраняем ссылку на медиа
         media_type=data.get('media_type'),  # Сохраняем тип медиа
-        mime_type=data.get('mime_type')  # Сохраняем MIME-тип
+        mime_type=data.get('mime_type'),  # Сохраняем MIME-тип
+        author_name=data.get('author_name'),  # Имя автора
+        author_avatar=data.get('author_avatar'),  # Ссылка на аватар автора
+        author_link=data.get('author_link')  # Ссылка на профиль автора
     )
     db.session.add(new_post)
     db.session.commit()
@@ -58,6 +65,11 @@ def delete_posts():
 def serve_media(filename):
     """Раздаёт медиафайлы из папки media."""
     return send_from_directory(MEDIA_DIR, filename)
+
+@app.route('/downloads/<path:filename>')
+def serve_downloads(filename):
+    """Раздаёт файлы из папки downloads."""
+    return send_from_directory(DOWNLOADS_DIR, filename)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
