@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import JSON
 
 db = SQLAlchemy()
 
@@ -18,6 +19,7 @@ class Post(db.Model):
     repost_author_name = db.Column(db.String, nullable=True)  # Имя автора репоста
     repost_author_avatar = db.Column(db.String, nullable=True)  # Аватар автора репоста
     repost_author_link = db.Column(db.String, nullable=True)  # Ссылка на автора репоста
+    reactions = db.Column(JSON, nullable=True)  # Хранение реакций в формате JSON
 
     def __repr__(self):
         return f"<Post {self.telegram_id}>"

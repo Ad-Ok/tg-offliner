@@ -107,20 +107,31 @@ def main(channel_username=None):
             except Exception as e:
                 print(f"Ошибка при обработке автора репоста: {e}")
 
-        # Сохраняем ID, дату, текст сообщения, ссылку на медиа, его тип, MIME-тип, автора и аватар
+        # Обрабатываем реакции
+        reactions = None
+        if post.reactions and post.reactions.results:
+            reactions = {
+                "total_count": sum(r.count for r in post.reactions.results),  # Суммируем количество всех реакций
+                "recent_reactions": [
+                    {"reaction": str(r.reaction), "count": r.count} for r in post.reactions.results
+                ]
+            }
+
+        # Сохраняем данные в базу
         api_data = {
             "telegram_id": post.id,
-            "date": post.date.strftime('%Y-%m-%dT%H:%M:%S'),  # Преобразуем дату в строку
-            "message": formatted_message,  # Сохраняем отформатированный текст
-            "media_url": media_path,  # Относительный путь
+            "date": post.date.strftime('%Y-%m-%dT%H:%M:%S'),
+            "message": formatted_message,
+            "media_url": media_path,
             "media_type": media_type,
-            "mime_type": mime_type,  # Добавляем MIME-тип
-            "author_name": sender_name,  # Имя автора
-            "author_avatar": sender_avatar,  # Ссылка на аватар
-            "author_link": sender_link,  # Ссылка на автора
-            "repost_author_name": repost_name,  # Имя автора репоста
-            "repost_author_avatar": repost_avatar,  # Аватар автора репоста
-            "repost_author_link": repost_link  # Ссылка на автора репоста
+            "mime_type": mime_type,
+            "author_name": sender_name,
+            "author_avatar": sender_avatar,
+            "author_link": sender_link,
+            "repost_author_name": repost_name,
+            "repost_author_avatar": repost_avatar,
+            "repost_author_link": repost_link,
+            "reactions": reactions  # Добавляем реакции
         }
         print("Отправляемые данные:", api_data)
         try:

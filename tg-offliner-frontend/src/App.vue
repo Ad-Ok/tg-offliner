@@ -44,6 +44,12 @@
           <img :src="`http://127.0.0.1:5000/downloads/${post.media_url}`" alt="Медиа" />
         </div>
       </div>
+      <!-- Реакции -->
+      <div v-if="post.reactions" class="reactions">
+        <div v-for="reaction in parsedReactions(post.reactions.recent_reactions)" :key="reaction.reaction" class="reaction">
+          <span>{{ reaction.reaction }}</span> <span>{{ reaction.count }}</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -70,5 +76,30 @@ export default {
         this.loading = false;
       });
   },
+  methods: {
+    parsedReactions(reactions) {
+      // Преобразуем реакции, чтобы извлечь только эмодзи
+      return reactions.map(reaction => {
+        const match = reaction.reaction.match(/emoticon='(.*?)'/); // Извлекаем значение из ReactionEmoji
+        return {
+          reaction: match ? match[1] : reaction.reaction, // Если найдено, берём эмодзи, иначе оставляем как есть
+          count: reaction.count
+        };
+      });
+    }
+  }
 };
 </script>
+
+<style>
+.reactions {
+  display: flex;
+  margin-top: 10px;
+}
+
+.reaction {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+</style>
