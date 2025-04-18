@@ -13,43 +13,35 @@ import shutil
 import os
 
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
-MEDIA_DIR = os.path.join(DOWNLOADS_DIR, 'media')
-os.makedirs(MEDIA_DIR, exist_ok=True)  # Создаём папку, если её нет
 
-def clear_downloads():
+def clear_downloads(channel_name):
     """
-    Очищает папку downloads перед началом скачивания.
+    Очищает папку текущего канала в downloads, но не удаляет саму папку downloads.
     """
-    if os.path.exists(DOWNLOADS_DIR):
-        shutil.rmtree(DOWNLOADS_DIR)  # Удаляем папку со всем содержимым
-    os.makedirs(DOWNLOADS_DIR, exist_ok=True)  # Создаём пустую папку
-    print(f"Папка {DOWNLOADS_DIR} очищена.")
-
+    channel_folder = os.path.join(DOWNLOADS_DIR, channel_name)
+    if os.path.exists(channel_folder):
+        shutil.rmtree(channel_folder)  # Удаляем папку канала со всем содержимым
+        print(f"Папка {channel_folder} очищена.")
+    os.makedirs(channel_folder, exist_ok=True)  # Создаём пустую папку
 
 def get_channel_folder(channel_name):
     """
     Возвращает путь к папке для конкретного канала.
     """
     channel_folder = os.path.join(DOWNLOADS_DIR, channel_name)
-    os.makedirs(channel_folder, exist_ok=True)  # Создаём папку, если её нет
+    os.makedirs(channel_folder, exist_ok=True)  # Создаём папку канала, если её нет
+
+    # Создаём папку media внутри папки канала
+    media_folder = os.path.join(channel_folder, "media")
+    os.makedirs(media_folder, exist_ok=True)
+
     return channel_folder
 
 def main(channel_username=None):
-# Очищаем папку downloads
-    clear_downloads()
+    # Очищаем папку текущего канала
+    clear_downloads(channel_username)
 
     start_time = time.time()
-
-    # Очистка базы данных перед началом скачивания
-    try:
-        response = requests.delete("http://127.0.0.1:5000/api/posts")
-        if response.status_code == 200:
-            print(response.json()["message"])
-        else:
-            print(f"Ошибка при очистке базы данных: {response.text}")
-    except Exception as e:
-        print(f"Ошибка при подключении к API для очистки базы данных: {e}")
-        return
 
     # Подключение к Telegram
     client = connect_to_telegram()
@@ -69,6 +61,8 @@ def main(channel_username=None):
     )
     processed_count = 0
 
+    replace_all = None  # Флаг для "да для всех"
+
     for post in all_posts:
         # Пропускаем системные сообщения, если они отключены
         if not include_system_messages and post.action:
@@ -81,6 +75,43 @@ def main(channel_username=None):
 
         # Пропускаем опросы, если они отключены
         if not include_polls and post.poll:
+            continue
+
+        # Проверяем, существует ли пост в базе
+        try:
+            response = requests.get(f"http://127.0.0.1:5000/api/posts/check?telegram_id={post.id}&channel_id={channel_username}")
+            if response.status_code == 200:
+                response_data = response.json()
+                # Проверяем, что ответ содержит ключ "exists"
+                if isinstance(response_data, dict) and response_data.get("exists"):
+                    print(f"Пост с ID {post.id} из канала {channel_username} уже существует в базе.")
+                    
+                    # Если пользователь уже выбрал "да для всех"
+                    if replace_all is True:
+                        print(f"Заменяем пост с ID {post.id}.")
+                    elif replace_all is False:
+                        print(f"Пропускаем пост с ID {post.id}.")
+                        continue  # Пропускаем обработку текущего поста
+                    else:
+                        # Диалог с пользователем
+                        user_input = input("Пост уже существует. Хотите его заменить? (y/n/a): ").strip().lower()
+                        if user_input == "y":
+                            print(f"Заменяем пост с ID {post.id}.")
+                        elif user_input == "n":
+                            print(f"Пропускаем пост с ID {post.id}.")
+                            continue  # Пропускаем обработку текущего поста
+                        elif user_input == "a":
+                            print("Выбрано 'да для всех'. Все существующие посты будут заменены.")
+                            replace_all = True
+                        else:
+                            print("Неверный ввод. Пропускаем пост.")
+                            continue
+                else:
+                    print(f"Неожиданный формат ответа от API: {response_data}")
+            else:
+                print(f"Ошибка при проверке существования поста: {response.status_code} - {response.text}")
+        except Exception as e:
+            print(f"Ошибка при проверке существования поста: {e}")
             continue
 
         # Преобразуем текст и entities в HTML
@@ -100,7 +131,10 @@ def main(channel_username=None):
         mime_type = None
 
         if post.media and not post.poll:  # Пропускаем скачивание медиа для опросов
-            media_path = client.download_media(post.media, file=os.path.join(channel_folder, "media", f"{post.id}_media"))
+            media_path = client.download_media(
+                post.media,
+                file=os.path.join(channel_folder, "media", f"{post.id}_media")
+            )
             media_type = type(post.media).__name__  # Тип медиа (например, MessageMediaPhoto)
             if isinstance(post.media, MessageMediaDocument) and isinstance(post.media.document, Document):
                 mime_type = getattr(post.media.document, 'mime_type', None)
@@ -134,6 +168,7 @@ def main(channel_username=None):
         # Сохраняем данные в базу
         api_data = {
             "telegram_id": post.id,
+            "channel_id": channel_username,  # Добавляем ID или имя канала
             "date": post.date.strftime('%Y-%m-%dT%H:%M:%S'),
             "message": formatted_message,
             "media_url": media_path,

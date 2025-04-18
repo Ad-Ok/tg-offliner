@@ -3,7 +3,7 @@ multiprocessing.set_start_method("fork", force=True)
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-from models import db, Post
+from models import db, Post, Channel
 from database import create_app, init_db
 import os
 
@@ -16,10 +16,17 @@ init_db(app)
 
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
-    """Возвращает список всех постов."""
-    posts = Post.query.all()
+    """Возвращает список всех постов или постов из конкретного канала."""
+    channel_id = request.args.get('channel_id')  # Получаем ID канала из параметров запроса
+    if channel_id:
+        posts = Post.query.filter_by(channel_id=channel_id).all()  # Фильтруем по каналу
+    else:
+        posts = Post.query.all()  # Возвращаем все посты
+
     return jsonify([{
         "id": post.id,
+        "telegram_id": post.telegram_id,
+        "channel_id": post.channel_id,
         "date": post.date,
         "message": post.message,
         "media_url": post.media_url,
@@ -31,8 +38,19 @@ def get_posts():
         "repost_author_name": post.repost_author_name,
         "repost_author_avatar": post.repost_author_avatar,
         "repost_author_link": post.repost_author_link,
-        "reactions": post.reactions  # Возвращаем реакции
+        "reactions": post.reactions
     } for post in posts])
+
+@app.route('/api/posts/check', methods=['GET'])
+def check_post_exists():
+    """Проверяет, существует ли пост с заданным telegram_id и channel_id."""
+    telegram_id = request.args.get('telegram_id')
+    channel_id = request.args.get('channel_id')
+    if not telegram_id or not channel_id:
+        return jsonify({"error": "telegram_id и channel_id обязательны"}), 400
+
+    post_exists = Post.query.filter_by(telegram_id=telegram_id, channel_id=channel_id).first() is not None
+    return jsonify({"exists": post_exists}), 200
 
 @app.route('/api/posts', methods=['POST'])
 def add_post():
@@ -40,6 +58,7 @@ def add_post():
     data = request.json
     new_post = Post(
         telegram_id=data['telegram_id'],
+        channel_id=data['channel_id'],  # Указываем ID канала
         date=data['date'],
         message=data.get('message', ''),  # Текст сообщения (по умолчанию пустая строка)
         media_url=data.get('media_url'),  # Сохраняем ссылку на медиа
@@ -58,15 +77,46 @@ def add_post():
     return jsonify({"message": "Post added successfully!"}), 201
 
 @app.route('/api/posts', methods=['DELETE'])
-def delete_posts():
-    """Удаляет все посты из базы данных."""
-    try:
-        num_deleted = db.session.query(Post).delete()
+def delete_post():
+    """Удаляет пост с заданным telegram_id и channel_id."""
+    telegram_id = request.args.get('telegram_id')
+    channel_id = request.args.get('channel_id')
+
+    if not telegram_id or not channel_id:
+        return jsonify({"error": "telegram_id и channel_id обязательны"}), 400
+
+    post = Post.query.filter_by(telegram_id=telegram_id, channel_id=channel_id).first()
+    if post:
+        db.session.delete(post)
         db.session.commit()
-        return jsonify({"message": f"{num_deleted} постов удалено из базы данных."}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"message": f"Пост с ID {telegram_id} успешно удалён."}), 200
+    else:
+        return jsonify({"error": "Пост не найден."}), 404
+
+@app.route('/api/channels', methods=['POST'])
+def add_channel():
+    """Добавляет новый канал в базу данных."""
+    data = request.json
+    new_channel = Channel(
+        id=data['id'],
+        name=data['name'],
+        avatar=data.get('avatar'),
+        description=data.get('description')
+    )
+    db.session.add(new_channel)
+    db.session.commit()
+    return jsonify({"message": "Channel added successfully!"}), 201
+
+@app.route('/api/channels', methods=['GET'])
+def get_channels():
+    """Возвращает список всех каналов."""
+    channels = Channel.query.all()
+    return jsonify([{
+        "id": channel.id,
+        "name": channel.name,
+        "avatar": channel.avatar,
+        "description": channel.description
+    } for channel in channels])
 
 # Маршрут для раздачи медиафайлов
 @app.route('/media/<path:filename>')

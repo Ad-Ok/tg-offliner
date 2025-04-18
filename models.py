@@ -8,6 +8,7 @@ class Post(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     telegram_id = db.Column(db.Integer, unique=True, nullable=False)
+    channel_id = db.Column(db.String, nullable=False)  # ID канала
     date = db.Column(db.String, nullable=False)
     message = db.Column(db.Text, nullable=True)
     media_url = db.Column(db.String, nullable=True)
@@ -22,4 +23,15 @@ class Post(db.Model):
     reactions = db.Column(JSON, nullable=True)  # Хранение реакций в формате JSON
 
     def __repr__(self):
-        return f"<Post {self.telegram_id}>"
+        return f"<Post {self.telegram_id} from channel {self.channel_id}>"
+
+class Channel(db.Model):
+    __tablename__ = 'channels'
+
+    id = db.Column(db.String, primary_key=True)  # ID канала
+    name = db.Column(db.String, nullable=False)  # Название канала
+    avatar = db.Column(db.String, nullable=True)  # Ссылка на аватар канала
+    description = db.Column(db.Text, nullable=True)  # Описание канала
+
+    def __repr__(self):
+        return f"<Channel {self.id} - {self.name}>"
