@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1>Лента постов</h1>
+    <h1>Telegram Offliner</h1>
     <router-view />
   </div>
 </template>

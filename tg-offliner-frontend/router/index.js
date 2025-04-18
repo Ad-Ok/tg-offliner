@@ -1,7 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import Wall from '../src/components/Wall.vue';
+import ChannelsList from '../src/components/ChannelsList.vue';
 
 const routes = [
+  {
+    path: '/',
+    name: 'Channels',
+    component: ChannelsList,
+  },
   {
     path: '/:channelName/posts',
     name: 'Wall',

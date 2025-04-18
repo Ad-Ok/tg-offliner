@@ -97,6 +97,15 @@ def delete_post():
 def add_channel():
     """Добавляет новый канал в базу данных."""
     data = request.json
+    if not data.get('id') or not data.get('name'):
+        return jsonify({"error": "id и name обязательны"}), 400
+
+    # Проверяем, существует ли канал
+    existing_channel = Channel.query.filter_by(id=data['id']).first()
+    if existing_channel:
+        return jsonify({"message": "Канал уже существует"}), 200
+
+    # Добавляем новый канал
     new_channel = Channel(
         id=data['id'],
         name=data['name'],
@@ -105,7 +114,7 @@ def add_channel():
     )
     db.session.add(new_channel)
     db.session.commit()
-    return jsonify({"message": "Channel added successfully!"}), 201
+    return jsonify({"message": "Канал успешно добавлен"}), 201
 
 @app.route('/api/channels', methods=['GET'])
 def get_channels():

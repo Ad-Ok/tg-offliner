@@ -37,6 +37,28 @@ def get_channel_folder(channel_name):
 
     return channel_folder
 
+def save_channel_info(client, channel_username):
+    """Сохраняет информацию о канале в базу данных."""
+    try:
+        entity = client.get_entity(channel_username)
+        channel_data = {
+            "id": entity.username or str(entity.id),
+            "name": entity.title,
+            "avatar": None,  # Здесь можно добавить логику для получения аватара
+            "description": entity.about if hasattr(entity, 'about') else None
+        }
+
+        # Отправляем данные на сервер
+        response = requests.post("http://127.0.0.1:5000/api/channels", json=channel_data)
+        if response.status_code == 201:
+            print(f"Канал {channel_data['name']} успешно добавлен в базу данных.")
+        elif response.status_code == 200:
+            print(f"Канал {channel_data['name']} уже существует.")
+        else:
+            print(f"Ошибка при добавлении канала: {response.text}")
+    except Exception as e:
+        print(f"Ошибка при сохранении информации о канале: {e}")
+
 def main(channel_username=None):
     # Очищаем папку текущего канала
     clear_downloads(channel_username)
@@ -46,6 +68,9 @@ def main(channel_username=None):
     # Подключение к Telegram
     client = connect_to_telegram()
     entity = client.get_entity(channel_username)
+
+    # Сохраняем информацию о канале
+    save_channel_info(client, channel_username)
 
     # Применяем параметры из EXPORT_SETTINGS
     include_system_messages = EXPORT_SETTINGS.get("include_system_messages", False)
