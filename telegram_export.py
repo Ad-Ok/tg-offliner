@@ -10,6 +10,7 @@ from message_processing.polls import process_poll
 from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument
 from message_processing.author import process_author
 import shutil
+import os
 
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
 MEDIA_DIR = os.path.join(DOWNLOADS_DIR, 'media')
@@ -23,6 +24,15 @@ def clear_downloads():
         shutil.rmtree(DOWNLOADS_DIR)  # Удаляем папку со всем содержимым
     os.makedirs(DOWNLOADS_DIR, exist_ok=True)  # Создаём пустую папку
     print(f"Папка {DOWNLOADS_DIR} очищена.")
+
+
+def get_channel_folder(channel_name):
+    """
+    Возвращает путь к папке для конкретного канала.
+    """
+    channel_folder = os.path.join(DOWNLOADS_DIR, channel_name)
+    os.makedirs(channel_folder, exist_ok=True)  # Создаём папку, если её нет
+    return channel_folder
 
 def main(channel_username=None):
 # Очищаем папку downloads
@@ -81,12 +91,16 @@ def main(channel_username=None):
             poll_html = process_poll(post)
             formatted_message += f"<br>{poll_html}"
 
-        # Скачиваем медиа, если оно есть
+        # Получаем папку для текущего канала
+        channel_folder = get_channel_folder(channel_username)
+
+        # Скачиваем медиа
         media_path = None
         media_type = None
         mime_type = None
+
         if post.media and not post.poll:  # Пропускаем скачивание медиа для опросов
-            media_path = client.download_media(post.media, file=os.path.join(MEDIA_DIR, f"{post.id}_media"))
+            media_path = client.download_media(post.media, file=os.path.join(channel_folder, "media", f"{post.id}_media"))
             media_type = type(post.media).__name__  # Тип медиа (например, MessageMediaPhoto)
             if isinstance(post.media, MessageMediaDocument) and isinstance(post.media.document, Document):
                 mime_type = getattr(post.media.document, 'mime_type', None)
@@ -96,14 +110,14 @@ def main(channel_username=None):
                 media_path = os.path.relpath(media_path, DOWNLOADS_DIR)  # Относительный путь от папки downloads
 
         # Обрабатываем автора сообщения
-        sender_name, sender_avatar, sender_link = process_author(post.sender, client, peer_id=post.peer_id, from_id=post.from_id)
+        sender_name, sender_avatar, sender_link = process_author(post.sender, client, channel_folder, peer_id=post.peer_id, from_id=post.from_id)
 
         # Обрабатываем автора репоста, если это репост
         repost_name, repost_avatar, repost_link = None, None, None
         if post.fwd_from and post.fwd_from.from_id:
             try:
                 repost_entity = client.get_entity(post.fwd_from.from_id)  # Получаем полную информацию об авторе репоста
-                repost_name, repost_avatar, repost_link = process_author(repost_entity, client)
+                repost_name, repost_avatar, repost_link = process_author(repost_entity, client, channel_folder)
             except Exception as e:
                 print(f"Ошибка при обработке автора репоста: {e}")
 
