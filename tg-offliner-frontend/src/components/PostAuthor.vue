@@ -1,4 +1,4 @@
-<!-- filepath: /Users/adoknov/work/tg/tg-offliner/tg-offliner-frontend/src/components/PostAuthor.vue -->
+
 <template>
   <div class="author">
     <img

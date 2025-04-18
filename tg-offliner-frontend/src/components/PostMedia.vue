@@ -1,4 +1,4 @@
-<!-- filepath: /Users/adoknov/work/tg/tg-offliner/tg-offliner-frontend/src/components/PostMedia.vue -->
+
 <template>
   <div class="post-media">
     <p><strong>Медиа ({{ mediaType }} - {{ mimeType }}):</strong></p>

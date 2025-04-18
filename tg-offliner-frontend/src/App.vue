@@ -33,11 +33,7 @@
       </div>
 
       <!-- Реакции -->
-      <div v-if="post.reactions" class="reactions">
-        <div v-for="reaction in parsedReactions(post.reactions.recent_reactions)" :key="reaction.reaction" class="reaction">
-          <span>{{ reaction.reaction }}</span> <span>{{ reaction.count }}</span>
-        </div>
-      </div>
+      <PostReactions v-if="post.reactions" :reactions="post.reactions" />
     </div>
   </div>
 </template>
@@ -46,11 +42,13 @@
 import axios from 'axios';
 import PostAuthor from './components/PostAuthor.vue';
 import PostMedia from './components/PostMedia.vue';
+import PostReactions from './components/PostReactions.vue';
 
 export default {
   components: {
     PostAuthor,
     PostMedia,
+    PostReactions,
   },
   data() {
     return {
@@ -70,18 +68,6 @@ export default {
         this.loading = false;
       });
   },
-  methods: {
-    parsedReactions(reactions) {
-      // Преобразуем реакции, чтобы извлечь только эмодзи
-      return reactions.map(reaction => {
-        const match = reaction.reaction.match(/emoticon='(.*?)'/); // Извлекаем значение из ReactionEmoji
-        return {
-          reaction: match ? match[1] : reaction.reaction, // Если найдено, берём эмодзи, иначе оставляем как есть
-          count: reaction.count
-        };
-      });
-    }
-  }
 };
 </script>
 
@@ -95,5 +81,9 @@ export default {
   display: flex;
   align-items: center;
   gap: 5px;
+}
+
+.message {
+  margin-bottom: 20px;
 }
 </style>
