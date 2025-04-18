@@ -10,12 +10,21 @@
         <p v-html="post.message"></p>
         <!-- Медиа -->
         <div v-if="post.media_url">
-          <p><strong>Медиа ({{ post.media_type }}):</strong></p>
-          <img v-if="post.media_type === 'MessageMediaPhoto'" :src="post.media_url" alt="Медиа" />
-          <video v-else-if="post.media_type === 'MessageMediaDocument'" controls>
-            <source :src="post.media_url" />
-          </video>
-          <a v-else :href="post.media_url" target="_blank">Скачать файл</a>
+          <p><strong>Медиа ({{ post.media_type }} - {{ post.mime_type }}):</strong></p>
+          <div v-if="post.media_type === 'MessageMediaDocument'">
+            <img v-if="post.mime_type && post.mime_type.startsWith('image/')" :src="post.media_url" alt="Медиа" />
+            <video v-else-if="post.mime_type && post.mime_type.startsWith('video/')" controls>
+              <source :src="post.media_url" />
+            </video>
+            <audio v-else-if="post.mime_type && post.mime_type.startsWith('audio/')" controls class="media">
+                <source :src="post.media_url" :type="post.mime_type" />
+                Ваш браузер не поддерживает аудио.
+            </audio>
+            <a v-else :href="post.media_url" target="_blank">Скачать файл</a>
+          </div>
+          <div v-else-if="post.media_type === 'MessageMediaPhoto'">
+            <img :src="post.media_url" alt="Медиа" />
+          </div>
         </div>
       </div>
     </div>

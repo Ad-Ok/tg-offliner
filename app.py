@@ -22,7 +22,8 @@ def get_posts():
         "date": post.date,
         "message": post.message,
         "media_url": post.media_url,
-        "media_type": post.media_type
+        "media_type": post.media_type,
+        "mime_type": post.mime_type  # Добавляем MIME-тип
     } for post in posts])
 
 @app.route('/api/posts', methods=['POST'])
@@ -34,7 +35,8 @@ def add_post():
         date=data['date'],
         message=data.get('message', ''),  # Текст сообщения (по умолчанию пустая строка)
         media_url=data.get('media_url'),  # Сохраняем ссылку на медиа
-        media_type=data.get('media_type')  # Сохраняем тип медиа
+        media_type=data.get('media_type'),  # Сохраняем тип медиа
+        mime_type=data.get('mime_type')  # Сохраняем MIME-тип
     )
     db.session.add(new_post)
     db.session.commit()

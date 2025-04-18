@@ -7,6 +7,7 @@ import requests
 from utils.text_format import parse_entities_to_html
 import os
 from message_processing.polls import process_poll
+from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument
 
 MEDIA_DIR = "media"  # Папка для сохранения медиафайлов
 os.makedirs(MEDIA_DIR, exist_ok=True)  # Создаём папку, если её нет
@@ -30,10 +31,14 @@ def main(channel_username=None):
     entity = client.get_entity(channel_username)
 
     # Получение списка сообщений
-    all_posts = client.iter_messages(entity, limit=None)
+    all_posts = client.iter_messages(entity, limit=None, reverse=True)
     processed_count = 0
 
     for post in all_posts:
+        # Отладочный вывод объекта post
+        print("Дамп сообщения:")
+        print(post.stringify())
+
         # Преобразуем текст и entities в HTML
         formatted_message = parse_entities_to_html(post.message or "", post.entities or "")
 
@@ -45,18 +50,25 @@ def main(channel_username=None):
         # Скачиваем медиа, если оно есть
         media_path = None
         media_type = None
+        mime_type = None
         if post.media and not post.poll:  # Пропускаем скачивание медиа для опросов
             media_path = client.download_media(post.media, file=os.path.join(MEDIA_DIR, f"{post.id}_media"))
             media_type = type(post.media).__name__  # Тип медиа (например, MessageMediaPhoto)
-            print(f"Медиа скачано: {media_path}, тип: {media_type}")
 
-        # Сохраняем ID, дату, текст сообщения, ссылку на медиа и его тип
+            # Проверяем, является ли media объектом MessageMediaDocument и содержит ли Document
+            if isinstance(post.media, MessageMediaDocument) and isinstance(post.media.document, Document):
+                mime_type = getattr(post.media.document, 'mime_type', None)  # Извлекаем MIME-тип
+
+            print(f"Медиа скачано: {media_path}, тип: {media_type}, MIME-тип: {mime_type}")
+
+        # Сохраняем ID, дату, текст сообщения, ссылку на медиа, его тип и MIME-тип
         api_data = {
             "telegram_id": post.id,
             "date": post.date.strftime('%Y-%m-%dT%H:%M:%S'),  # Преобразуем дату в строку
             "message": formatted_message,  # Сохраняем отформатированный текст
             "media_url": f"http://127.0.0.1:5000/media/{os.path.basename(media_path)}" if media_path else None,
-            "media_type": media_type
+            "media_type": media_type,
+            "mime_type": mime_type  # Добавляем MIME-тип
         }
         print("Отправляемые данные:", api_data)
         try:

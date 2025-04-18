@@ -10,7 +10,8 @@ class Post(db.Model):
     date = db.Column(db.String, nullable=False)
     message = db.Column(db.Text, nullable=True)  # Поле для текста сообщения
     media_url = db.Column(db.String, nullable=True)  # Ссылка на медиафайл
-    media_type = db.Column(db.String, nullable=True)  # Тип медиафайла (например, фото, видео)
+    media_type = db.Column(db.String, nullable=True)  # Тип медиафайла
+    mime_type = db.Column(db.String, nullable=True)  # MIME-тип медиафайла
 
     def __repr__(self):
         return f"<Post {self.telegram_id}>"
