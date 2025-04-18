@@ -9,12 +9,25 @@ import os
 from message_processing.polls import process_poll
 from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument
 from message_processing.author import process_author
+import shutil
 
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
 MEDIA_DIR = os.path.join(DOWNLOADS_DIR, 'media')
 os.makedirs(MEDIA_DIR, exist_ok=True)  # Создаём папку, если её нет
 
+def clear_downloads():
+    """
+    Очищает папку downloads перед началом скачивания.
+    """
+    if os.path.exists(DOWNLOADS_DIR):
+        shutil.rmtree(DOWNLOADS_DIR)  # Удаляем папку со всем содержимым
+    os.makedirs(DOWNLOADS_DIR, exist_ok=True)  # Создаём пустую папку
+    print(f"Папка {DOWNLOADS_DIR} очищена.")
+
 def main(channel_username=None):
+# Очищаем папку downloads
+    clear_downloads()
+
     start_time = time.time()
 
     # Очистка базы данных перед началом скачивания
