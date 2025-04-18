@@ -6,6 +6,7 @@ from flask_cors import CORS
 from models import db, Post, Channel
 from database import create_app, init_db
 import os
+import subprocess
 
 MEDIA_DIR = os.path.join(os.path.dirname(__file__), 'media')
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
@@ -94,7 +95,7 @@ def delete_post():
         return jsonify({"error": "Пост не найден."}), 404
 
 @app.route('/api/channels', methods=['POST'])
-def add_channel():
+def add_channel_to_db():
     """Добавляет новый канал в базу данных."""
     data = request.json
     if not data.get('id') or not data.get('name'):
@@ -115,6 +116,34 @@ def add_channel():
     db.session.add(new_channel)
     db.session.commit()
     return jsonify({"message": "Канал успешно добавлен"}), 201
+
+@app.route('/api/add_channel', methods=['POST'])
+def run_channel_import():
+    """Вызывает скрипт для добавления канала."""
+    data = request.json
+    app.logger.info(f"Получены данные: {data}")
+    channel_username = data.get('channel_username')
+
+    if not channel_username:
+        app.logger.error("channel_username обязателен")
+        return jsonify({"error": "channel_username обязателен"}), 400
+
+    try:
+        # Вызываем скрипт telegram_export.py с аргументом --channel
+        result = subprocess.run(
+            ['python', 'telegram_export.py', '--channel', channel_username],
+            capture_output=True,
+            text=True
+        )
+        app.logger.info(f"Результат выполнения скрипта: {result.stdout}")
+        if result.returncode == 0:
+            return jsonify({"message": f"Канал {channel_username} успешно добавлен"}), 200
+        else:
+            app.logger.error(f"Ошибка выполнения скрипта: {result.stderr}")
+            return jsonify({"error": result.stderr}), 500
+    except Exception as e:
+        app.logger.error(f"Исключение: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/channels', methods=['GET'])
 def get_channels():
