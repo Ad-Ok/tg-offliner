@@ -7,7 +7,7 @@ import requests
 from utils.text_format import parse_entities_to_html
 import os
 from message_processing.polls import process_poll
-from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument
+from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument, InputMessagesFilterEmpty
 
 MEDIA_DIR = "media"  # Папка для сохранения медиафайлов
 os.makedirs(MEDIA_DIR, exist_ok=True)  # Создаём папку, если её нет
@@ -30,14 +30,33 @@ def main(channel_username=None):
     client = connect_to_telegram()
     entity = client.get_entity(channel_username)
 
+    # Применяем параметры из EXPORT_SETTINGS
+    include_system_messages = EXPORT_SETTINGS.get("include_system_messages", False)
+    include_reposts = EXPORT_SETTINGS.get("include_reposts", True)
+    include_polls = EXPORT_SETTINGS.get("include_polls", True)
+    message_limit = EXPORT_SETTINGS.get("message_limit", None)
+
     # Получение списка сообщений
-    all_posts = client.iter_messages(entity, limit=None, reverse=True)
+    all_posts = client.iter_messages(
+        entity,
+        limit=message_limit,
+        reverse=True  # Обходим от старых к новым
+    )
     processed_count = 0
 
     for post in all_posts:
-        # Отладочный вывод объекта post
-        print("Дамп сообщения:")
-        print(post.stringify())
+        # Пропускаем системные сообщения, если они отключены
+        if not include_system_messages and post.action:
+            print(f"Пропущено системное сообщение с ID {post.id}")
+            continue
+
+        # Пропускаем репосты, если они отключены
+        if not include_reposts and post.fwd_from:
+            continue
+
+        # Пропускаем опросы, если они отключены
+        if not include_polls and post.poll:
+            continue
 
         # Преобразуем текст и entities в HTML
         formatted_message = parse_entities_to_html(post.message or "", post.entities or "")
