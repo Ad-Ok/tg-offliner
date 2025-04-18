@@ -3,8 +3,6 @@
   <div v-if="loading" class="loading">Загрузка...</div>
   <div v-else>
     <div v-for="post in posts" :key="post.id" class="message">
-      <!-- Дата сообщения -->
-      <p><strong>Дата:</strong> {{ post.date }}</p>
       <div class="author">
         <img
             v-if="post.author_avatar"
@@ -14,6 +12,17 @@
         <a v-if="post.author_link" :href="post.author_link" target="_blank">{{ post.author_name }}</a>
         <span v-else>{{ post.author_name }}</span>
         <span class="date">{{ post.date }}</span>
+      </div>
+      <!-- Автор репоста -->
+      <div v-if="post.repost_author_name" class="repost-author">
+        <span>Репост от:</span>
+        <img
+          v-if="post.repost_author_avatar"
+          :src="`http://127.0.0.1:5000/downloads/${post.repost_author_avatar}`"
+          alt="Repost Avatar"
+        />
+        <a v-if="post.repost_author_link" :href="post.repost_author_link" target="_blank">{{ post.repost_author_name }}</a>
+        <span v-else>{{ post.repost_author_name }}</span>
       </div>
       <!-- Текст сообщения -->
       <p v-html="post.message"></p>

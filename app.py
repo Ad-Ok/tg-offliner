@@ -27,7 +27,10 @@ def get_posts():
         "mime_type": post.mime_type,
         "author_name": post.author_name,  # Имя автора
         "author_avatar": post.author_avatar,  # Ссылка на аватар автора
-        "author_link": post.author_link  # Ссылка на профиль автора
+        "author_link": post.author_link,  # Ссылка на профиль автора
+        "repost_author_name": post.repost_author_name,  # Имя автора репоста
+        "repost_author_avatar": post.repost_author_avatar,  # Ссылка на аватар автора репоста
+        "repost_author_link": post.repost_author_link  # Ссылка на профиль автора репоста
     } for post in posts])
 
 @app.route('/api/posts', methods=['POST'])
@@ -43,7 +46,10 @@ def add_post():
         mime_type=data.get('mime_type'),  # Сохраняем MIME-тип
         author_name=data.get('author_name'),  # Имя автора
         author_avatar=data.get('author_avatar'),  # Ссылка на аватар автора
-        author_link=data.get('author_link')  # Ссылка на профиль автора
+        author_link=data.get('author_link'),  # Ссылка на профиль автора
+        repost_author_name=data.get('repost_author_name'),  # Имя автора репоста
+        repost_author_avatar=data.get('repost_author_avatar'),  # Ссылка на аватар автора репоста
+        repost_author_link=data.get('repost_author_link')  # Ссылка на профиль автора репоста
     )
     db.session.add(new_post)
     db.session.commit()

@@ -98,6 +98,15 @@ def main(channel_username=None):
         # Обрабатываем автора сообщения
         sender_name, sender_avatar, sender_link = process_author(post.sender, client, peer_id=post.peer_id, from_id=post.from_id)
 
+        # Обрабатываем автора репоста, если это репост
+        repost_name, repost_avatar, repost_link = None, None, None
+        if post.fwd_from and post.fwd_from.from_id:
+            try:
+                repost_entity = client.get_entity(post.fwd_from.from_id)  # Получаем полную информацию об авторе репоста
+                repost_name, repost_avatar, repost_link = process_author(repost_entity, client)
+            except Exception as e:
+                print(f"Ошибка при обработке автора репоста: {e}")
+
         # Сохраняем ID, дату, текст сообщения, ссылку на медиа, его тип, MIME-тип, автора и аватар
         api_data = {
             "telegram_id": post.id,
@@ -108,7 +117,10 @@ def main(channel_username=None):
             "mime_type": mime_type,  # Добавляем MIME-тип
             "author_name": sender_name,  # Имя автора
             "author_avatar": sender_avatar,  # Ссылка на аватар
-            "author_link": sender_link  # Ссылка на автора
+            "author_link": sender_link,  # Ссылка на автора
+            "repost_author_name": repost_name,  # Имя автора репоста
+            "repost_author_avatar": repost_avatar,  # Аватар автора репоста
+            "repost_author_link": repost_link  # Ссылка на автора репоста
         }
         print("Отправляемые данные:", api_data)
         try:

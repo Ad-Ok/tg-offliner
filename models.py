@@ -15,6 +15,9 @@ class Post(db.Model):
     author_name = db.Column(db.String, nullable=True)  # Имя автора
     author_avatar = db.Column(db.String, nullable=True)  # Ссылка на аватар автора
     author_link = db.Column(db.String, nullable=True)  # Ссылка на профиль автора
+    repost_author_name = db.Column(db.String, nullable=True)  # Имя автора репоста
+    repost_author_avatar = db.Column(db.String, nullable=True)  # Аватар автора репоста
+    repost_author_link = db.Column(db.String, nullable=True)  # Ссылка на автора репоста
 
     def __repr__(self):
         return f"<Post {self.telegram_id}>"
