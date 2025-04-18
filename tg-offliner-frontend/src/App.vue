@@ -3,26 +3,21 @@
   <div v-if="loading" class="loading">Загрузка...</div>
   <div v-else>
     <div v-for="post in posts" :key="post.id" class="message">
-      <div class="author">
-        <img
-            v-if="post.author_avatar"
-            :src="`http://127.0.0.1:5000/downloads/${post.author_avatar}`"
-            alt="Avatar"
-          />
-        <a v-if="post.author_link" :href="post.author_link" target="_blank">{{ post.author_name }}</a>
-        <span v-else>{{ post.author_name }}</span>
-        <span class="date">{{ post.date }}</span>
-      </div>
+      <!-- Автор сообщения -->
+      <PostAuthor
+        :name="post.author_name"
+        :avatar="post.author_avatar"
+        :link="post.author_link"
+      />
+
       <!-- Автор репоста -->
       <div v-if="post.repost_author_name" class="repost-author">
         <span>Репост от:</span>
-        <img
-          v-if="post.repost_author_avatar"
-          :src="`http://127.0.0.1:5000/downloads/${post.repost_author_avatar}`"
-          alt="Repost Avatar"
+        <PostAuthor
+          :name="post.repost_author_name"
+          :avatar="post.repost_author_avatar"
+          :link="post.repost_author_link"
         />
-        <a v-if="post.repost_author_link" :href="post.repost_author_link" target="_blank">{{ post.repost_author_name }}</a>
-        <span v-else>{{ post.repost_author_name }}</span>
       </div>
       <!-- Текст сообщения -->
       <p v-html="post.message"></p>
@@ -56,8 +51,12 @@
 
 <script>
 import axios from 'axios';
+import PostAuthor from './components/PostAuthor.vue'; // Обновляем импорт
 
 export default {
+  components: {
+    PostAuthor, // Обновляем имя компонента
+  },
   data() {
     return {
       posts: [],
