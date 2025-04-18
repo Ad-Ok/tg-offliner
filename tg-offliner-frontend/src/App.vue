@@ -2,53 +2,21 @@
   <h1>Лента постов</h1>
   <div v-if="loading" class="loading">Загрузка...</div>
   <div v-else>
-    <div v-for="post in posts" :key="post.id" class="message">
-      <!-- Автор сообщения -->
-      <PostAuthor
-        :name="post.author_name"
-        :avatar="post.author_avatar"
-        :link="post.author_link"
-      />
-
-      <!-- Автор репоста -->
-      <div v-if="post.repost_author_name" class="repost-author">
-        <span>Репост от:</span>
-        <PostAuthor
-          :name="post.repost_author_name"
-          :avatar="post.repost_author_avatar"
-          :link="post.repost_author_link"
-        />
-      </div>
-
-      <!-- Текст сообщения -->
-      <p v-html="post.message"></p>
-
-      <!-- Медиа -->
-      <div v-if="post.media_url">
-        <PostMedia
-          :mediaUrl="post.media_url"
-          :mediaType="post.media_type"
-          :mimeType="post.mime_type"
-        />
-      </div>
-
-      <!-- Реакции -->
-      <PostReactions v-if="post.reactions" :reactions="post.reactions" />
-    </div>
+    <Post
+      v-for="post in posts"
+      :key="post.id"
+      :post="post"
+    />
   </div>
 </template>
 
 <script>
 import axios from 'axios';
-import PostAuthor from './components/PostAuthor.vue';
-import PostMedia from './components/PostMedia.vue';
-import PostReactions from './components/PostReactions.vue';
+import Post from './components/Post.vue';
 
 export default {
   components: {
-    PostAuthor,
-    PostMedia,
-    PostReactions,
+    Post,
   },
   data() {
     return {
@@ -72,6 +40,12 @@ export default {
 </script>
 
 <style>
+.loading {
+  font-size: 18px;
+  text-align: center;
+  margin-top: 20px;
+}
+
 .reactions {
   display: flex;
   margin-top: 10px;
