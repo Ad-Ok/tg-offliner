@@ -1,6 +1,6 @@
-FROM python:3.9-slim-bullseye
+FROM python:3.10-bullseye
 
-# 1. Установка корректных зависимостей для wxPython 4.2.0
+# 1. Установка системных зависимостей
 RUN apt-get update && apt-get install -y \
     build-essential \
     libgtk-3-dev \
@@ -14,21 +14,17 @@ RUN apt-get update && apt-get install -y \
     libsm-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install attrdict3
-# 2. Установка wxPython с официального репозитория
-RUN pip install --no-cache-dir \
-    -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/debian-11 \
-    wxPython==4.2.0
-
-# 3. Остальные пакеты
+# 2. Установка Python-зависимостей
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install attrdict3
+RUN pip install --no-cache-dir \
+    -r requirements.txt \
+    -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/debian-11
 
+# 3. Настройка рабочей директории
 WORKDIR /app
 COPY . .
 
-# Открываем порт для Flask
+# 4. Открытие порта и запуск
 EXPOSE 5000
-
 CMD ["python", "app.py"]
-
