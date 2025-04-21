@@ -1,6 +1,7 @@
 import multiprocessing
 multiprocessing.set_start_method("fork", force=True)
 
+import logging
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from models import db, Post, Channel
@@ -10,6 +11,13 @@ import subprocess
 
 MEDIA_DIR = os.path.join(os.path.dirname(__file__), 'media')
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
+
+# Настройка логирования
+logging.basicConfig(
+    filename='server.log',  # Имя файла для логов
+    level=logging.INFO,     # Уровень логирования (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    format='%(asctime)s - %(levelname)s - %(message)s'  # Формат логов
+)
 
 app = create_app()
 CORS(app, resources={r"/*": {"origins": "http://localhost:8080"}})  # Разрешаем CORS для фронтенда
@@ -120,6 +128,7 @@ def add_channel_to_db():
 @app.route('/api/add_channel', methods=['POST'])
 def run_channel_import():
     """Вызывает скрипт для добавления канала."""
+    app.logger.info('Добавление канала запущено')
     data = request.json
     app.logger.info(f"Получены данные: {data}")
     channel_username = data.get('channel_username')
@@ -155,6 +164,24 @@ def get_channels():
         "avatar": channel.avatar,
         "description": channel.description
     } for channel in channels])
+
+# Эндпоинт для получения логов
+@app.route('/api/logs', methods=['GET'])
+def get_logs():
+    """Возвращает содержимое файла логов."""
+    log_file_path = 'server.log'
+
+    try:
+        # Проверяем, существует ли файл
+        with open(log_file_path, 'r') as log_file:
+            logs = log_file.read()
+        return logs, 200
+    except FileNotFoundError:
+        # Создаём пустой файл, если его нет
+        open(log_file_path, 'w').close()
+        return jsonify({"error": "Файл логов был создан, но пока пуст"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Маршрут для раздачи медиафайлов
 @app.route('/media/<path:filename>')

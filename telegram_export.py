@@ -11,6 +11,14 @@ from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaD
 from message_processing.author import process_author
 import shutil
 import os
+import logging
+
+# Настройка логирования
+logging.basicConfig(
+    filename='server.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
 
@@ -58,6 +66,11 @@ def save_channel_info(client, channel_username):
             print(f"Ошибка при добавлении канала: {response.text}")
     except Exception as e:
         print(f"Ошибка при сохранении информации о канале: {e}")
+
+def download_channel(channel_name):
+    logging.info(f"Начало скачивания канала: {channel_name}")
+    # Ваш код для скачивания
+    logging.info(f"Канал {channel_name} успешно скачан")
 
 def main(channel_username=None):
     # Очищаем папку текущего канала

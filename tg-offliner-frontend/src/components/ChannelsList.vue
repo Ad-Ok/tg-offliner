@@ -17,6 +17,12 @@
       />
       <button @click="addChannel">Добавить канал</button>
     </div>
+
+    <div class="logs">
+      <h2>Серверные логи</h2>
+      <div v-if="logsLoading" class="loading">Загрузка логов...</div>
+      <pre v-else>{{ logs }}</pre>
+    </div>
   </div>
 </template>
 
@@ -30,10 +36,17 @@ export default {
       channels: [],
       loading: true,
       newChannel: "", // Поле для ввода имени канала
+      logs: "", // Логи сервера
+      logsLoading: false, // Флаг загрузки логов
+      logsInterval: null, // Интервал для обновления логов
     };
   },
   created() {
     this.fetchChannels();
+    this.startLogsFetching();
+  },
+  beforeUnmount() {
+    this.stopLogsFetching();
   },
   methods: {
     fetchChannels() {
@@ -55,11 +68,14 @@ export default {
         return;
       }
 
-      console.log("Отправка запроса с данными:", this.newChannel.trim());
+      // Удаляем символ @ в начале строки, если он есть
+      const sanitizedChannel = this.newChannel.trim().replace(/^@/, "");
+
+      console.log("Отправка запроса с данными:", sanitizedChannel);
 
       axios
         .post('http://127.0.0.1:5000/api/add_channel', {
-          channel_username: this.newChannel.trim(),
+          channel_username: sanitizedChannel,
         })
         .then((response) => {
           alert(response.data.message);
@@ -74,6 +90,29 @@ export default {
     printPdf(channelId) {
       console.log(`Печать PDF для канала с ID: ${channelId}`);
       // Здесь будет логика для печати PDF
+    },
+    fetchLogs() {
+      this.logsLoading = true;
+      axios
+        .get('http://127.0.0.1:5000/api/logs')
+        .then((response) => {
+          this.logs = response.data;
+          this.logsLoading = false;
+        })
+        .catch((error) => {
+          console.error('Ошибка при загрузке логов:', error);
+          this.logsLoading = false;
+        });
+    },
+    startLogsFetching() {
+      this.fetchLogs(); // Загружаем логи сразу
+      this.logsInterval = setInterval(this.fetchLogs, 5000); // Обновляем каждые 5 секунд
+    },
+    stopLogsFetching() {
+      if (this.logsInterval) {
+        clearInterval(this.logsInterval);
+        this.logsInterval = null;
+      }
     },
   },
 };
@@ -134,5 +173,19 @@ a:hover {
 
 .print-button:hover {
   background-color: #e0e0e0;
+}
+
+.logs {
+  margin-top: 30px;
+}
+
+.logs pre {
+  background-color: #f8f9fa;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  max-height: 500px;
+  overflow-y: auto;
+  min-height: 300px;
 }
 </style>
