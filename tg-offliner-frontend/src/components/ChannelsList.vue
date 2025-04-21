@@ -6,6 +6,7 @@
       <li v-for="channel in channels" :key="channel.id" class="channel-item">
         <router-link :to="`/${channel.id}/posts`">{{ channel.name }}</router-link>
         <button @click="printPdf(channel.id)" class="print-button">Печать PDF</button>
+          <button @click="removeChannel(channel.id)" class="delete-button">Удалить канал</button>
       </li>
     </ul>
 
@@ -91,6 +92,20 @@ export default {
       console.log(`Печать PDF для канала с ID: ${channelId}`);
       // Здесь будет логика для печати PDF
     },
+    removeChannel(channelId) {
+      if (!confirm("Вы уверены, что хотите удалить этот канал?")) return;
+
+      axios
+        .delete(`http://127.0.0.1:5000/api/channels/${channelId}`)
+        .then((response) => {
+          alert(response.data.message);
+          this.fetchChannels(); // Обновляем список каналов
+        })
+        .catch((error) => {
+          console.error('Ошибка при удалении канала:', error);
+          alert(error.response?.data?.error || "Ошибка при удалении канала");
+        });
+    },
     fetchLogs() {
       this.logsLoading = true;
       axios
@@ -173,6 +188,20 @@ a:hover {
 
 .print-button:hover {
   background-color: #e0e0e0;
+}
+
+.delete-button {
+  padding: 5px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  background-color: #ffb3b3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+.delete-button:hover {
+  background-color: #ff1a1a;
 }
 
 .logs {

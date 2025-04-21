@@ -165,6 +165,38 @@ def get_channels():
         "description": channel.description
     } for channel in channels])
 
+@app.route('/api/channels/<channel_id>', methods=['DELETE'])
+def delete_channel(channel_id):
+    """Удаляет канал и связанные с ним данные."""
+    try:
+        # Удаляем канал из таблицы channels
+        channel = Channel.query.filter_by(id=channel_id).first()
+        if not channel:
+            app.logger.warning(f"Канал с ID {channel_id} не найден.")
+            return jsonify({"error": "Канал не найден"}), 404
+
+        db.session.delete(channel)
+        app.logger.info(f"Канал с ID {channel_id} удалён из таблицы channels.")
+
+        # Удаляем все посты, связанные с этим каналом
+        posts_deleted = Post.query.filter_by(channel_id=channel_id).delete()
+        app.logger.info(f"Удалено {posts_deleted} постов, связанных с каналом {channel_id}.")
+
+        # Удаляем папку из /downloads
+        channel_folder = os.path.join(DOWNLOADS_DIR, channel_id)
+        if os.path.exists(channel_folder):
+            import shutil
+            shutil.rmtree(channel_folder)
+            app.logger.info(f"Папка {channel_folder} удалена.")
+
+        # Сохраняем изменения в базе данных
+        db.session.commit()
+
+        return jsonify({"message": f"Канал {channel_id} и связанные данные успешно удалены."}), 200
+    except Exception as e:
+        app.logger.error(f"Ошибка при удалении канала {channel_id}: {str(e)}")
+        return jsonify({"error": "Ошибка при удалении канала"}), 500
+
 # Эндпоинт для получения логов
 @app.route('/api/logs', methods=['GET'])
 def get_logs():
