@@ -1,11 +1,13 @@
-
 <template>
   <div class="post">
-    <PostAuthor
-      :name="post.author_name"
-      :avatar="post.author_avatar"
-      :link="post.author_link"
-    />
+    <div class="post-header">
+      <PostAuthor
+        :name="post.author_name"
+        :avatar="post.author_avatar"
+        :link="post.author_link"
+      />
+      <span class="post-date">{{ formattedDate }}</span>
+    </div>
 
     <div v-if="post.repost_author_name" class="repost-author">
       <span>Репост от:</span>
@@ -34,6 +36,7 @@
 import PostAuthor from './PostAuthor.vue';
 import PostMedia from './PostMedia.vue';
 import PostReactions from './PostReactions.vue';
+import { formatMessageDate } from '@/services/dateService'; // Импорт сервиса
 
 export default {
   // eslint-disable-next-line vue/multi-word-component-names
@@ -49,12 +52,28 @@ export default {
     PostMedia,
     PostReactions,
   },
+  computed: {
+    formattedDate() {
+      return formatMessageDate(this.post.date);
+    },
+  },
 };
 </script>
 
 <style>
 .post {
   margin-bottom: 20px;
+}
+
+.post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.post-date {
+  font-size: 0.9em;
+  color: #888;
 }
 
 .repost-author {
