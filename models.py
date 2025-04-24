@@ -7,7 +7,7 @@ class Post(db.Model):
     __tablename__ = 'posts'
 
     id = db.Column(db.Integer, primary_key=True)
-    telegram_id = db.Column(db.Integer, unique=True, nullable=False)
+    telegram_id = db.Column(db.Integer, nullable=False)
     channel_id = db.Column(db.String, nullable=False)  # ID канала
     date = db.Column(db.String, nullable=False)
     message = db.Column(db.Text, nullable=True)

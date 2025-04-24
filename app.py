@@ -171,6 +171,12 @@ def run_channel_import():
         app.logger.error("channel_username обязателен")
         return jsonify({"error": "channel_username обязателен"}), 400
 
+    # Проверяем, существует ли канал
+    existing_channel = Channel.query.filter_by(id=channel_username).first()
+    if existing_channel:
+        app.logger.warning(f"Канал {channel_username} уже существует.")
+        return jsonify({"error": f"Канал {channel_username} уже импортирован"}), 400
+
     try:
         # Вызываем скрипт telegram_export.py с аргументом --channel
         result = subprocess.run(

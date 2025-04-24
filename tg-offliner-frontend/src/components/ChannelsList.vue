@@ -75,8 +75,11 @@ export default {
           this.fetchChannels(); // Обновляем список каналов
         })
         .catch((error) => {
-          console.error('Ошибка при добавлении канала:', error);
-          alert(error.response?.data?.error || "Ошибка при добавлении канала");
+          if (error.response && error.response.status === 400) {
+            alert(error.response.data.error); // Выводим сообщение об ошибке
+          } else {
+            alert(error.response?.data?.error || "Ошибка при добавлении канала");
+          }
         });
     },
     printPdf(channelId) {
