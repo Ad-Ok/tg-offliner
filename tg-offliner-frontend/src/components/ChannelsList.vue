@@ -65,7 +65,7 @@ export default {
       const sanitizedChannel = this.newChannel.trim().replace(/^@/, "");
 
       // Показываем сообщение о начале отправки запроса
-      eventBus.showAlert(`Отправка запроса с данными: ${sanitizedChannel}`, "info", false);
+      eventBus.showAlert(`Отправка запроса с данными: ${sanitizedChannel}`, "info");
 
       axios
         .post('http://127.0.0.1:5000/api/add_channel', {

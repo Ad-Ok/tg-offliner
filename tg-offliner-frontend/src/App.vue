@@ -6,7 +6,6 @@
       v-if="alertMessage"
       :message="alertMessage"
       :type="alertType"
-      :autoClose="true"
       @closed="clearAlert"
     />
     <router-view />

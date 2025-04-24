@@ -24,10 +24,6 @@ export default {
       type: String,
       default: "info", // Тип сообщения: 'success', 'danger', 'warning', 'info'
     },
-    autoClose: {
-      type: [Boolean, Number], // Либо false, либо число (время в мс)
-      default: null, // Значение по умолчанию не задаётся здесь
-    },
   },
   data() {
     return {
@@ -35,9 +31,6 @@ export default {
     };
   },
   mounted() {
-    if (this.autoClose !== false && typeof this.autoClose === "number") {
-      setTimeout(this.closeAlert, this.autoClose);
-    }
   },
   methods: {
     closeAlert() {
