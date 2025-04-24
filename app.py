@@ -8,6 +8,8 @@ from models import db, Post, Channel
 from database import create_app, init_db
 import os
 import subprocess
+import wx
+import wx.html2
 
 MEDIA_DIR = os.path.join(os.path.dirname(__file__), 'media')
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
@@ -22,6 +24,38 @@ logging.basicConfig(
 app = create_app()
 CORS(app, resources={r"/*": {"origins": "http://localhost:8080"}})  # Разрешаем CORS для фронтенда
 init_db(app)
+
+def generate_pdf(html_content, pdf_path):
+    """Генерирует PDF из HTML-контента."""
+    try:
+        logging.info("Инициализация wxPython...")
+        app = wx.App(False)
+        frame = wx.Frame(None, wx.ID_ANY, "PDF Generator")
+        web_view = wx.html2.WebView.New(frame)
+
+        logging.info("Загрузка HTML-контента...")
+        web_view.SetPage(html_content, "")
+
+        def on_print(event):
+            try:
+                logging.info("Настройка принтера...")
+                printer = wx.html2.WebViewPrintData()
+                printer.SetPrintMode(wx.html2.WebViewPrintMode.PDF)
+                printer.SetOutputFileName(pdf_path)
+
+                logging.info("Печать в PDF...")
+                if web_view.Print(printer):
+                    logging.info(f"PDF сохранён в {pdf_path}")
+                else:
+                    logging.error("Ошибка при сохранении PDF")
+                frame.Close()
+            except Exception as e:
+                logging.error(f"Ошибка при печати PDF: {str(e)}")
+
+        web_view.Bind(wx.html2.EVT_WEBVIEW_LOADED, on_print)
+        app.MainLoop()
+    except Exception as e:
+        logging.error(f"Ошибка в generate_pdf: {str(e)}")
 
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
@@ -197,23 +231,35 @@ def delete_channel(channel_id):
         app.logger.error(f"Ошибка при удалении канала {channel_id}: {str(e)}")
         return jsonify({"error": "Ошибка при удалении канала"}), 500
 
-# Эндпоинт для получения логов
-@app.route('/api/logs', methods=['GET'])
-def get_logs():
-    """Возвращает содержимое файла логов."""
-    log_file_path = 'server.log'
-
+@app.route('/api/channels/<channel_id>/print', methods=['GET'])
+def print_channel_to_pdf(channel_id):
+    """Генерирует PDF для указанного канала."""
     try:
-        # Проверяем, существует ли файл
-        with open(log_file_path, 'r') as log_file:
-            logs = log_file.read()
-        return logs, 200
-    except FileNotFoundError:
-        # Создаём пустой файл, если его нет
-        open(log_file_path, 'w').close()
-        return jsonify({"error": "Файл логов был создан, но пока пуст"}), 200
+        # Проверяем, существует ли канал
+        channel = Channel.query.filter_by(id=channel_id).first()
+        if not channel:
+            app.logger.warning(f"Канал с ID {channel_id} не найден.")
+            return jsonify({"error": "Канал не найден"}), 404
+
+        # Генерация HTML для канала
+        posts = Post.query.filter_by(channel_id=channel_id).all()
+        html_content = f"<h1>{channel.name}</h1><p>{channel.description or ''}</p><hr>"
+        for post in posts:
+            html_content += f"<div><p><b>{post.date}</b></p><p>{post.message}</p></div><hr>"
+
+        logging.info(f"HTML-контент для канала {channel_id}: {html_content}")
+
+        # Путь для сохранения PDF
+        pdf_path = os.path.join(DOWNLOADS_DIR, f"{channel_id}.pdf")
+
+        # Генерация PDF с использованием wxPython
+        generate_pdf(html_content, pdf_path)
+
+        app.logger.info(f"PDF для канала {channel_id} успешно создан: {pdf_path}")
+        return send_from_directory(DOWNLOADS_DIR, f"{channel_id}.pdf", as_attachment=True)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Ошибка при генерации PDF для канала {channel_id}: {str(e)}")
+        return jsonify({"error": "Ошибка при генерации PDF"}), 500
 
 # Маршрут для раздачи медиафайлов
 @app.route('/media/<path:filename>')

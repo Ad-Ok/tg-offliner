@@ -18,12 +18,6 @@
       />
       <button @click="addChannel">Добавить канал</button>
     </div>
-
-    <div class="logs">
-      <h2>Серверные логи</h2>
-      <div v-if="logsLoading" class="loading">Загрузка логов...</div>
-      <pre v-else>{{ logs }}</pre>
-    </div>
   </div>
 </template>
 
@@ -40,14 +34,11 @@ export default {
       logs: "", // Логи сервера
       logsLoading: false, // Флаг загрузки логов
       logsInterval: null, // Интервал для обновления логов
+      logsOffset: 0, // Offset для логов
     };
   },
   created() {
     this.fetchChannels();
-    this.startLogsFetching();
-  },
-  beforeUnmount() {
-    this.stopLogsFetching();
   },
   methods: {
     fetchChannels() {
@@ -89,8 +80,24 @@ export default {
         });
     },
     printPdf(channelId) {
-      console.log(`Печать PDF для канала с ID: ${channelId}`);
-      // Здесь будет логика для печати PDF
+      axios
+        .get(`http://127.0.0.1:5000/api/channels/${channelId}/print`, {
+          responseType: 'blob', // Указываем, что ожидаем файл
+        })
+        .then((response) => {
+          // Создаём ссылку для скачивания PDF
+          const url = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', `${channelId}.pdf`);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        })
+        .catch((error) => {
+          console.error('Ошибка при печати PDF:', error);
+          alert('Ошибка при печати PDF');
+        });
     },
     removeChannel(channelId) {
       if (!confirm("Вы уверены, что хотите удалить этот канал?")) return;
@@ -105,29 +112,6 @@ export default {
           console.error('Ошибка при удалении канала:', error);
           alert(error.response?.data?.error || "Ошибка при удалении канала");
         });
-    },
-    fetchLogs() {
-      this.logsLoading = true;
-      axios
-        .get('http://127.0.0.1:5000/api/logs')
-        .then((response) => {
-          this.logs = response.data;
-          this.logsLoading = false;
-        })
-        .catch((error) => {
-          console.error('Ошибка при загрузке логов:', error);
-          this.logsLoading = false;
-        });
-    },
-    startLogsFetching() {
-      this.fetchLogs(); // Загружаем логи сразу
-      this.logsInterval = setInterval(this.fetchLogs, 5000); // Обновляем каждые 5 секунд
-    },
-    stopLogsFetching() {
-      if (this.logsInterval) {
-        clearInterval(this.logsInterval);
-        this.logsInterval = null;
-      }
     },
   },
 };
@@ -204,17 +188,4 @@ a:hover {
   background-color: #ff1a1a;
 }
 
-.logs {
-  margin-top: 30px;
-}
-
-.logs pre {
-  background-color: #f8f9fa;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  max-height: 500px;
-  overflow-y: auto;
-  min-height: 300px;
-}
 </style>
