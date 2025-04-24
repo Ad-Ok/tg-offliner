@@ -23,6 +23,7 @@
 
 <script>
 import axios from 'axios';
+import { eventBus } from "@/eventBus";
 
 export default {
   name: "ChannelsList",
@@ -56,29 +57,30 @@ export default {
     },
     addChannel() {
       if (!this.newChannel.trim()) {
-        alert("Введите имя канала!");
+        eventBus.showAlert("Введите имя канала!", "warning");
         return;
       }
 
       // Удаляем символ @ в начале строки, если он есть
       const sanitizedChannel = this.newChannel.trim().replace(/^@/, "");
 
-      console.log("Отправка запроса с данными:", sanitizedChannel);
+      // Показываем сообщение о начале отправки запроса
+      eventBus.showAlert(`Отправка запроса с данными: ${sanitizedChannel}`, "info", false);
 
       axios
         .post('http://127.0.0.1:5000/api/add_channel', {
           channel_username: sanitizedChannel,
         })
         .then((response) => {
-          alert(response.data.message);
+          eventBus.showAlert(response.data.message, "success");
           this.newChannel = ""; // Очищаем поле ввода
           this.fetchChannels(); // Обновляем список каналов
         })
         .catch((error) => {
           if (error.response && error.response.status === 400) {
-            alert(error.response.data.error); // Выводим сообщение об ошибке
+            eventBus.showAlert(error.response.data.error, "warning");
           } else {
-            alert(error.response?.data?.error || "Ошибка при добавлении канала");
+            eventBus.showAlert("Ошибка при добавлении канала", "danger");
           }
         });
     },

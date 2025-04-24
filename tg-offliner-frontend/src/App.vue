@@ -1,12 +1,41 @@
 <template>
   <div>
     <h1>Telegram Offliner</h1>
+    <!-- Компонент SystemAlert -->
+    <SystemAlert
+      v-if="alertMessage"
+      :message="alertMessage"
+      :type="alertType"
+      :autoClose="true"
+      @closed="clearAlert"
+    />
     <router-view />
   </div>
 </template>
 
 <script>
-export default {};
+import { eventBus } from "@/eventBus";
+import SystemAlert from "@/components/SystemAlert.vue";
+
+export default {
+  name: "App",
+  components: {
+    SystemAlert,
+  },
+  computed: {
+    alertMessage() {
+      return eventBus.alertMessage;
+    },
+    alertType() {
+      return eventBus.alertType;
+    },
+  },
+  methods: {
+    clearAlert() {
+      eventBus.clearAlert();
+    },
+  },
+};
 </script>
 
 <style>
