@@ -130,3 +130,24 @@ The script supports the following flags to control its behavior:
 - Generate an index file with links to all posts.
 - Support for grouped messages and media attachments.
 - Flexible command-line options for controlling the export process.
+
+## **Run with Docker**
+
+- **Build image**
+  ```bash
+  docker compose build
+  ```
+
+- **Run container**
+  ```bash
+  docker compose up
+  ```
+
+- **Then run frontend**
+  ```bash
+  cd tg-offliner-frontend
+  npm install
+  npm run serve
+  ```
+The app will be available on the port :8080
+http://localhost:8080/
