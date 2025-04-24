@@ -151,6 +151,10 @@ def main(channel_username=None):
         except Exception as e:
             print(f"Ошибка при проверке существования поста: {e}")
             continue
+        
+        # Проверяем, имеет ли пост комментарии
+        if post.replies and post.replies.replies > 0:  # Если есть комментарии
+            print(f"Пост с ID {post.id} имеет {post.replies.replies} комментариев.")
 
         # Преобразуем текст и entities в HTML
         formatted_message = parse_entities_to_html(post.message or "", post.entities or "")

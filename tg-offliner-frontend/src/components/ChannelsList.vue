@@ -107,15 +107,25 @@ export default {
     removeChannel(channelId) {
       if (!confirm("Вы уверены, что хотите удалить этот канал?")) return;
 
+      this.deleteChannel(channelId);
+    },
+    deleteChannel(channelId) {
       axios
         .delete(`http://127.0.0.1:5000/api/channels/${channelId}`)
         .then((response) => {
-          alert(response.data.message);
+          // Если запрос успешен, выводим сообщение об успехе
+          if (response.data.message) {
+            eventBus.showAlert(response.data.message, "success");
+          }
           this.fetchChannels(); // Обновляем список каналов
         })
         .catch((error) => {
-          console.error('Ошибка при удалении канала:', error);
-          alert(error.response?.data?.error || "Ошибка при удалении канала");
+          // Если произошла ошибка, выводим сообщение об ошибке
+          if (error.response && error.response.data.error) {
+            eventBus.showAlert(error.response.data.error, "danger");
+          } else {
+            eventBus.showAlert("Неизвестная ошибка при удалении канала", "danger");
+          }
         });
     },
   },
