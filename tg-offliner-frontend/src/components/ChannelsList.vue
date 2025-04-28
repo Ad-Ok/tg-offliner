@@ -15,6 +15,7 @@
         v-model="newChannel"
         type="text"
         placeholder="Введите имя канала"
+        @keyup.enter="addChannel"
       />
       <button @click="addChannel">Добавить канал</button>
     </div>
