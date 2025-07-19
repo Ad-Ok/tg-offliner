@@ -248,6 +248,14 @@ def print_channel_to_pdf(channel_id):
             <div class="post">
                 <p><b>{post.date}</b></p>
                 <p>{post.message}</p>
+            """
+            if post.author_avatar:
+                avatar_src = os.path.join(channel_id, "avatars", os.path.basename(post.author_avatar))
+                html_content += f'<img src="{avatar_src}" class="avatar" style="width:48px; height:48px; border-radius:24px;" />'
+            if post.media_url:
+                img_src = os.path.join(channel_id, "media", os.path.basename(post.media_url))
+                html_content += f'<img src="{img_src}" style="max-width:400px; max-height:400px;" />'
+            html_content += """
             </div>
             <hr>
             """
@@ -258,8 +266,8 @@ def print_channel_to_pdf(channel_id):
         # Путь для сохранения PDF
         pdf_path = os.path.join(DOWNLOADS_DIR, f"{channel_id}.pdf")
 
-        # Генерация PDF с использованием wxPython
-        generate_pdf(html_content, pdf_path)
+        # Генерация PDF с учетом base_url для картинок
+        HTML(string=html_content, base_url=DOWNLOADS_DIR).write_pdf(pdf_path)
 
         # Проверяем, создан ли файл PDF
         if not os.path.exists(pdf_path):
