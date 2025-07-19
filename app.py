@@ -10,6 +10,7 @@ import os
 import subprocess
 import wx
 import wx.html2
+from weasyprint import HTML
 
 MEDIA_DIR = os.path.join(os.path.dirname(__file__), 'media')
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
@@ -28,34 +29,10 @@ init_db(app)
 def generate_pdf(html_content, pdf_path):
     """Генерирует PDF из HTML-контента."""
     try:
-        logging.info("Инициализация wxPython...")
-        app = wx.App(False)
-        frame = wx.Frame(None, wx.ID_ANY, "PDF Generator")
-        web_view = wx.html2.WebView.New(frame)
-
-        logging.info("Загрузка HTML-контента...")
-        web_view.SetPage(html_content, "")
-
-        def on_print(event):
-            try:
-                logging.info("Настройка принтера...")
-                printer = wx.html2.WebViewPrintData()
-                printer.SetPrintMode(wx.html2.WebViewPrintMode.PDF)
-                printer.SetOutputFileName(pdf_path)
-
-                logging.info("Печать в PDF...")
-                if web_view.Print(printer):
-                    logging.info(f"PDF сохранён в {pdf_path}")
-                else:
-                    logging.error("Ошибка при сохранении PDF")
-                frame.Close()
-            except Exception as e:
-                logging.error(f"Ошибка при печати PDF: {str(e)}")
-
-        web_view.Bind(wx.html2.EVT_WEBVIEW_LOADED, on_print)
-        app.MainLoop()
+        HTML(string=html_content).write_pdf(pdf_path)
+        logging.info(f"PDF успешно сохранён в {pdf_path}")
     except Exception as e:
-        logging.error(f"Ошибка в generate_pdf: {str(e)}")
+        logging.error(f"Ошибка при печати PDF: {str(e)}")
 
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
@@ -117,7 +94,7 @@ def add_post():
     )
     db.session.add(new_post)
     db.session.commit()
-    return jsonify({"message": "Post added successfully!"}), 201
+    return jsonify({"message": "Post added successfully!"}, 201)
 
 @app.route('/api/posts', methods=['DELETE'])
 def delete_post():
@@ -249,9 +226,32 @@ def print_channel_to_pdf(channel_id):
 
         # Генерация HTML для канала
         posts = Post.query.filter_by(channel_id=channel_id).all()
-        html_content = f"<h1>{channel.name}</h1><p>{channel.description or ''}</p><hr>"
+        html_content = f"""
+        <html>
+        <head>
+            <title>{channel.name}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; }}
+                h1 {{ color: #333; }}
+                p {{ margin: 5px 0; }}
+                hr {{ border: 1px solid #ddd; }}
+                .post {{ margin-bottom: 15px; }}
+            </style>
+        </head>
+        <body>
+            <h1>{channel.name}</h1>
+            <p>{channel.description or ''}</p>
+            <hr>
+        """
         for post in posts:
-            html_content += f"<div><p><b>{post.date}</b></p><p>{post.message}</p></div><hr>"
+            html_content += f"""
+            <div class="post">
+                <p><b>{post.date}</b></p>
+                <p>{post.message}</p>
+            </div>
+            <hr>
+            """
+        html_content += "</body></html>"
 
         logging.info(f"HTML-контент для канала {channel_id}: {html_content}")
 
@@ -260,6 +260,11 @@ def print_channel_to_pdf(channel_id):
 
         # Генерация PDF с использованием wxPython
         generate_pdf(html_content, pdf_path)
+
+        # Проверяем, создан ли файл PDF
+        if not os.path.exists(pdf_path):
+            app.logger.error(f"PDF-файл не найден после генерации: {pdf_path}")
+            return jsonify({"error": "PDF-файл не был создан"}), 500
 
         app.logger.info(f"PDF для канала {channel_id} успешно создан: {pdf_path}")
         return send_from_directory(DOWNLOADS_DIR, f"{channel_id}.pdf", as_attachment=True)

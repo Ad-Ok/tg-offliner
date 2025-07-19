@@ -88,21 +88,38 @@ export default {
     printPdf(channelId) {
       axios
         .get(`http://127.0.0.1:5000/api/channels/${channelId}/print`, {
-          responseType: 'blob', // Указываем, что ожидаем файл
+          responseType: 'blob',
         })
         .then((response) => {
+          // Проверяем, что пришёл PDF-файл
+          const contentType = response.headers['content-type'];
+          if (!contentType || !contentType.includes('pdf')) {
+            eventBus.showAlert("Сервер не вернул PDF-файл. Проверьте логи сервера.", "danger");
+            return;
+          }
           // Создаём ссылку для скачивания PDF
-          const url = window.URL.createObjectURL(new Blob([response.data]));
+          const url = window.URL.createObjectURL(new Blob([response.data], { type: contentType }));
           const link = document.createElement('a');
           link.href = url;
           link.setAttribute('download', `${channelId}.pdf`);
           document.body.appendChild(link);
           link.click();
           link.remove();
+          window.URL.revokeObjectURL(url);
         })
         .catch((error) => {
-          console.error('Ошибка при печати PDF:', error);
-          alert('Ошибка при печати PDF');
+          let message = "Ошибка при печати PDF";
+          if (error.response) {
+            if (error.response.data && error.response.data.error) {
+              message = error.response.data.error;
+            } else if (error.response.status) {
+              message += ` (HTTP ${error.response.status})`;
+            }
+          } else if (error.message) {
+            message += `: ${error.message}`;
+          }
+          eventBus.showAlert(message, "danger");
+          console.error("Ошибка при скачивании PDF:", error);
         });
     },
     removeChannel(channelId) {
