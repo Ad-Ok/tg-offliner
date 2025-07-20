@@ -11,6 +11,7 @@ import subprocess
 import wx
 import wx.html2
 from weasyprint import HTML
+import requests
 
 MEDIA_DIR = os.path.join(os.path.dirname(__file__), 'media')
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
@@ -23,7 +24,7 @@ logging.basicConfig(
 )
 
 app = create_app()
-CORS(app, resources={r"/*": {"origins": "http://localhost:8080"}})  # Разрешаем CORS для фронтенда
+CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})  # Разрешаем CORS для фронтенда
 init_db(app)
 
 def generate_pdf(html_content, pdf_path):
@@ -218,58 +219,18 @@ def delete_channel(channel_id):
 def print_channel_to_pdf(channel_id):
     """Генерирует PDF для указанного канала."""
     try:
-        # Проверяем, существует ли канал
-        channel = Channel.query.filter_by(id=channel_id).first()
-        if not channel:
-            app.logger.warning(f"Канал с ID {channel_id} не найден.")
-            return jsonify({"error": "Канал не найден"}), 404
+        # Получаем HTML с SSR-сервера
+        ssr_url = f'http://ssr:3000/{channel_id}/posts'
+        response = requests.get(ssr_url)
+        if response.status_code != 200:
+            app.logger.error(f"SSR-сервер вернул ошибку: {response.status_code}")
+            return jsonify({"error": "Ошибка SSR-рендеринга"}), 500
 
-        # Генерация HTML для канала
-        posts = Post.query.filter_by(channel_id=channel_id).all()
-        html_content = f"""
-        <html>
-        <head>
-            <title>{channel.name}</title>
-            <style>
-                body {{ font-family: Arial, sans-serif; }}
-                h1 {{ color: #333; }}
-                p {{ margin: 5px 0; }}
-                hr {{ border: 1px solid #ddd; }}
-                .post {{ margin-bottom: 15px; }}
-            </style>
-        </head>
-        <body>
-            <h1>{channel.name}</h1>
-            <p>{channel.description or ''}</p>
-            <hr>
-        """
-        for post in posts:
-            html_content += f"""
-            <div class="post">
-                <p><b>{post.date}</b></p>
-                <p>{post.message}</p>
-            """
-            if post.author_avatar:
-                avatar_src = os.path.join(channel_id, "avatars", os.path.basename(post.author_avatar))
-                html_content += f'<img src="{avatar_src}" class="avatar" style="width:48px; height:48px; border-radius:24px;" />'
-            if post.media_url:
-                img_src = os.path.join(channel_id, "media", os.path.basename(post.media_url))
-                html_content += f'<img src="{img_src}" style="max-width:400px; max-height:400px;" />'
-            html_content += """
-            </div>
-            <hr>
-            """
-        html_content += "</body></html>"
+        html_content = response.text
 
-        logging.info(f"HTML-контент для канала {channel_id}: {html_content}")
-
-        # Путь для сохранения PDF
         pdf_path = os.path.join(DOWNLOADS_DIR, f"{channel_id}.pdf")
-
-        # Генерация PDF с учетом base_url для картинок
         HTML(string=html_content, base_url=DOWNLOADS_DIR).write_pdf(pdf_path)
 
-        # Проверяем, создан ли файл PDF
         if not os.path.exists(pdf_path):
             app.logger.error(f"PDF-файл не найден после генерации: {pdf_path}")
             return jsonify({"error": "PDF-файл не был создан"}), 500

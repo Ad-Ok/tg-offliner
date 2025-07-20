@@ -23,8 +23,8 @@
 </template>
 
 <script>
-import axios from 'axios';
-import { eventBus } from "@/eventBus";
+import { eventBus } from "~/eventBus";
+import { api } from '~/services/api';
 
 export default {
   name: "ChannelsList",
@@ -45,8 +45,8 @@ export default {
   methods: {
     fetchChannels() {
       this.loading = true;
-      axios
-        .get('http://127.0.0.1:5000/api/channels')
+      api
+        .get('/api/channels')
         .then((response) => {
           this.channels = response.data;
           this.loading = false;
@@ -68,8 +68,8 @@ export default {
       // Показываем сообщение о начале отправки запроса
       eventBus.showAlert(`Отправка запроса с данными: ${sanitizedChannel}`, "info");
 
-      axios
-        .post('http://127.0.0.1:5000/api/add_channel', {
+      api
+        .post('/api/add_channel', {
           channel_username: sanitizedChannel,
         })
         .then((response) => {
@@ -86,8 +86,8 @@ export default {
         });
     },
     printPdf(channelId) {
-      axios
-        .get(`http://127.0.0.1:5000/api/channels/${channelId}/print`, {
+      api
+        .get(`/api/channels/${channelId}/print`, {
           responseType: 'blob',
         })
         .then((response) => {
@@ -128,8 +128,8 @@ export default {
       this.deleteChannel(channelId);
     },
     deleteChannel(channelId) {
-      axios
-        .delete(`http://127.0.0.1:5000/api/channels/${channelId}`)
+      api
+        .delete(`/api/channels/${channelId}`)
         .then((response) => {
           // Если запрос успешен, выводим сообщение об успехе
           if (response.data.message) {

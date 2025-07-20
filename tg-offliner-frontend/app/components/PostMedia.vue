@@ -1,18 +1,17 @@
-
 <template>
   <div class="post-media">
     <p><strong>Медиа ({{ mediaType }} - {{ mimeType }}):</strong></p>
     <div v-if="mediaType === 'MessageMediaDocument'">
       <img
         v-if="mimeType && mimeType.startsWith('image/')"
-        :src="`http://127.0.0.1:5000/downloads/${mediaUrl}`"
+        :src="mediaSrc"
         alt="Медиа"
       />
       <video
         v-else-if="mimeType && mimeType.startsWith('video/')"
         controls
       >
-        <source :src="`http://127.0.0.1:5000/downloads/${mediaUrl}`" />
+        <source :src="mediaSrc" />
       </video>
       <audio
         v-else-if="mimeType && mimeType.startsWith('audio/')"
@@ -20,16 +19,16 @@
         class="media"
       >
         <source
-          :src="`http://127.0.0.1:5000/downloads/${mediaUrl}`"
+          :src="mediaSrc"
           :type="mimeType"
         />
         Ваш браузер не поддерживает аудио.
       </audio>
-      <a v-else :href="`http://127.0.0.1:5000/downloads/${mediaUrl}`" target="_blank">Скачать файл</a>
+      <a v-else :href="mediaSrc" target="_blank">Скачать файл</a>
     </div>
     <div v-else-if="mediaType === 'MessageMediaPhoto'">
       <img
-        :src="`http://127.0.0.1:5000/downloads/${mediaUrl}`"
+        :src="mediaSrc"
         alt="Медиа"
       />
     </div>
@@ -37,6 +36,8 @@
 </template>
 
 <script>
+import { apiBase } from '~/services/api';
+
 export default {
   name: "PostMedia",
   props: {
@@ -53,6 +54,11 @@ export default {
       required: false,
     },
   },
+  computed: {
+    mediaSrc() {
+      return `${apiBase}/downloads/${this.mediaUrl}`;
+    }
+  }
 };
 </script>
 
