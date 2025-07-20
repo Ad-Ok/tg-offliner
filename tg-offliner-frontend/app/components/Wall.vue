@@ -3,17 +3,20 @@
     <h1>Стена канала: {{ channelId }}</h1>
     <div v-if="loading" class="loading">Загрузка...</div>
     <div v-else>
-
+      <Post
+        v-for="post in posts"
+        :key="post.id"
+        :post="post"
+      />
     </div>
   </div>
 </template>
 
 <script>
-// import axios from 'axios';
+import { api } from '~/services/api';
 import Post from './Post.vue';
 
 export default {
-  // eslint-disable-next-line vue/multi-word-component-names
   name: "Wall",
   components: {
     Post,
@@ -38,21 +41,21 @@ export default {
       },
     },
   },
-  // methods: {
-  //   fetchPosts(channelId) {
-  //     this.loading = true;
-  //     axios
-  //       .get(`http://127.0.0.1:5000/api/posts?channel_id=${channelId}`)
-  //       .then((response) => {
-  //         this.posts = response.data;
-  //         this.loading = false;
-  //       })
-  //       .catch((error) => {
-  //         console.error("Ошибка при загрузке постов:", error);
-  //         this.loading = false;
-  //       });
-  //   },
-  // },
+  methods: {
+    fetchPosts(channelId) {
+      this.loading = true;
+      api
+        .get(`/api/posts?channel_id=${channelId}`)
+        .then((response) => {
+          this.posts = response.data;
+          this.loading = false;
+        })
+        .catch((error) => {
+          console.error("Ошибка при загрузке постов:", error);
+          this.loading = false;
+        });
+    },
+  },
 };
 </script>
 
