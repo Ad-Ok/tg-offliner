@@ -133,21 +133,26 @@ The script supports the following flags to control its behavior:
 
 ## **Run with Docker**
 
-- **Build image**
+- **Build and start all services (backend + frontend SSR):**
   ```bash
-  docker compose build
+  docker compose up --build
   ```
 
-- **Run container**
-  ```bash
-  docker compose up
+- The Flask backend will be available on port **5000**:
+  ```
+  http://localhost:5000/
   ```
 
-- **Then run frontend**
-  ```bash
-  cd tg-offliner-frontend
-  npm install
-  npm run serve
+- The Nuxt frontend (SSR) will be available on port **3000**:
   ```
-The app will be available on the port :8080
-http://localhost:8080/
+  http://localhost:3000/
+  ```
+
+- **Hot-reload:**  
+  Any changes in the `tg-offliner-frontend` folder will be reflected immediately in the SSR frontend (no need to rebuild the container).
+
+---
+
+**Note:**  
+You no longer need to run the frontend separately with `npm run serve`.  
+All services are managed via Docker Compose and work together out of the box.
