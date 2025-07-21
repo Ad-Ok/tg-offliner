@@ -24,7 +24,7 @@
 
 <script>
 import { eventBus } from "~/eventBus";
-import { api } from '~/services/api';
+import { api, apiBase } from '~/services/api'; // <-- добавь apiBase сюда
 
 export default {
   name: "ChannelsList",
@@ -85,42 +85,27 @@ export default {
           }
         });
     },
-    printPdf(channelId) {
-      api
-        .get(`/api/channels/${channelId}/print`, {
-          responseType: 'blob',
-        })
-        .then((response) => {
-          // Проверяем, что пришёл PDF-файл
-          const contentType = response.headers['content-type'];
-          if (!contentType || !contentType.includes('pdf')) {
-            eventBus.showAlert("Сервер не вернул PDF-файл. Проверьте логи сервера.", "danger");
-            return;
-          }
-          // Создаём ссылку для скачивания PDF
-          const url = window.URL.createObjectURL(new Blob([response.data], { type: contentType }));
-          const link = document.createElement('a');
-          link.href = url;
-          link.setAttribute('download', `${channelId}.pdf`);
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          window.URL.revokeObjectURL(url);
-        })
-        .catch((error) => {
-          let message = "Ошибка при печати PDF";
-          if (error.response) {
-            if (error.response.data && error.response.data.error) {
-              message = error.response.data.error;
-            } else if (error.response.status) {
-              message += ` (HTTP ${error.response.status})`;
-            }
-          } else if (error.message) {
-            message += `: ${error.message}`;
-          }
-          eventBus.showAlert(message, "danger");
-          console.error("Ошибка при скачивании PDF:", error);
-        });
+    async printPdf(channelId) {
+      try {
+        const res = await fetch(`${apiBase}/api/channels/${channelId}/print`);
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('pdf')) {
+          eventBus.showAlert("Сервер не вернул PDF-файл. Проверьте логи сервера.", "danger");
+          return;
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${channelId}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        eventBus.showAlert(error.message || "Ошибка при печати PDF", "danger");
+        console.error("Ошибка при скачивании PDF:", error);
+      }
     },
     removeChannel(channelId) {
       if (!confirm("Вы уверены, что хотите удалить этот канал?")) return;
