@@ -36,27 +36,18 @@
 </template>
 
 <script>
-import { apiBase } from '~/services/api';
+import { mediaBase } from '~/services/api';
 
 export default {
   name: "PostMedia",
   props: {
-    mediaUrl: {
-      type: String,
-      required: true,
-    },
-    mediaType: {
-      type: String,
-      required: true,
-    },
-    mimeType: {
-      type: String,
-      required: false,
-    },
+    mediaUrl: { type: String, required: true },
+    mediaType: { type: String, required: true },
+    mimeType: { type: String, required: false },
   },
   computed: {
     mediaSrc() {
-      return `${apiBase}/downloads/${this.mediaUrl}`;
+      return `${mediaBase}/downloads/${this.mediaUrl}`;
     }
   }
 };

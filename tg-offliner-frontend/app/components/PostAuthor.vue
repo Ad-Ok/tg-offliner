@@ -7,7 +7,7 @@
 </template>
 
 <script>
-import { apiBase } from '~/services/api';
+import { mediaBase } from '~/services/api';
 
 export default {
   name: "PostAuthor",
@@ -27,7 +27,7 @@ export default {
   },
   computed: {
     avatarSrc() {
-      return this.avatar ? `${apiBase}/downloads/${this.avatar}` : null;
+      return this.avatar ? `${mediaBase}/downloads/${this.avatar}` : null;
     }
   }
 };
