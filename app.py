@@ -225,13 +225,7 @@ def print_channel_to_pdf(channel_id):
             return jsonify({"error": "Ошибка SSR-рендеринга"}), 500
 
         html_content = response.text
-
-        # >>> ВЫВОДИМ HTML В КОНСОЛЬ <<<
-        print("=== HTML для PDF ===")
-        print(html_content)
-        print("=== КОНЕЦ HTML ===")
-
-        # Важно! base_url должен указывать на SSR Nuxt, чтобы WeasyPrint мог загрузить CSS и статику
+        
         pdf_path = os.path.join(DOWNLOADS_DIR, f"{channel_id}.pdf")
         HTML(string=html_content, base_url='http://ssr:3000').write_pdf(pdf_path)
 
