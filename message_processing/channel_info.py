@@ -40,7 +40,8 @@ def get_channel_info(client, entity, output_dir):
             "avatar": avatar_path if avatar_path else "static/default_avatar.png",
             "username": entity.username if entity.username else "Unknown",
             "creation_date": entity.date.strftime('%d %B %Y'),
-            "subscribers": participants_count if participants_count is not None else "Unknown"
+            "subscribers": participants_count if participants_count is not None else "Unknown",
+            "description": getattr(full_info.full_chat, "about", None)
         }
 
     elif isinstance(entity, User):
