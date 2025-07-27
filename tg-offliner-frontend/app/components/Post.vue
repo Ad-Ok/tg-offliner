@@ -59,25 +59,3 @@ export default {
   },
 };
 </script>
-
-<style>
-.post {
-  margin-bottom: 20px;
-}
-
-.post-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.post-date {
-  font-size: 0.9em;
-  color: #888;
-}
-
-.repost-author {
-  margin-top: 10px;
-  font-style: italic;
-}
-</style>

@@ -32,28 +32,3 @@ export default {
   }
 };
 </script>
-
-<style>
-.author {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.author img {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  margin-right: 10px;
-}
-
-.author a {
-  font-weight: bold;
-  color: #007bff;
-  text-decoration: none;
-}
-
-.author a:hover {
-  text-decoration: underline;
-}
-</style>

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="wall">
     <h1>Стена канала: {{ channelId }}</h1>
     <ClientOnly v-if="loading">
       <div class="loading">Загрузка...</div>
@@ -27,11 +27,3 @@ export default {
   },
 };
 </script>
-
-<style>
-.loading {
-  font-size: 18px;
-  text-align: center;
-  margin-top: 20px;
-}
-</style>

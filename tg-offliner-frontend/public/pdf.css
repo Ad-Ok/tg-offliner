@@ -1,5 +1,177 @@
-h1 {
-  background-color: green;
+.channels-list .loading {
+  font-size: 18px;
+  text-align: center;
+  margin-top: 20px;
+}
+.channels-list ul {
+  list-style-type: none;
+  padding: 0;
+}
+.channels-list li {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.channels-list a {
+  text-decoration: none;
+  color: #007bff;
+}
+.channels-list a:hover {
+  text-decoration: underline;
+}
+.channels-list .add-channel {
+  margin-top: 20px;
+}
+.channels-list .add-channel input {
+  padding: 8px;
+  font-size: 16px;
+  margin-right: 10px;
+}
+.channels-list .add-channel button {
+  padding: 8px 16px;
+  font-size: 16px;
+  cursor: pointer;
+}
+.channels-list .print-button {
+  padding: 5px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.channels-list .print-button:hover {
+  background-color: #e0e0e0;
+}
+.channels-list .delete-button {
+  padding: 5px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  background-color: #ffb3b3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+.channels-list .delete-button:hover {
+  background-color: #ff1a1a;
+}
+
+.wall .loading {
+  font-size: 18px;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.post-media img {
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 10px;
+}
+
+.post-media video,
+.post-media audio {
+  max-width: 100%;
+  margin-bottom: 10px;
+}
+
+.post {
+  margin-bottom: 20px;
+}
+
+.post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.post-date {
+  font-size: 0.9em;
+  color: #888;
+}
+
+.repost-author {
+  margin-top: 10px;
+  font-style: italic;
+}
+
+.author {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.author img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+
+.author a {
+  font-weight: bold;
+  color: #007bff;
+  text-decoration: none;
+}
+
+.author a:hover {
+  text-decoration: underline;
+}
+
+.reactions {
+  display: flex;
+  margin-top: 10px;
+  gap: 20px;
+}
+
+.reaction {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.system-alert {
+  position: relative;
+  padding: 15px;
+  margin-bottom: 20px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.alert-info {
+  color: #31708f;
+  background-color: #d9edf7;
+  border-color: #bce8f1;
+}
+
+.alert-success {
+  color: #3c763d;
+  background-color: #dff0d8;
+  border-color: #d6e9c6;
+}
+
+.alert-warning {
+  color: #8a6d3b;
+  background-color: #fcf8e3;
+  border-color: #faebcc;
+}
+
+.alert-danger {
+  color: #a94442;
+  background-color: #f2dede;
+  border-color: #ebccd1;
+}
+
+.system-alert .close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
 }
 
 /*# sourceMappingURL=pdf.css.map */

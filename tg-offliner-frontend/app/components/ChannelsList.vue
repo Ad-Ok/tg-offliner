@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="channels-list">
     <h1>Список каналов</h1>
     <div v-if="loading" class="loading">Загрузка...</div>
     <ul v-else>
@@ -134,76 +134,3 @@ export default {
   },
 };
 </script>
-
-<style>
-.loading {
-  font-size: 18px;
-  text-align: center;
-  margin-top: 20px;
-}
-
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-
-li {
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-a {
-  text-decoration: none;
-  color: #007bff;
-}
-
-a:hover {
-  text-decoration: underline;
-}
-
-.add-channel {
-  margin-top: 20px;
-}
-
-.add-channel input {
-  padding: 8px;
-  font-size: 16px;
-  margin-right: 10px;
-}
-
-.add-channel button {
-  padding: 8px 16px;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.print-button {
-  padding: 5px 10px;
-  font-size: 14px;
-  cursor: pointer;
-  background-color: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-.print-button:hover {
-  background-color: #e0e0e0;
-}
-
-.delete-button {
-  padding: 5px 10px;
-  font-size: 14px;
-  cursor: pointer;
-  background-color: #ffb3b3;
-  color: white;
-  border: none;
-  border-radius: 4px;
-}
-
-.delete-button:hover {
-  background-color: #ff1a1a;
-}
-
-</style>

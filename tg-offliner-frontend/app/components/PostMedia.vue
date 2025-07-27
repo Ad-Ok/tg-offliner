@@ -52,17 +52,3 @@ export default {
   }
 };
 </script>
-
-<style>
-.post-media img {
-  max-width: 100%;
-  height: auto;
-  margin-bottom: 10px;
-}
-
-.post-media video,
-.post-media audio {
-  max-width: 100%;
-  margin-bottom: 10px;
-}
-</style>

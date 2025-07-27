@@ -34,17 +34,3 @@ export default {
   },
 };
 </script>
-
-<style>
-.reactions {
-  display: flex;
-  margin-top: 10px;
-  gap: 20px;
-}
-
-.reaction {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-</style>
