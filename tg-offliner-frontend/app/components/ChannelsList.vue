@@ -4,9 +4,15 @@
     <div v-if="loading" class="loading">Загрузка...</div>
     <ul v-else>
       <li v-for="channel in channels" :key="channel.id" class="channel-item">
+        <img
+          v-if="channel.avatar"
+          :src="channelAvatarSrc(channel)"
+          alt="Аватар"
+          class="channel-avatar"
+        />
         <router-link :to="`/${channel.id}/posts`">{{ channel.name }}</router-link>
         <button @click="printPdf(channel.id)" class="print-button">Печать PDF</button>
-          <button @click="removeChannel(channel.id)" class="delete-button">Удалить канал</button>
+        <button @click="removeChannel(channel.id)" class="delete-button">Удалить канал</button>
       </li>
     </ul>
 
@@ -24,7 +30,7 @@
 
 <script>
 import { eventBus } from "~/eventBus";
-import { api, apiBase } from '~/services/api'; // <-- добавь apiBase сюда
+import { api, apiBase, mediaBase } from '~/services/api'; // добавь mediaBase
 
 export default {
   name: "ChannelsList",
@@ -38,6 +44,15 @@ export default {
       logsInterval: null, // Интервал для обновления логов
       logsOffset: 0, // Offset для логов
     };
+  },
+  computed: {
+    // Возвращает объект: id -> src для аватара
+    channelAvatarSrc() {
+      return (channel) =>
+        channel.avatar
+          ? `${mediaBase}/downloads/${channel.avatar}`
+          : null;
+    },
   },
   created() {
     this.fetchChannels();

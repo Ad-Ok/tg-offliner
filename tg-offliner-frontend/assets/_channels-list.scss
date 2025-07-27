@@ -27,6 +27,20 @@
     text-decoration: underline;
     }
 
+    .channel-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 10px;
+    vertical-align: middle;
+    }
+    .channel-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    }
+
     .add-channel {
     margin-top: 20px;
     }

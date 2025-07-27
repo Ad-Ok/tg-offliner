@@ -12,6 +12,7 @@ from message_processing.author import process_author
 import shutil
 import os
 import logging
+from message_processing.channel_info import get_channel_info
 
 # Настройка логирования
 logging.basicConfig(
@@ -46,18 +47,16 @@ def get_channel_folder(channel_name):
     return channel_folder
 
 def save_channel_info(client, channel_username):
-    """Сохраняет информацию о канале в базу данных."""
+    print("== save_channel_info called ==")
     try:
         entity = client.get_entity(channel_username)
-        channel_data = {
-            "id": entity.username or str(entity.id),
-            "name": entity.title,
-            "avatar": None,  # Здесь можно добавить логику для получения аватара
-            "description": entity.about if hasattr(entity, 'about') else None
-        }
-
-        # Отправляем данные на сервер
+        print("== entity получен ==")
+        channel_data = get_channel_info(client, entity, output_dir="downloads")
+        print("== channel_data:", channel_data)
+        channel_data["id"] = entity.username or str(entity.id)
+        print("== отправляем в API:", channel_data)
         response = requests.post("http://127.0.0.1:5000/api/channels", json=channel_data)
+        print("== ответ API:", response.status_code, response.text)
         if response.status_code == 201:
             print(f"Канал {channel_data['name']} успешно добавлен в базу данных.")
         elif response.status_code == 200:

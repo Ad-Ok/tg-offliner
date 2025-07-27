@@ -1,6 +1,8 @@
 from telethon.tl.types import User, Channel, Chat
 from telethon.tl.functions.channels import GetFullChannelRequest
 from message_processing.author import download_avatar
+import pprint
+import os
 
 def get_channel_info(client, entity, output_dir):
     """
@@ -14,13 +16,25 @@ def get_channel_info(client, entity, output_dir):
     if isinstance(entity, Channel):
         # Получаем полную информацию о канале
         full_info = client(GetFullChannelRequest(channel=entity))
+        
+        # Выводим в консоль всю информацию о канале
+        print("=== entity ===")
+        pprint.pprint(entity.to_dict() if hasattr(entity, "to_dict") else entity)
+        print("=== full_info ===")
+        pprint.pprint(full_info.to_dict() if hasattr(full_info, "to_dict") else full_info)
+        
         participants_count = full_info.full_chat.participants_count
 
-        # Сохраняем аватар канала
-        avatar_path = download_avatar(entity, client)
+        # Получи путь к папке канала
+        channel_folder = os.path.join(output_dir, entity.username or str(entity.id))
+        os.makedirs(channel_folder, exist_ok=True)
+
+        # Сохрани аватар с правильным аргументом
+        avatar_path = download_avatar(entity, client, channel_folder)
 
         # Формируем информацию о канале
         return {
+            "id": entity.username or str(entity.id),
             "name": entity.title,
             "tagline": "Информация о канале",
             "avatar": avatar_path if avatar_path else "static/default_avatar.png",
