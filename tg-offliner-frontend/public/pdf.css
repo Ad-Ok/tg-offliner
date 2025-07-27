@@ -69,6 +69,32 @@
 .channels-list .delete-button:hover {
   background-color: #ff1a1a;
 }
+.channels-list .channel-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+.channels-list .channel-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.channels-list .channel-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 10px;
+  vertical-align: middle;
+}
+.channels-list .channel-description {
+  color: #666;
+  font-size: 0.95em;
+  margin-left: 42px;
+  white-space: pre-line;
+}
 
 .wall .loading {
   font-size: 18px;

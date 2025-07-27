@@ -32,6 +32,8 @@ class Channel(db.Model):
     name = db.Column(db.String, nullable=False)  # Название канала
     avatar = db.Column(db.String, nullable=True)  # Ссылка на аватар канала
     description = db.Column(db.Text, nullable=True)  # Описание канала
+    creation_date = db.Column(db.String, nullable=True)  # Дата создания канала
+    subscribers = db.Column(db.String, nullable=True)  # Количество подписчиков
 
     def __repr__(self):
         return f"<Channel {self.id} - {self.name}>"

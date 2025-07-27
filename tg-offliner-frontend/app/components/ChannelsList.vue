@@ -4,18 +4,26 @@
     <div v-if="loading" class="loading">Загрузка...</div>
     <ul v-else>
       <li v-for="channel in channels" :key="channel.id" class="channel-item">
-        <img
-          v-if="channel.avatar"
-          :src="channelAvatarSrc(channel)"
-          alt="Аватар"
-          class="channel-avatar"
-        />
-        <router-link :to="`/${channel.id}/posts`">{{ channel.name }}</router-link>
-        <button @click="printPdf(channel.id)" class="print-button">Печать PDF</button>
-        <button @click="removeChannel(channel.id)" class="delete-button">Удалить канал</button>
+        <div class="channel-main">
+          <img
+            v-if="channel.avatar"
+            :src="channelAvatarSrc(channel)"
+            alt="Аватар"
+            class="channel-avatar"
+          />
+          <router-link :to="`/${channel.id}/posts`">{{ channel.name }}</router-link>
+          <div class="channel-info">
+            <span v-if="channel.creation_date">Создан {{ channel.creation_date }}</span>
+            <span v-if="channel.subscribers">&nbsp;•&nbsp;{{ channel.subscribers }} подписчиков</span>
+          </div>
+          <button @click="printPdf(channel.id)" class="print-button">Печать PDF</button>
+          <button @click="removeChannel(channel.id)" class="delete-button">Удалить канал</button>
+        </div>
+        <div class="channel-description" v-if="channel.description">
+          {{ channel.description }}
+        </div>
       </li>
     </ul>
-
     <div class="add-channel">
       <input
         v-model="newChannel"
