@@ -7,4 +7,7 @@ export default defineNuxtConfig({
       allowedHosts: ['localhost', 'ssr'],
     },
   },
+  css: [
+    '/app/assets/styles.scss'
+  ],
 })

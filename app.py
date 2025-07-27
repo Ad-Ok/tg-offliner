@@ -217,10 +217,8 @@ def delete_channel(channel_id):
 
 @app.route('/api/channels/<channel_id>/print', methods=['GET'])
 def print_channel_to_pdf(channel_id):
-    """Генерирует PDF для указанного канала."""
     try:
-        # Получаем HTML с SSR-сервера
-        ssr_url = f'http://ssr:3000/{channel_id}/posts'
+        ssr_url = f'http://ssr:3000/{channel_id}/posts?pdf=1'
         response = requests.get(ssr_url)
         if response.status_code != 200:
             app.logger.error(f"SSR-сервер вернул ошибку: {response.status_code}")
@@ -228,8 +226,14 @@ def print_channel_to_pdf(channel_id):
 
         html_content = response.text
 
+        # >>> ВЫВОДИМ HTML В КОНСОЛЬ <<<
+        print("=== HTML для PDF ===")
+        print(html_content)
+        print("=== КОНЕЦ HTML ===")
+
+        # Важно! base_url должен указывать на SSR Nuxt, чтобы WeasyPrint мог загрузить CSS и статику
         pdf_path = os.path.join(DOWNLOADS_DIR, f"{channel_id}.pdf")
-        HTML(string=html_content, base_url=DOWNLOADS_DIR).write_pdf(pdf_path)
+        HTML(string=html_content, base_url='http://ssr:3000').write_pdf(pdf_path)
 
         if not os.path.exists(pdf_path):
             app.logger.error(f"PDF-файл не найден после генерации: {pdf_path}")

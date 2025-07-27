@@ -1,5 +1,6 @@
 <template>
   <div>
+    <link v-if="$route.query.pdf === '1'" rel="stylesheet" href="/pdf.css" />
     <ClientOnly>
       <SystemAlert
         v-if="alertMessage"
