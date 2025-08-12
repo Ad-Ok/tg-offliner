@@ -69,7 +69,6 @@ def import_channel_direct(channel_username):
                     api_url = "http://localhost:5000/api/posts"
                     requests.post(api_url, json=post_data)
                     processed_count += 1
-                    
             except Exception as e:
                 logging.error(f"Ошибка обработки сообщения {post.id}: {str(e)}")
                 continue
@@ -127,6 +126,9 @@ def process_message_for_api(post, channel_id, client):
                 ]
             }
 
+        grouped_id = getattr(post, "grouped_id", None)
+        print(f"process_message_for_api: post.id={getattr(post, 'id', None)} grouped_id={grouped_id}")
+
         return {
             "telegram_id": post.id,
             "channel_id": channel_id,
@@ -141,7 +143,8 @@ def process_message_for_api(post, channel_id, client):
             "repost_author_name": repost_name,
             "repost_author_avatar": repost_avatar,
             "repost_author_link": repost_link,
-            "reactions": reactions
+            "reactions": reactions,
+            "grouped_id": grouped_id
         }
     except Exception as e:
         logging.error(f"Ошибка обработки сообщения {post.id}: {str(e)}")
