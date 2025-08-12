@@ -21,6 +21,7 @@ class Post(db.Model):
     repost_author_avatar = db.Column(db.String, nullable=True)  # Аватар автора репоста
     repost_author_link = db.Column(db.String, nullable=True)  # Ссылка на автора репоста
     reactions = db.Column(JSON, nullable=True)  # Хранение реакций в формате JSON
+    grouped_id = db.Column(db.BigInteger, nullable=True)  # ID медиа-группы (альбома)
 
     def __repr__(self):
         return f"<Post {self.telegram_id} from channel {self.channel_id}>"

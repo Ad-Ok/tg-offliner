@@ -59,7 +59,8 @@ def get_posts():
         "repost_author_name": post.repost_author_name,
         "repost_author_avatar": post.repost_author_avatar,
         "repost_author_link": post.repost_author_link,
-        "reactions": post.reactions
+        "reactions": post.reactions,
+        "grouped_id": post.grouped_id
     } for post in posts])
 
 @app.route('/api/posts/check', methods=['GET'])
@@ -91,7 +92,8 @@ def add_post():
         repost_author_name=data.get('repost_author_name'),  # Имя автора репоста
         repost_author_avatar=data.get('repost_author_avatar'),  # Ссылка на аватар автора репоста
         repost_author_link=data.get('repost_author_link'),  # Ссылка на профиль автора репоста
-        reactions=data.get('reactions')  # Сохраняем реакции
+        reactions=data.get('reactions'),  # Сохраняем реакции
+        grouped_id=data.get('grouped_id')  # Сохраняем ID медиа-группы
     )
     db.session.add(new_post)
     db.session.commit()

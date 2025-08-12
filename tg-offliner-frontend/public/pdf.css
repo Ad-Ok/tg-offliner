@@ -113,6 +113,10 @@
   cursor: not-allowed;
 }
 
+.wall {
+  max-width: 600px;
+  margin: 0 auto;
+}
 .wall .loading {
   font-size: 18px;
   text-align: center;
