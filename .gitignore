@@ -1,6 +1,8 @@
 
 telegram_export
 *.session
+*.session-journal
+.env
 media
 posts.db
 
