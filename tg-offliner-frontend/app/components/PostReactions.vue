@@ -24,9 +24,28 @@ export default {
     parsedReactions(reactions) {
       // Преобразуем реакции, чтобы извлечь только эмодзи
       return reactions.map(reaction => {
-        const match = reaction.reaction.match(/emoticon='(.*?)'/); // Извлекаем значение из ReactionEmoji
+        const reactionStr = reaction.reaction;
+        
+        // Проверяем, является ли это обычной эмодзи-реакцией
+        const emojiMatch = reactionStr.match(/emoticon='(.*?)'/);
+        if (emojiMatch) {
+          return {
+            reaction: emojiMatch[1], // Извлекаем эмодзи
+            count: reaction.count,
+          };
+        }
+        
+        // Проверяем, является ли это платной реакцией
+        if (reactionStr.includes('ReactionPaid')) {
+          return {
+            reaction: '⭐', // Показываем звездочку для платных реакций
+            count: reaction.count,
+          };
+        }
+        
+        // Для всех остальных случаев оставляем как есть
         return {
-          reaction: match ? match[1] : reaction.reaction, // Если найдено, берём эмодзи, иначе оставляем как есть
+          reaction: reactionStr,
           count: reaction.count,
         };
       });

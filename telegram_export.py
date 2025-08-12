@@ -120,13 +120,12 @@ def process_message_for_api(post, channel_id, client):
         # Обрабатываем реакции
         reactions = None
         if post.reactions and post.reactions.results:
-            reactions_list = []
-            for reaction in post.reactions.results:
-                reactions_list.append({
-                    "emoji": getattr(reaction.reaction, "emoticon", str(reaction.reaction)),
-                    "count": reaction.count
-                })
-            reactions = str(reactions_list) if reactions_list else None
+            reactions = {
+                "total_count": sum(r.count for r in post.reactions.results),  # Суммируем количество всех реакций
+                "recent_reactions": [
+                    {"reaction": str(r.reaction), "count": r.count} for r in post.reactions.results
+                ]
+            }
 
         return {
             "telegram_id": post.id,
