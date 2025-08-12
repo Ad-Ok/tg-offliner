@@ -9,6 +9,8 @@
         v-for="post in posts"
         :key="post.id"
         :post="post"
+        :data-post-id="post.telegram_id"
+        :data-channel-id="post.channel_id"
       />
     </div>
   </div>
