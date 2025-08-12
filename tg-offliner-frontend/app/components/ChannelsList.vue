@@ -46,6 +46,7 @@
             <div class="channel-info">
               <span v-if="preview.creation_date">Создан {{ preview.creation_date }}</span>
               <span v-if="preview.subscribers">&nbsp;•&nbsp;{{ preview.subscribers }} подписчиков</span>
+              <span v-if="preview.posts_count !== undefined">&nbsp;•&nbsp;{{ preview.posts_count }} постов</span>
             </div>
             <button @click="loadChannel(preview, index)" class="load-button">Загрузить канал</button>
             <button @click="removePreview(index)" class="cancel-button">Отменить</button>

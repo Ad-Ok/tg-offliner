@@ -32,6 +32,16 @@ def get_channel_info(client, entity, output_dir):
         # Сохрани аватар с правильным аргументом
         avatar_path = download_avatar(entity, client, channel_folder)
 
+        # Получаем количество постов в канале
+        try:
+            # Получаем первое сообщение, чтобы узнать общее количество
+            messages = client.get_messages(entity, limit=1)
+            posts_count = messages.total if hasattr(messages, 'total') else 0
+            print(f"=== Количество постов в канале: {posts_count} ===")
+        except Exception as e:
+            print(f"Ошибка при получении количества постов: {e}")
+            posts_count = 0
+
         # Формируем информацию о канале
         return {
             "id": entity.username or str(entity.id),
@@ -41,7 +51,8 @@ def get_channel_info(client, entity, output_dir):
             "username": entity.username if entity.username else "Unknown",
             "creation_date": entity.date.strftime('%d %B %Y') if getattr(entity, "date", None) else None,
             "subscribers": participants_count if participants_count is not None else "Unknown",
-            "description": getattr(full_info.full_chat, "about", None)
+            "description": getattr(full_info.full_chat, "about", None),
+            "posts_count": posts_count
         }
 
     elif isinstance(entity, User):
