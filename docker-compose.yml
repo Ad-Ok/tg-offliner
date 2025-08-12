@@ -11,6 +11,9 @@ services:
       - FLASK_ENV=development
     depends_on:
       - ssr
+    # Открываем stdin для интерактивного ввода при авторизации
+    stdin_open: true
+    tty: true
 
   ssr:
     build:

@@ -6,18 +6,47 @@ The TG-Offliner app is designed to download content from Telegram channels and e
 
 ## **Usage**
 
-### **Ensure dependencies are installed:**
+# TG-Offliner
 
-Install the required dependencies using one of the following commands:
+The TG-Offliner app is designed to download content from Telegram channels and export it as HTML and PDF.
 
+## **Быстрый старт**
+
+### **1. Настройка конфигурации**
 ```bash
-pip install telethon
+# Скопируйте пример конфигурации
+cp example.env .env
+
+# Отредактируйте .env файл и заполните:
+# - API_ID: Получите на https://my.telegram.org
+# - API_HASH: Получите на https://my.telegram.org  
+# - PHONE: Ваш номер телефона (с кодом страны, например +1234567890)
 ```
 
-or
-
+### **2. Авторизация в Telegram**
 ```bash
-pip install -r requirements.txt
+# Первоначальная авторизация (выполните один раз)
+docker compose run --rm app python authorize_telegram.py
+
+# Введите код из SMS/Telegram когда будет запрос
+```
+
+### **3. Запуск приложения**
+```bash
+# Запуск всего приложения
+docker compose up --build
+
+# Приложение будет доступно по адресу:
+# - Backend: http://localhost:5000
+# - Frontend: http://localhost:3000
+```
+
+---
+
+## **Usage**
+
+### **Ensure dependencies are installed:**
+
 ```
 
 ---

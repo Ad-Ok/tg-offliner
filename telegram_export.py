@@ -23,6 +23,131 @@ logging.basicConfig(
 
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
 
+def import_channel_direct(channel_username):
+    """
+    Импортирует канал напрямую, используя существующий клиент.
+    Возвращает словарь с результатом.
+    """
+    try:
+        # Очищаем папку канала
+        clear_downloads(channel_username)
+        
+        # Используем существующий глобальный клиент
+        client = connect_to_telegram()
+        entity = client.get_entity(channel_username)
+        
+        # Сохраняем информацию о канале в базу
+        channel_info = get_channel_info(client, entity, output_dir="downloads")
+        
+        # Добавляем канал в базу данных через API
+        api_url = "http://localhost:5000/api/channels"
+        response = requests.post(api_url, json=channel_info)
+        
+        if response.status_code not in [200, 201]:
+            logging.error(f"Ошибка добавления канала в БД: {response.text}")
+            return {"success": False, "error": f"Ошибка БД: {response.text}"}
+        
+        # Импортируем сообщения
+        include_system_messages = EXPORT_SETTINGS.get("include_system_messages", False)
+        include_reposts = EXPORT_SETTINGS.get("include_reposts", True)
+        include_polls = EXPORT_SETTINGS.get("include_polls", True)
+        message_limit = EXPORT_SETTINGS.get("message_limit", None)
+
+        all_posts = client.iter_messages(
+            entity,
+            limit=message_limit,
+            reverse=True
+        )
+        
+        processed_count = 0
+        for post in all_posts:
+            try:
+                # Обрабатываем сообщение так же, как в main()
+                post_data = process_message_for_api(post, channel_username, client)
+                if post_data:
+                    # Добавляем пост через API
+                    api_url = "http://localhost:5000/api/posts"
+                    requests.post(api_url, json=post_data)
+                    processed_count += 1
+                    
+            except Exception as e:
+                logging.error(f"Ошибка обработки сообщения {post.id}: {str(e)}")
+                continue
+        
+        logging.info(f"Канал {channel_username} импортирован: {processed_count} сообщений")
+        return {"success": True, "processed": processed_count}
+        
+    except Exception as e:
+        logging.error(f"Ошибка импорта канала {channel_username}: {str(e)}")
+        return {"success": False, "error": str(e)}
+
+def process_message_for_api(post, channel_id, client):
+    """Обрабатывает сообщение для API"""
+    try:
+        # Получаем папку для канала
+        channel_folder = get_channel_folder(channel_id)
+        
+        # Скачиваем медиа
+        media_path = None
+        media_type = None
+        mime_type = None
+
+        if post.media and not post.poll:  # Пропускаем скачивание медиа для опросов
+            media_path = client.download_media(
+                post.media,
+                file=os.path.join(channel_folder, "media", f"{post.id}_media")
+            )
+            media_type = type(post.media).__name__  # Тип медиа (например, MessageMediaPhoto)
+            if isinstance(post.media, MessageMediaDocument) and isinstance(post.media.document, Document):
+                mime_type = getattr(post.media.document, 'mime_type', None)
+
+            # Сохраняем относительный путь
+            if media_path:
+                media_path = os.path.relpath(media_path, DOWNLOADS_DIR)  # Относительный путь от папки downloads
+
+        # Обрабатываем автора сообщения
+        sender_name, sender_avatar, sender_link = process_author(post.sender, client, channel_folder, peer_id=post.peer_id, from_id=post.from_id)
+
+        # Обрабатываем автора репоста, если это репост
+        repost_name, repost_avatar, repost_link = None, None, None
+        if post.fwd_from and post.fwd_from.from_id:
+            try:
+                repost_entity = client.get_entity(post.fwd_from.from_id)  # Получаем полную информацию об авторе репоста
+                repost_name, repost_avatar, repost_link = process_author(repost_entity, client, channel_folder)
+            except Exception as e:
+                logging.warning(f"Ошибка при обработке автора репоста: {e}")
+
+        # Обрабатываем реакции
+        reactions = None
+        if post.reactions and post.reactions.results:
+            reactions_list = []
+            for reaction in post.reactions.results:
+                reactions_list.append({
+                    "emoji": getattr(reaction.reaction, "emoticon", str(reaction.reaction)),
+                    "count": reaction.count
+                })
+            reactions = str(reactions_list) if reactions_list else None
+
+        return {
+            "telegram_id": post.id,
+            "channel_id": channel_id,
+            "date": post.date.isoformat() if post.date else None,
+            "message": post.message or "",
+            "media_url": media_path,
+            "media_type": media_type,
+            "mime_type": mime_type,
+            "author_name": sender_name,
+            "author_avatar": sender_avatar,
+            "author_link": sender_link,
+            "repost_author_name": repost_name,
+            "repost_author_avatar": repost_avatar,
+            "repost_author_link": repost_link,
+            "reactions": reactions
+        }
+    except Exception as e:
+        logging.error(f"Ошибка обработки сообщения {post.id}: {str(e)}")
+        return None
+
 def clear_downloads(channel_name):
     """
     Очищает папку текущего канала в downloads, но не удаляет саму папку downloads.

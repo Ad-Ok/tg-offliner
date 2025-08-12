@@ -25,6 +25,9 @@ RUN pip install --no-cache-dir \
 WORKDIR /app
 COPY . .
 
-# 4. Открытие порта и запуск
+# 4. Делаем стартовый скрипт исполняемым
+RUN chmod +x start.sh
+
+# 5. Открытие порта и запуск
 EXPOSE 5000
-CMD ["python", "app.py"]
+CMD ["./start.sh"]

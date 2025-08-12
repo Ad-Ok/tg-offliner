@@ -7,11 +7,11 @@ from flask_cors import CORS
 from models import db, Post, Channel
 from database import create_app, init_db
 import os
-import subprocess
-import wx
-import wx.html2
 from weasyprint import HTML
 import requests
+from flask import request, jsonify
+from message_processing.channel_info import get_channel_info
+from telegram_client import connect_to_telegram
 
 MEDIA_DIR = os.path.join(os.path.dirname(__file__), 'media')
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
@@ -141,7 +141,7 @@ def add_channel_to_db():
 
 @app.route('/api/add_channel', methods=['POST'])
 def run_channel_import():
-    """Вызывает скрипт для добавления канала."""
+    """Импортирует канал напрямую через API."""
     app.logger.info('Добавление канала запущено')
     data = request.json
     app.logger.info(f"Получены данные: {data}")
@@ -158,18 +158,17 @@ def run_channel_import():
         return jsonify({"error": f"Канал {channel_username} уже импортирован"}), 400
 
     try:
-        # Вызываем скрипт telegram_export.py с аргументом --channel
-        result = subprocess.run(
-            ['python', 'telegram_export.py', '--channel', channel_username],
-            capture_output=True,
-            text=True
-        )
-        app.logger.info(f"Результат выполнения скрипта: {result.stdout}")
-        if result.returncode == 0:
+        # Импортируем канал напрямую через API
+        from telegram_export import import_channel_direct
+        result = import_channel_direct(channel_username)
+        
+        if result['success']:
+            app.logger.info(f"Канал {channel_username} успешно импортирован")
             return jsonify({"message": f"Канал {channel_username} успешно добавлен"}), 200
         else:
-            app.logger.error(f"Ошибка выполнения скрипта: {result.stderr}")
-            return jsonify({"error": result.stderr}), 500
+            app.logger.error(f"Ошибка импорта канала: {result['error']}")
+            return jsonify({"error": result['error']}), 500
+            
     except Exception as e:
         app.logger.error(f"Исключение: {str(e)}")
         return jsonify({"error": str(e)}), 500
@@ -242,6 +241,49 @@ def print_channel_to_pdf(channel_id):
     except Exception as e:
         app.logger.error(f"Ошибка при генерации PDF для канала {channel_id}: {str(e)}")
         return jsonify({"error": "Ошибка при генерации PDF"}), 500
+
+@app.route('/api/channel_preview', methods=['GET'])
+def channel_preview():
+    username = request.args.get('username')
+    if not username:
+        return jsonify({'error': 'Не передан username'}), 400
+    
+    app.logger.info(f"Запрос на preview канала: {username}")
+    
+    client = None
+    try:
+        app.logger.info("Подключение к Telegram...")
+        
+        # Обработка проблем с event loop
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        client = connect_to_telegram()
+        app.logger.info("Успешно подключились к Telegram")
+        
+        app.logger.info(f"Получение entity для канала: {username}")
+        entity = client.get_entity(username)
+        app.logger.info(f"Успешно получен entity: {type(entity).__name__}")
+        
+        app.logger.info("Получение информации о канале...")
+        info = get_channel_info(client, entity, output_dir="downloads")
+        app.logger.info("Информация о канале успешно получена")
+        
+        return jsonify(info)
+    except Exception as e:
+        app.logger.error(f"Ошибка в channel_preview для {username}: {str(e)}")
+        import traceback
+        app.logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        # НЕ закрываем клиент, так как он глобальный и переиспользуется
+        # Только логируем завершение запроса
+        if client:
+            app.logger.info("Запрос к Telegram завершен")
 
 # Маршрут для раздачи медиафайлов
 @app.route('/media/<path:filename>')
