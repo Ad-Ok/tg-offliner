@@ -124,6 +124,40 @@
   max-width: 600px;
   margin: 0 auto;
 }
+.wall .back-button-container {
+  margin-bottom: 20px;
+  padding-top: 20px;
+}
+.wall .back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  text-decoration: none;
+}
+.wall .back-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+.wall .back-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+}
+.wall .back-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+}
 .wall .loading {
   font-size: 18px;
   text-align: center;

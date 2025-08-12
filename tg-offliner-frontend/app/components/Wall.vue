@@ -1,5 +1,15 @@
 <template>
   <div class="wall">
+    <!-- Кнопка "назад" -->
+    <div class="back-button-container">
+      <button @click="goBack" class="back-button">
+        <svg class="back-icon" viewBox="0 0 24 24" fill="none">
+          <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Назад к списку каналов
+      </button>
+    </div>
+    
     <h1>Стена канала: {{ channelId }}</h1>
     <ClientOnly v-if="loading">
       <div class="loading">Загрузка...</div>
@@ -78,5 +88,11 @@ export default {
       });
     },
   },
+  methods: {
+    goBack() {
+      // Используем Vue Router для навигации назад
+      this.$router.push('/');
+    }
+  }
 };
 </script>
