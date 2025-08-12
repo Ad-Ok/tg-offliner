@@ -56,17 +56,33 @@ def get_channel_info(client, entity, output_dir):
         }
 
     elif isinstance(entity, User):
+        # Получи путь к папке пользователя
+        user_folder = os.path.join(output_dir, entity.username or str(entity.id))
+        os.makedirs(user_folder, exist_ok=True)
+
         # Сохраняем аватар пользователя
-        avatar_path = download_avatar(entity, client)
+        avatar_path = download_avatar(entity, client, user_folder)
+
+        # Получаем количество сообщений в переписке с пользователем
+        try:
+            messages = client.get_messages(entity, limit=1)
+            posts_count = messages.total if hasattr(messages, 'total') else 0
+            print(f"=== Количество сообщений с пользователем: {posts_count} ===")
+        except Exception as e:
+            print(f"Ошибка при получении количества сообщений: {e}")
+            posts_count = 0
 
         # Формируем информацию о пользователе
         return {
+            "id": entity.username or str(entity.id),
             "name": f"{entity.first_name} {entity.last_name or ''}".strip(),
             "tagline": "Чат с пользователем",
             "avatar": avatar_path if avatar_path else "static/default_avatar.png",
             "username": entity.username if entity.username else "Unknown",
-            "creation_date": "Unknown",
-            "subscribers": "N/A"
+            "creation_date": None,
+            "subscribers": None,
+            "description": f"Переписка с пользователем {entity.first_name}",
+            "posts_count": posts_count
         }
 
     elif isinstance(entity, Chat):

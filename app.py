@@ -143,7 +143,7 @@ def add_channel_to_db():
 
 @app.route('/api/add_channel', methods=['POST'])
 def run_channel_import():
-    """Импортирует канал напрямую через API."""
+    """Импортирует канал или переписку с пользователем напрямую через API."""
     app.logger.info('Добавление канала запущено')
     data = request.json
     app.logger.info(f"Получены данные: {data}")
@@ -267,13 +267,21 @@ def channel_preview():
         client = connect_to_telegram()
         app.logger.info("Успешно подключились к Telegram")
         
-        app.logger.info(f"Получение entity для канала: {username}")
+        app.logger.info(f"Получение entity для канала/пользователя: {username}")
         entity = client.get_entity(username)
         app.logger.info(f"Успешно получен entity: {type(entity).__name__}")
         
-        app.logger.info("Получение информации о канале...")
+        # Проверяем, что это публичный канал или пользователь
+        from utils.entity_validation import validate_entity_for_download
+        validation_result = validate_entity_for_download(entity, username)
+        
+        if not validation_result["valid"]:
+            return jsonify({'error': validation_result["error"]}), 400
+        
+        entity_type = validation_result["type"]
+        app.logger.info(f"Получение информации о {entity_type}: {username}")
         info = get_channel_info(client, entity, output_dir="downloads")
-        app.logger.info("Информация о канале успешно получена")
+        app.logger.info(f"Информация о {entity_type} успешно получена")
         
         return jsonify(info)
     except Exception as e:

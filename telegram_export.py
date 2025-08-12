@@ -25,7 +25,7 @@ DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
 
 def import_channel_direct(channel_username):
     """
-    Импортирует канал напрямую, используя существующий клиент.
+    Импортирует канал или переписку с пользователем напрямую, используя существующий клиент.
     Возвращает словарь с результатом.
     """
     try:
@@ -35,6 +35,13 @@ def import_channel_direct(channel_username):
         # Используем существующий глобальный клиент
         client = connect_to_telegram()
         entity = client.get_entity(channel_username)
+        
+        # Проверяем, что это публичный канал или пользователь
+        from utils.entity_validation import validate_entity_for_download
+        validation_result = validate_entity_for_download(entity, channel_username)
+        
+        if not validation_result["valid"]:
+            return {"success": False, "error": validation_result["error"]}
         
         # Сохраняем информацию о канале в базу
         channel_info = get_channel_info(client, entity, output_dir="downloads")
