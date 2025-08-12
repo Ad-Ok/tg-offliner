@@ -153,20 +153,33 @@ def run_channel_import():
         app.logger.error("channel_username обязателен")
         return jsonify({"error": "channel_username обязателен"}), 400
 
-    # Проверяем, существует ли канал
-    existing_channel = Channel.query.filter_by(id=channel_username).first()
-    if existing_channel:
-        app.logger.warning(f"Канал {channel_username} уже существует.")
-        return jsonify({"error": f"Канал {channel_username} уже импортирован"}), 400
-
     try:
-        # Импортируем канал напрямую через API
+        # Сначала получаем entity, чтобы узнать реальный ID
+        from utils.entity_validation import get_entity_by_username_or_id
         from telegram_export import import_channel_direct
+        
+        # Подключаемся к Telegram для получения реального ID
+        client = connect_to_telegram()
+        entity, error_message = get_entity_by_username_or_id(client, channel_username)
+        
+        if entity is None:
+            return jsonify({"error": error_message}), 400
+        
+        # Определяем реальный ID для проверки в базе
+        real_id = entity.username or str(entity.id)
+        
+        # Проверяем, существует ли канал по реальному ID
+        existing_channel = Channel.query.filter_by(id=real_id).first()
+        if existing_channel:
+            app.logger.warning(f"Канал/пользователь {real_id} уже существует.")
+            return jsonify({"error": f"Канал/пользователь {real_id} уже импортирован"}), 400
+
+        # Импортируем канал напрямую через API
         result = import_channel_direct(channel_username)
         
         if result['success']:
-            app.logger.info(f"Канал {channel_username} успешно импортирован")
-            return jsonify({"message": f"Канал {channel_username} успешно добавлен"}), 200
+            app.logger.info(f"Канал/пользователь {real_id} успешно импортирован")
+            return jsonify({"message": f"Канал/пользователь {real_id} успешно добавлен"}), 200
         else:
             app.logger.error(f"Ошибка импорта канала: {result['error']}")
             return jsonify({"error": result['error']}), 500
@@ -268,19 +281,29 @@ def channel_preview():
         app.logger.info("Успешно подключились к Telegram")
         
         app.logger.info(f"Получение entity для канала/пользователя: {username}")
-        entity = client.get_entity(username)
+        
+        # Получаем entity по username или ID
+        from utils.entity_validation import get_entity_by_username_or_id, validate_entity_for_download
+        entity, error_message = get_entity_by_username_or_id(client, username)
+        
+        if entity is None:
+            return jsonify({'error': error_message}), 400
+            
         app.logger.info(f"Успешно получен entity: {type(entity).__name__}")
         
         # Проверяем, что это публичный канал или пользователь
-        from utils.entity_validation import validate_entity_for_download
         validation_result = validate_entity_for_download(entity, username)
         
         if not validation_result["valid"]:
             return jsonify({'error': validation_result["error"]}), 400
         
         entity_type = validation_result["type"]
+        
+        # Определяем имя папки
+        folder_name = entity.username or f"user_{entity.id}" if hasattr(entity, 'first_name') else entity.username or f"channel_{entity.id}"
+        
         app.logger.info(f"Получение информации о {entity_type}: {username}")
-        info = get_channel_info(client, entity, output_dir="downloads")
+        info = get_channel_info(client, entity, output_dir="downloads", folder_name=folder_name)
         app.logger.info(f"Информация о {entity_type} успешно получена")
         
         return jsonify(info)

@@ -7,18 +7,26 @@ def download_avatar(entity, client, channel_folder):
     """
     if entity and entity.photo:
         try:
+            # Создаем папку avatars если её нет
+            avatars_folder = os.path.join(channel_folder, "avatars")
+            os.makedirs(avatars_folder, exist_ok=True)
+            
             # Генерируем уникальное имя файла на основе ID
             avatar_filename = f"avatar_{entity.id}.jpg"
+            avatar_full_path = os.path.join(avatars_folder, avatar_filename)
+            
             avatar_path = client.download_profile_photo(
                 entity,
-                file=os.path.join(channel_folder, "avatars", avatar_filename)
+                file=avatar_full_path
             )
             if avatar_path:
                 print(f"Аватар сохранён: {avatar_path}")
-                return os.path.relpath(avatar_path, DOWNLOADS_DIR)  # Возвращаем относительный путь
+                # Возвращаем путь относительно DOWNLOADS_DIR
+                relative_path = os.path.relpath(avatar_path, DOWNLOADS_DIR)
+                return relative_path
         except Exception as e:
             print(f"Ошибка при скачивании аватара: {e}")
-    return ""
+    return None
 
 def process_author(sender, client, channel_folder, peer_id=None, from_id=None):
     """Обрабатывает автора сообщения или оригинального поста из репоста."""

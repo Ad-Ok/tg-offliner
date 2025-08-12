@@ -29,22 +29,36 @@ def import_channel_direct(channel_username):
     Возвращает словарь с результатом.
     """
     try:
-        # Очищаем папку канала
-        clear_downloads(channel_username)
-        
         # Используем существующий глобальный клиент
         client = connect_to_telegram()
-        entity = client.get_entity(channel_username)
+        
+        # Получаем entity по username или ID
+        from utils.entity_validation import get_entity_by_username_or_id, validate_entity_for_download
+        entity, error_message = get_entity_by_username_or_id(client, channel_username)
+        
+        if entity is None:
+            return {"success": False, "error": error_message}
         
         # Проверяем, что это публичный канал или пользователь
-        from utils.entity_validation import validate_entity_for_download
         validation_result = validate_entity_for_download(entity, channel_username)
         
         if not validation_result["valid"]:
             return {"success": False, "error": validation_result["error"]}
         
+        # Определяем реальный ID для базы данных и безопасное имя папки
+        real_id = entity.username or str(entity.id)
+        # Для папки используем префикс, чтобы избежать конфликтов с числовыми ID
+        folder_name = entity.username or f"user_{entity.id}" if hasattr(entity, 'first_name') else entity.username or f"channel_{entity.id}"
+        
+        logging.info(f"Реальный ID для {channel_username}: {real_id}")
+        logging.info(f"Имя папки: {folder_name}")
+        
+        # Очищаем папку канала по имени папки
+        clear_downloads(folder_name)
+        
         # Сохраняем информацию о канале в базу
-        channel_info = get_channel_info(client, entity, output_dir="downloads")
+        channel_info = get_channel_info(client, entity, output_dir="downloads", folder_name=folder_name)
+        logging.info(f"Информация о канале: {channel_info}")
         
         # Добавляем канал в базу данных через API
         api_url = "http://localhost:5000/api/channels"
@@ -70,16 +84,16 @@ def import_channel_direct(channel_username):
         for post in all_posts:
             try:
                 # Обрабатываем сообщение так же, как в main()
-                post_data = process_message_for_api(post, channel_username, client)
+                post_data = process_message_for_api(post, real_id, client, folder_name)
                 if post_data:
                     # Добавляем пост через API
                     api_url = "http://localhost:5000/api/posts"
                     requests.post(api_url, json=post_data)
                     processed_count += 1
             except Exception as e:
-                logging.error(f"Ошибка обработки сообщения {post.id}: {str(e)}")
-                continue
+                logging.error(f"Ошибка при обработке сообщения: {str(e)}")
         
+        logging.info(f"Обработано сообщений: {processed_count}")
         logging.info(f"Канал {channel_username} импортирован: {processed_count} сообщений")
         return {"success": True, "processed": processed_count}
         
@@ -87,11 +101,14 @@ def import_channel_direct(channel_username):
         logging.error(f"Ошибка импорта канала {channel_username}: {str(e)}")
         return {"success": False, "error": str(e)}
 
-def process_message_for_api(post, channel_id, client):
+def process_message_for_api(post, channel_id, client, folder_name=None):
     """Обрабатывает сообщение для API"""
     try:
         # Получаем папку для канала
-        channel_folder = get_channel_folder(channel_id)
+        if folder_name:
+            channel_folder = get_channel_folder(folder_name)
+        else:
+            channel_folder = get_channel_folder(channel_id)
         
         # Скачиваем медиа
         media_path = None

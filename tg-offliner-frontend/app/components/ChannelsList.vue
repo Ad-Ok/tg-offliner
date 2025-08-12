@@ -63,13 +63,16 @@
       <input
         v-model="newChannel"
         type="text"
-        placeholder="Введите имя канала"
+        placeholder="Введите имя канала или ID пользователя"
         @keyup.enter="previewChannel"
         :disabled="previewLoading"
       />
       <button @click="previewChannel" :disabled="previewLoading">
         {{ previewLoading ? 'Загрузка...' : 'Предварительный просмотр' }}
       </button>
+      <div class="input-hint">
+        Поддерживается: @channelname, channelname, @username, username, или числовой ID (123456789)
+      </div>
       <div v-if="previewLoading" class="preview-loading">Получаем информацию о канале...</div>
     </div>
   </div>
@@ -205,6 +208,9 @@ export default {
       api.get(`/api/channel_preview?username=${encodeURIComponent(sanitizedChannel)}`)
         .then(response => {
           const preview = response.data;
+          // Сохраняем оригинальный ввод пользователя для последующего использования
+          preview.originalInput = sanitizedChannel;
+          
           // Проверяем, не добавлен ли уже этот канал
           const existsInChannels = this.channels.some(ch => ch.id === preview.id);
           const existsInPreview = this.previewChannels.some(ch => ch.id === preview.id);
@@ -226,15 +232,15 @@ export default {
         });
     },
     loadChannel(preview, index) {
-      // Удаляем символ @ в начале строки, если он есть
-      const sanitizedChannel = preview.username.replace(/^@/, "");
+      // Используем оригинальный ввод пользователя, а не трансформированный username
+      const channelInput = preview.originalInput;
 
       // Показываем сообщение о начале загрузки
       eventBus.showAlert(`Загружаем канал ${preview.name}...`, "info");
 
       api
         .post('/api/add_channel', {
-          channel_username: sanitizedChannel,
+          channel_username: channelInput,
         })
         .then((response) => {
           eventBus.showAlert(response.data.message, "success");

@@ -4,13 +4,14 @@ from message_processing.author import download_avatar
 import pprint
 import os
 
-def get_channel_info(client, entity, output_dir):
+def get_channel_info(client, entity, output_dir, folder_name=None):
     """
     Формирует информацию о канале, пользователе или чате.
 
     :param client: Подключённый клиент Telethon.
     :param entity: Объект канала, пользователя или чата.
     :param output_dir: Папка для сохранения аватара.
+    :param folder_name: Имя папки для сохранения (если None, генерируется автоматически).
     :return: Словарь с информацией о канале, пользователе или чате.
     """
     if isinstance(entity, Channel):
@@ -26,7 +27,9 @@ def get_channel_info(client, entity, output_dir):
         participants_count = full_info.full_chat.participants_count
 
         # Получи путь к папке канала
-        channel_folder = os.path.join(output_dir, entity.username or str(entity.id))
+        if folder_name is None:
+            folder_name = entity.username or f"channel_{entity.id}"
+        channel_folder = os.path.join(output_dir, folder_name)
         os.makedirs(channel_folder, exist_ok=True)
 
         # Сохрани аватар с правильным аргументом
@@ -43,21 +46,24 @@ def get_channel_info(client, entity, output_dir):
             posts_count = 0
 
         # Формируем информацию о канале
+        channel_id = entity.username or str(entity.id)
         return {
-            "id": entity.username or str(entity.id),
+            "id": channel_id,
             "name": entity.title,
             "tagline": "Информация о канале",
-            "avatar": avatar_path if avatar_path else "static/default_avatar.png",
-            "username": entity.username if entity.username else "Unknown",
+            "avatar": avatar_path if avatar_path else None,
+            "username": entity.username if entity.username else f"channel_{entity.id}",
             "creation_date": entity.date.strftime('%d %B %Y') if getattr(entity, "date", None) else None,
-            "subscribers": participants_count if participants_count is not None else "Unknown",
+            "subscribers": participants_count if participants_count is not None else None,
             "description": getattr(full_info.full_chat, "about", None),
             "posts_count": posts_count
         }
 
     elif isinstance(entity, User):
         # Получи путь к папке пользователя
-        user_folder = os.path.join(output_dir, entity.username or str(entity.id))
+        if folder_name is None:
+            folder_name = entity.username or f"user_{entity.id}"
+        user_folder = os.path.join(output_dir, folder_name)
         os.makedirs(user_folder, exist_ok=True)
 
         # Сохраняем аватар пользователя
@@ -73,12 +79,13 @@ def get_channel_info(client, entity, output_dir):
             posts_count = 0
 
         # Формируем информацию о пользователе
+        user_id = entity.username or str(entity.id)
         return {
-            "id": entity.username or str(entity.id),
+            "id": user_id,
             "name": f"{entity.first_name} {entity.last_name or ''}".strip(),
-            "tagline": "Чат с пользователем",
-            "avatar": avatar_path if avatar_path else "static/default_avatar.png",
-            "username": entity.username if entity.username else "Unknown",
+            "tagline": "Чат с пользователем", 
+            "avatar": avatar_path if avatar_path else None,
+            "username": entity.username if entity.username else f"user_{entity.id}",
             "creation_date": None,
             "subscribers": None,
             "description": f"Переписка с пользователем {entity.first_name}",

@@ -103,6 +103,13 @@
   font-size: 14px;
 }
 
+.input-hint {
+  margin-top: 5px;
+  color: #666;
+  font-size: 12px;
+  font-style: italic;
+}
+
 .add-channel button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
