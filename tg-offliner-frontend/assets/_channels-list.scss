@@ -111,3 +111,20 @@
     white-space: pre-line;
     }
 }
+
+.preview-loading {
+  margin-top: 10px;
+  color: #007bff;
+  font-style: italic;
+  font-size: 14px;
+}
+
+.add-channel button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.add-channel input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

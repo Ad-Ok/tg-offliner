@@ -1,10 +1,10 @@
 <template>
   <div class="channels-list">
     <h1>Список каналов</h1>
-    <div v-if="loading" class="loading">Загрузка...</div>
+    <div v-if="channelsLoading" class="loading">Загрузка списка каналов...</div>
     
     <!-- Загруженные каналы -->
-    <div v-if="!loading && channels.length > 0">
+    <div v-if="!channelsLoading && channels.length > 0">
       <h2>Загруженные каналы</h2>
       <ul>
         <li v-for="channel in channels" :key="channel.id" class="channel-item">
@@ -65,8 +65,12 @@
         type="text"
         placeholder="Введите имя канала"
         @keyup.enter="previewChannel"
+        :disabled="previewLoading"
       />
-      <button @click="previewChannel">Предварительный просмотр</button>
+      <button @click="previewChannel" :disabled="previewLoading">
+        {{ previewLoading ? 'Загрузка...' : 'Предварительный просмотр' }}
+      </button>
+      <div v-if="previewLoading" class="preview-loading">Получаем информацию о канале...</div>
     </div>
   </div>
 </template>
@@ -81,7 +85,8 @@ export default {
     return {
       channels: [],
       previewChannels: [], // Отдельный массив для preview-каналов
-      loading: true,
+      channelsLoading: true, // Загрузка списка каналов
+      previewLoading: false, // Загрузка preview канала
       newChannel: "", // Поле для ввода имени канала
       logs: "", // Логи сервера
       logsLoading: false, // Флаг загрузки логов
@@ -103,16 +108,16 @@ export default {
   },
   methods: {
     fetchChannels() {
-      this.loading = true;
+      this.channelsLoading = true;
       api
         .get('/api/channels')
         .then((response) => {
           this.channels = response.data;
-          this.loading = false;
+          this.channelsLoading = false;
         })
         .catch((error) => {
           console.error('Ошибка при загрузке каналов:', error);
-          this.loading = false;
+          this.channelsLoading = false;
         });
     },
     addChannel() {
@@ -196,7 +201,7 @@ export default {
         return;
       }
       const sanitizedChannel = this.newChannel.trim().replace(/^@/, "");
-      this.loading = true;
+      this.previewLoading = true;
       api.get(`/api/channel_preview?username=${encodeURIComponent(sanitizedChannel)}`)
         .then(response => {
           const preview = response.data;
@@ -212,12 +217,12 @@ export default {
             this.previewChannels.push(preview); // Добавляем в preview-каналы
             eventBus.showAlert("Предварительный просмотр готов. Нажмите 'Загрузить канал' для добавления.", "info");
           }
-          this.loading = false;
+          this.previewLoading = false;
           this.newChannel = "";
         })
         .catch(error => {
           eventBus.showAlert("Ошибка: " + (error.response?.data?.error || error.message), "danger");
-          this.loading = false;
+          this.previewLoading = false;
         });
     },
     loadChannel(preview, index) {
