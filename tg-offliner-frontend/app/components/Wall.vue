@@ -20,6 +20,11 @@
           v-if="item.type === 'group'"
           :posts="item.posts"
         />
+        <PostComments
+          v-else-if="item.type === 'post-with-comments'"
+          :originalPost="item.originalPost"
+          :comments="item.comments"
+        />
         <Post
           v-else
           :post="item.post"
@@ -34,10 +39,11 @@
 <script>
 import Post from './Post.vue';
 import Group from './Group.vue';
+import PostComments from './PostComments.vue';
 
 export default {
   name: "Wall",
-  components: { Post, Group },
+  components: { Post, Group, PostComments },
   props: {
     channelId: { type: String, required: true },
     posts: { type: Array, default: () => [] },
@@ -45,7 +51,8 @@ export default {
   },
   computed: {
     filteredPosts() {
-      return this.posts.filter(post => !post.grouped_id);
+      // Исключаем посты с grouped_id и комментарии (посты с reply_to)
+      return this.posts.filter(post => !post.grouped_id && !post.reply_to);
     },
     groupedPosts() {
       const groups = {};
@@ -59,16 +66,63 @@ export default {
       });
       return groups;
     },
+    postsWithComments() {
+      // Группируем комментарии по reply_to
+      const commentsMap = {};
+      const originalPostsMap = {};
+      
+      // Сначала собираем все оригинальные посты и комментарии
+      this.posts.forEach(post => {
+        if (post.reply_to) {
+          // Это комментарий
+          const replyToId = post.reply_to;
+          if (!commentsMap[replyToId]) {
+            commentsMap[replyToId] = [];
+          }
+          commentsMap[replyToId].push(post);
+        } else if (!post.grouped_id) {
+          // Это оригинальный пост (не комментарий и не в группе)
+          originalPostsMap[post.telegram_id] = post;
+        }
+      });
+      
+      // Создаем объекты для постов с комментариями
+      const result = {};
+      Object.keys(commentsMap).forEach(originalPostId => {
+        const originalPost = originalPostsMap[originalPostId];
+        if (originalPost) {
+          result[originalPostId] = {
+            originalPost,
+            comments: commentsMap[originalPostId]
+          };
+        }
+      });
+      
+      return result;
+    },
     organizedPosts() {
       const result = [];
       
-      // Добавляем обычные посты
-      this.filteredPosts.forEach(post => {
+      // Добавляем посты с комментариями
+      Object.entries(this.postsWithComments).forEach(([postId, data]) => {
         result.push({
-          type: 'post',
-          key: `post-${post.id}`,
-          post: post
+          type: 'post-with-comments',
+          key: `post-comments-${postId}`,
+          originalPost: data.originalPost,
+          comments: data.comments
         });
+      });
+      
+      // Добавляем обычные посты (без комментариев)
+      this.filteredPosts.forEach(post => {
+        // Проверяем, что у этого поста нет комментариев
+        if (!this.postsWithComments[post.telegram_id]) {
+          result.push({
+            type: 'post',
+            key: `post-${post.id}`,
+            post: post
+          });
+        }
       });
       
       // Добавляем группы
@@ -82,8 +136,24 @@ export default {
       
       // Сортируем все по дате (новые сверху)
       return result.sort((a, b) => {
-        const dateA = a.type === 'post' ? a.post.date : a.posts[0].date;
-        const dateB = b.type === 'post' ? b.post.date : b.posts[0].date;
+        let dateA, dateB;
+        
+        if (a.type === 'post') {
+          dateA = a.post.date;
+        } else if (a.type === 'post-with-comments') {
+          dateA = a.originalPost.date;
+        } else if (a.type === 'group') {
+          dateA = a.posts[0].date;
+        }
+        
+        if (b.type === 'post') {
+          dateB = b.post.date;
+        } else if (b.type === 'post-with-comments') {
+          dateB = b.originalPost.date;
+        } else if (b.type === 'group') {
+          dateB = b.posts[0].date;
+        }
+        
         return new Date(dateB) - new Date(dateA);
       });
     },
