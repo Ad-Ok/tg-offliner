@@ -153,6 +153,12 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
         grouped_id = getattr(post, "grouped_id", None)
         print(f"process_message_for_api: post.id={getattr(post, 'id', None)} grouped_id={grouped_id}")
 
+        # Обрабатываем информацию о том, является ли это ответом на другое сообщение
+        reply_to = None
+        if hasattr(post, 'reply_to') and post.reply_to and hasattr(post.reply_to, 'reply_to_msg_id'):
+            reply_to = post.reply_to.reply_to_msg_id
+            print(f"Сообщение {post.id} является ответом на сообщение {reply_to}")
+
         return {
             "telegram_id": post.id,
             "channel_id": channel_id,
@@ -168,7 +174,8 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
             "repost_author_avatar": repost_avatar,
             "repost_author_link": repost_link,
             "reactions": reactions,
-            "grouped_id": grouped_id
+            "grouped_id": grouped_id,
+            "reply_to": reply_to
         }
     except Exception as e:
         logging.error(f"Ошибка обработки сообщения {post.id}: {str(e)}")
