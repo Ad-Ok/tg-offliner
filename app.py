@@ -135,7 +135,8 @@ def add_channel_to_db():
         avatar=data.get('avatar'),
         creation_date=data.get('creation_date'),  # <-- должно быть!
         subscribers=data.get('subscribers'),
-        description=data.get('description')
+        description=data.get('description'),
+        discussion_group_id=data.get('discussion_group_id')
     )
     db.session.add(new_channel)
     db.session.commit()
@@ -198,7 +199,8 @@ def get_channels():
         "avatar": channel.avatar,
         "description": channel.description,
         "creation_date": channel.creation_date,
-        "subscribers": channel.subscribers
+        "subscribers": channel.subscribers,
+        "discussion_group_id": channel.discussion_group_id
     } for channel in channels])
 
 @app.route('/api/channels/<channel_id>', methods=['DELETE'])

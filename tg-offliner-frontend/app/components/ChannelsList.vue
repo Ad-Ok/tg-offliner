@@ -19,6 +19,7 @@
             <div class="channel-info">
               <span v-if="channel.creation_date">Создан {{ channel.creation_date }}</span>
               <span v-if="channel.subscribers">&nbsp;•&nbsp;{{ channel.subscribers }} подписчиков</span>
+              <span v-if="channel.discussion_group_id">&nbsp;•&nbsp;Есть группа обсуждений</span>
             </div>
             <button @click="printPdf(channel.id)" class="print-button">Печать PDF</button>
             <button @click="removeChannel(channel.id)" class="delete-button">Удалить канал</button>
