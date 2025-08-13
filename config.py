@@ -16,5 +16,7 @@ EXPORT_SETTINGS = {
     "include_reposts": True,
     "include_polls": True,
     "include_discussion_comments": True,  # Импортировать комментарии из группы обсуждений
-    "message_limit": 20  # None для безлимитного скачивания, либо число
+    "message_limit": None,  # None для безлимитного скачивания, либо число (для тестирования можно поставить 100)
+    "comments_search_limit": 1000,  # Лимит поиска сообщений в группе обсуждений
+    "comments_forward_search_limit": 500  # Лимит поиска форвардированных постов
 }

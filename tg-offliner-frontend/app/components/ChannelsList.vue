@@ -1,6 +1,14 @@
 <template>
   <div class="channels-list">
     <h1>Список каналов</h1>
+    
+    <!-- Панель статуса загрузок -->
+    <DownloadStatus 
+      :downloadStatuses="downloadStatuses"
+      @stop-download="stopDownload"
+      @clear-status="clearStatus"
+    />
+    
     <div v-if="channelsLoading" class="loading">Загрузка списка каналов...</div>
     
     <!-- Загруженные каналы -->
@@ -20,9 +28,33 @@
               <span v-if="channel.creation_date">Создан {{ channel.creation_date }}</span>
               <span v-if="channel.subscribers">&nbsp;•&nbsp;{{ channel.subscribers }} подписчиков</span>
               <span v-if="channel.discussion_group_id">&nbsp;•&nbsp;Есть группа обсуждений</span>
+              <!-- Индикатор статуса загрузки -->
+              <span v-if="isDownloading(channel.id)" class="download-status downloading">
+                &nbsp;•&nbsp;⏳ Загружается...
+                <span v-if="getDownloadProgress(channel.id)">
+                  ({{ getDownloadProgress(channel.id) }})
+                </span>
+              </span>
+              <span v-else-if="getDownloadStatus(channel.id) === 'stopped'" class="download-status stopped">
+                &nbsp;•&nbsp;⏸️ Остановлено
+              </span>
+              <span v-else-if="getDownloadStatus(channel.id) === 'error'" class="download-status error">
+                &nbsp;•&nbsp;❌ Ошибка
+              </span>
             </div>
-            <button @click="printPdf(channel.id)" class="print-button">Печать PDF</button>
-            <button @click="removeChannel(channel.id)" class="delete-button">Удалить канал</button>
+            <div class="channel-actions">
+              <!-- Кнопка остановки загрузки (показываем только во время загрузки) -->
+              <button 
+                v-if="isDownloading(channel.id)" 
+                @click="stopDownload(channel.id)" 
+                class="stop-button"
+                title="Остановить загрузку"
+              >
+                ⏹️ Остановить
+              </button>
+              <button @click="printPdf(channel.id)" class="print-button">Печать PDF</button>
+              <button @click="removeChannel(channel.id)" class="delete-button">Удалить канал</button>
+            </div>
           </div>
           <div class="channel-description" v-if="channel.description">
             {{ channel.description }}
@@ -83,9 +115,13 @@
 <script>
 import { eventBus } from "~/eventBus";
 import { api, apiBase, mediaBase } from '~/services/api'; // добавь mediaBase
+import DownloadStatus from './DownloadStatus.vue';
 
 export default {
   name: "ChannelsList",
+  components: {
+    DownloadStatus,
+  },
   data() {
     return {
       channels: [],
@@ -97,6 +133,8 @@ export default {
       logsLoading: false, // Флаг загрузки логов
       logsInterval: null, // Интервал для обновления логов
       logsOffset: 0, // Offset для логов
+      downloadStatuses: {}, // Статусы загрузки каналов
+      statusCheckInterval: null, // Интервал проверки статусов
     };
   },
   computed: {
@@ -261,7 +299,86 @@ export default {
     removePreview(index) {
       this.previewChannels.splice(index, 1);
       eventBus.showAlert("Предварительный просмотр отменен", "info");
+    },
+    
+    // Методы для управления загрузкой
+    async checkDownloadStatuses() {
+      try {
+        const response = await api.get('/api/download/status');
+        this.downloadStatuses = response.data;
+      } catch (error) {
+        console.error('Ошибка получения статусов загрузки:', error);
+      }
+    },
+    
+    async stopDownload(channelId) {
+      try {
+        const response = await api.post(`/api/download/stop/${channelId}`);
+        eventBus.showAlert(response.data.message, "success");
+        this.checkDownloadStatuses(); // Обновляем статусы
+      } catch (error) {
+        const errorMessage = error.response?.data?.error || 'Ошибка остановки загрузки';
+        eventBus.showAlert(errorMessage, "danger");
+      }
+    },
+    
+    getDownloadStatus(channelId) {
+      return this.downloadStatuses[channelId]?.status || 'unknown';
+    },
+    
+    isDownloading(channelId) {
+      return this.getDownloadStatus(channelId) === 'downloading';
+    },
+    
+    getDownloadProgress(channelId) {
+      const status = this.downloadStatuses[channelId];
+      if (!status || !status.details) return '';
+      
+      const { posts_processed, total_posts, comments_processed } = status.details;
+      let progress = '';
+      
+      if (posts_processed !== undefined) {
+        if (total_posts) {
+          progress = `${posts_processed} из ${total_posts} постов`;
+        } else {
+          progress = `${posts_processed} постов`;
+        }
+        
+        if (comments_processed) {
+          progress += `, ${comments_processed} комментариев`;
+        }
+      }
+      
+      return progress;
+    },
+    
+    startStatusPolling() {
+      this.statusCheckInterval = setInterval(() => {
+        this.checkDownloadStatuses();
+      }, 2000); // Проверяем каждые 2 секунды
+    },
+    
+    stopStatusPolling() {
+      if (this.statusCheckInterval) {
+        clearInterval(this.statusCheckInterval);
+        this.statusCheckInterval = null;
+      }
+    },
+    
+    clearStatus(channel) {
+      // Удаляем статус для канала из локального состояния
+      delete this.downloadStatuses[channel];
+      this.$forceUpdate(); // Принудительно обновляем компонент
     }
+  },
+  
+  mounted() {
+    this.checkDownloadStatuses(); // Проверяем статусы при загрузке
+    this.startStatusPolling(); // Запускаем опрос статусов
+  },
+  
+  beforeUnmount() {
+    this.stopStatusPolling(); // Останавливаем опрос при выходе
   },
 };
 </script>

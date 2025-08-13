@@ -135,3 +135,53 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+// Стили для статусов загрузки и управления
+.download-status {
+  font-size: 13px;
+  font-weight: 500;
+  
+  &.downloading {
+    color: #007bff;
+    animation: pulse 1.5s infinite;
+  }
+  
+  &.stopped {
+    color: #ffc107;
+  }
+  
+  &.error {
+    color: #dc3545;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.channel-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.stop-button {
+  background-color: #ffc107;
+  color: #000;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: #e0a800;
+  }
+  
+  &:active {
+    background-color: #d39e00;
+  }
+}

@@ -2,6 +2,8 @@ import multiprocessing
 multiprocessing.set_start_method("fork", force=True)
 
 import logging
+import time
+import threading
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from models import db, Post, Channel
@@ -26,6 +28,39 @@ logging.basicConfig(
 app = create_app()
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})  # Разрешаем CORS для фронтенда
 init_db(app)
+
+# Глобальные переменные для управления загрузкой
+download_status = {}  # Статус загрузки для каждого канала
+download_lock = threading.Lock()  # Блокировка для thread-safe операций
+
+def set_download_status(channel_id, status, details=None):
+    """Устанавливает статус загрузки канала"""
+    with download_lock:
+        download_status[channel_id] = {
+            'status': status,  # 'downloading', 'stopped', 'completed', 'error'
+            'details': details or {},
+            'timestamp': time.time()
+        }
+
+def update_download_progress(channel_id, posts_processed=0, total_posts=0, comments_processed=0):
+    """Обновляет прогресс загрузки канала"""
+    with download_lock:
+        if channel_id in download_status:
+            download_status[channel_id]['details'].update({
+                'posts_processed': posts_processed,
+                'total_posts': total_posts,
+                'comments_processed': comments_processed
+            })
+
+def get_download_status(channel_id):
+    """Получает статус загрузки канала"""
+    with download_lock:
+        return download_status.get(channel_id)
+
+def should_stop_download(channel_id):
+    """Проверяет, нужно ли остановить загрузку"""
+    status = get_download_status(channel_id)
+    return status and status.get('status') == 'stopped'
 
 def generate_pdf(html_content, pdf_path):
     """Генерирует PDF из HTML-контента."""
@@ -171,6 +206,14 @@ def run_channel_import():
         # Определяем реальный ID для проверки в базе
         real_id = entity.username or str(entity.id)
         
+        # Устанавливаем статус начала загрузки
+        set_download_status(real_id, 'downloading', {
+            'channel_name': channel_username,
+            'started_at': time.time(),
+            'processed_posts': 0,
+            'processed_comments': 0
+        })
+        
         # Проверяем, существует ли канал по реальному ID
         existing_channel = Channel.query.filter_by(id=real_id).first()
         if existing_channel:
@@ -178,7 +221,7 @@ def run_channel_import():
             return jsonify({"error": f"Канал/пользователь {real_id} уже импортирован"}), 400
 
         # Импортируем канал напрямую через API
-        result = import_channel_direct(channel_username)
+        result = import_channel_direct(channel_username, real_id)
         
         if result['success']:
             processed_count = result.get('processed', 0)
@@ -186,15 +229,88 @@ def run_channel_import():
             message = f"Канал/пользователь {real_id} успешно добавлен. Импортировано {processed_count} сообщений"
             if comments_count > 0:
                 message += f" и {comments_count} комментариев"
+            
+            # Устанавливаем статус завершения
+            set_download_status(real_id, 'completed', {
+                'channel_name': channel_username,
+                'completed_at': time.time(),
+                'processed_posts': processed_count,
+                'processed_comments': comments_count,
+                'message': message
+            })
+            
             app.logger.info(message)
             return jsonify({"message": message}), 200
         else:
+            # Устанавливаем статус ошибки
+            set_download_status(real_id, 'error', {
+                'channel_name': channel_username,
+                'error_at': time.time(),
+                'error': result['error']
+            })
+            
             app.logger.error(f"Ошибка импорта канала: {result['error']}")
             return jsonify({"error": result['error']}), 500
             
     except Exception as e:
+        # Устанавливаем статус ошибки, если real_id определен
+        if 'real_id' in locals():
+            set_download_status(real_id, 'error', {
+                'channel_name': channel_username,
+                'error_at': time.time(),
+                'error': str(e)
+            })
+        
         app.logger.error(f"Исключение: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/download/status/<channel_id>', methods=['GET'])
+def get_download_status_api(channel_id):
+    """Возвращает статус загрузки канала"""
+    status = get_download_status(channel_id)
+    if status:
+        return jsonify(status), 200
+    else:
+        return jsonify({"status": "not_found", "details": {}}), 404
+
+@app.route('/api/download/stop/<channel_id>', methods=['POST'])
+def stop_download(channel_id):
+    """Останавливает загрузку канала"""
+    current_status = get_download_status(channel_id)
+    
+    if not current_status:
+        return jsonify({"error": "Загрузка не найдена"}), 404
+    
+    if current_status.get('status') != 'downloading':
+        return jsonify({"error": f"Загрузка уже завершена или остановлена. Текущий статус: {current_status.get('status')}"}), 400
+    
+    set_download_status(channel_id, 'stopped', {
+        'message': 'Загрузка остановлена пользователем',
+        'stopped_at': time.time()
+    })
+    
+    app.logger.info(f"Пользователь остановил загрузку канала {channel_id}")
+    return jsonify({"message": f"Загрузка канала {channel_id} остановлена"}), 200
+
+@app.route('/api/download/status', methods=['GET'])
+def get_all_download_statuses():
+    """Возвращает статусы всех загрузок"""
+    with download_lock:
+        return jsonify(download_status), 200
+
+@app.route('/api/download/progress/<channel_id>', methods=['POST'])
+def update_progress(channel_id):
+    """Обновляет прогресс загрузки канала"""
+    try:
+        data = request.get_json()
+        posts_processed = data.get('posts_processed', 0)
+        total_posts = data.get('total_posts', 0)
+        comments_processed = data.get('comments_processed', 0)
+        
+        update_download_progress(channel_id, posts_processed, total_posts, comments_processed)
+        return jsonify({'message': 'Прогресс обновлен'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/channels', methods=['GET'])
 def get_channels():
