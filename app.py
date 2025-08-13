@@ -181,8 +181,13 @@ def run_channel_import():
         result = import_channel_direct(channel_username)
         
         if result['success']:
-            app.logger.info(f"Канал/пользователь {real_id} успешно импортирован")
-            return jsonify({"message": f"Канал/пользователь {real_id} успешно добавлен"}), 200
+            processed_count = result.get('processed', 0)
+            comments_count = result.get('comments', 0)
+            message = f"Канал/пользователь {real_id} успешно добавлен. Импортировано {processed_count} сообщений"
+            if comments_count > 0:
+                message += f" и {comments_count} комментариев"
+            app.logger.info(message)
+            return jsonify({"message": message}), 200
         else:
             app.logger.error(f"Ошибка импорта канала: {result['error']}")
             return jsonify({"error": result['error']}), 500

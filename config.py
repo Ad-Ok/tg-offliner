@@ -15,5 +15,6 @@ EXPORT_SETTINGS = {
     "include_system_messages": False,
     "include_reposts": True,
     "include_polls": True,
+    "include_discussion_comments": True,  # Импортировать комментарии из группы обсуждений
     "message_limit": 20  # None для безлимитного скачивания, либо число
 }

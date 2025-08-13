@@ -13,6 +13,7 @@ import shutil
 import os
 import logging
 from message_processing.channel_info import get_channel_info
+from utils.entity_validation import get_entity_by_username_or_id
 
 # Настройка логирования
 logging.basicConfig(
@@ -72,6 +73,7 @@ def import_channel_direct(channel_username):
         include_system_messages = EXPORT_SETTINGS.get("include_system_messages", False)
         include_reposts = EXPORT_SETTINGS.get("include_reposts", True)
         include_polls = EXPORT_SETTINGS.get("include_polls", True)
+        include_discussion_comments = EXPORT_SETTINGS.get("include_discussion_comments", True)
         message_limit = EXPORT_SETTINGS.get("message_limit", None)
 
         all_posts = client.iter_messages(
@@ -81,6 +83,11 @@ def import_channel_direct(channel_username):
         )
         
         processed_count = 0
+        comments_count = 0
+        
+        # Получаем ID группы обсуждений для импорта комментариев
+        discussion_group_id = channel_info.get('discussion_group_id')
+        
         for post in all_posts:
             try:
                 # Обрабатываем сообщение так же, как в main()
@@ -88,18 +95,119 @@ def import_channel_direct(channel_username):
                 if post_data:
                     # Добавляем пост через API
                     api_url = "http://localhost:5000/api/posts"
-                    requests.post(api_url, json=post_data)
-                    processed_count += 1
+                    response = requests.post(api_url, json=post_data)
+                    if response.status_code in [200, 201]:
+                        processed_count += 1
+                        
+                        # Если у канала есть группа обсуждений и включен импорт комментариев
+                        if discussion_group_id and include_discussion_comments:
+                            post_comments = import_discussion_comments(
+                                client, 
+                                real_id, 
+                                discussion_group_id, 
+                                post.id
+                            )
+                            comments_count += post_comments
+                    else:
+                        logging.error(f"Ошибка добавления поста {post.id}: {response.text}")
             except Exception as e:
                 logging.error(f"Ошибка при обработке сообщения: {str(e)}")
         
         logging.info(f"Обработано сообщений: {processed_count}")
-        logging.info(f"Канал {channel_username} импортирован: {processed_count} сообщений")
-        return {"success": True, "processed": processed_count}
+        logging.info(f"Импортировано комментариев: {comments_count}")
+        logging.info(f"Канал {channel_username} импортирован: {processed_count} сообщений, {comments_count} комментариев")
+        return {"success": True, "processed": processed_count, "comments": comments_count}
         
     except Exception as e:
         logging.error(f"Ошибка импорта канала {channel_username}: {str(e)}")
         return {"success": False, "error": str(e)}
+
+def import_discussion_comments(client, channel_id, discussion_group_id, original_post_id):
+    """
+    Импортирует комментарии к посту из группы обсуждений канала.
+    
+    :param client: Подключённый клиент Telethon
+    :param channel_id: ID канала (для связи комментариев)
+    :param discussion_group_id: ID группы обсуждений
+    :param original_post_id: ID оригинального поста в канале
+    :return: Количество импортированных комментариев
+    """
+    try:
+        logging.info(f"Поиск комментариев к посту {original_post_id} в группе обсуждений {discussion_group_id}")
+        
+        # Получаем entity группы обсуждений
+        discussion_entity, error = get_entity_by_username_or_id(client, str(discussion_group_id))
+        if discussion_entity is None:
+            logging.error(f"Не удалось получить группу обсуждений {discussion_group_id}: {error}")
+            return 0
+        
+        # Создаем папку для комментариев (используем тот же формат, что и для канала)
+        folder_name = f"discussion_{discussion_group_id}"
+        
+        # Сначала ищем форвардированный пост в группе обсуждений
+        forwarded_post_id = None
+        comments_count = 0
+        
+        try:
+            # Ищем среди последних сообщений форвардированный пост из канала
+            recent_messages = client.iter_messages(discussion_entity, limit=200)
+            
+            for message in recent_messages:
+                # Проверяем, является ли сообщение форвардом из нашего канала
+                if (hasattr(message, 'fwd_from') and 
+                    message.fwd_from and 
+                    hasattr(message.fwd_from, 'from_id')):
+                    
+                    # Дополнительно проверяем по saved_from_msg_id если доступно
+                    if (hasattr(message.fwd_from, 'saved_from_msg_id') and 
+                        message.fwd_from.saved_from_msg_id == original_post_id):
+                        forwarded_post_id = message.id
+                        logging.info(f"Найден форвардированный пост {forwarded_post_id} для оригинального поста {original_post_id}")
+                        break
+            
+            # Если нашли форвардированный пост, ищем ответы на него
+            if forwarded_post_id:
+                all_messages = client.iter_messages(discussion_entity, limit=1000)
+                
+                for message in all_messages:
+                    try:
+                        # Проверяем, является ли сообщение ответом на форвардированный пост
+                        if (hasattr(message, 'reply_to') and 
+                            message.reply_to and 
+                            hasattr(message.reply_to, 'reply_to_msg_id') and
+                            message.reply_to.reply_to_msg_id == forwarded_post_id):
+                            
+                            logging.info(f"Найден комментарий {message.id} к форвардированному посту {forwarded_post_id}")
+                            
+                            # Обрабатываем комментарий как обычное сообщение
+                            comment_data = process_message_for_api(message, channel_id, client, folder_name)
+                            if comment_data:
+                                # Устанавливаем правильную связь с оригинальным постом канала
+                                comment_data['reply_to'] = original_post_id
+                                
+                                # Добавляем комментарий в базу данных
+                                api_url = "http://localhost:5000/api/posts"
+                                response = requests.post(api_url, json=comment_data)
+                                if response.status_code in [200, 201]:
+                                    comments_count += 1
+                                    logging.info(f"Комментарий {message.id} успешно добавлен как ответ на пост {original_post_id}")
+                                else:
+                                    logging.error(f"Ошибка добавления комментария {message.id}: {response.text}")
+                        
+                    except Exception as e:
+                        logging.error(f"Ошибка обработки сообщения {message.id} из группы обсуждений: {e}")
+            else:
+                logging.warning(f"Не найден форвардированный пост для оригинального поста {original_post_id}")
+                    
+        except Exception as e:
+            logging.error(f"Ошибка получения сообщений из группы обсуждений: {e}")
+            
+        logging.info(f"Импортировано {comments_count} комментариев к посту {original_post_id}")
+        return comments_count
+        
+    except Exception as e:
+        logging.error(f"Ошибка импорта комментариев: {e}")
+        return 0
 
 def process_message_for_api(post, channel_id, client, folder_name=None):
     """Обрабатывает сообщение для API"""
