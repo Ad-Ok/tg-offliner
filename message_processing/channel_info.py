@@ -4,6 +4,22 @@ from message_processing.author import download_avatar
 import pprint
 import os
 
+def get_discussion_group(client, full_info):
+    """
+    Получает ID группы обсуждений канала, если она есть.
+    """
+    try:
+        if hasattr(full_info, 'full_chat') and hasattr(full_info.full_chat, 'linked_chat_id'):
+            linked_chat_id = full_info.full_chat.linked_chat_id
+            if linked_chat_id:
+                print(f"=== Найдена группа обсуждений с ID: {linked_chat_id} ===")
+                return linked_chat_id
+                    
+    except Exception as e:
+        print(f"Ошибка при получении группы обсуждений: {e}")
+    
+    return None
+
 def get_channel_info(client, entity, output_dir, folder_name=None):
     """
     Формирует информацию о канале, пользователе или чате.
@@ -25,6 +41,9 @@ def get_channel_info(client, entity, output_dir, folder_name=None):
         pprint.pprint(full_info.to_dict() if hasattr(full_info, "to_dict") else full_info)
         
         participants_count = full_info.full_chat.participants_count
+
+        # Получаем группу обсуждений канала, если она есть
+        discussion_group_id = get_discussion_group(client, full_info)
 
         # Получи путь к папке канала
         if folder_name is None:
@@ -56,7 +75,8 @@ def get_channel_info(client, entity, output_dir, folder_name=None):
             "creation_date": entity.date.strftime('%d %B %Y') if getattr(entity, "date", None) else None,
             "subscribers": participants_count if participants_count is not None else None,
             "description": getattr(full_info.full_chat, "about", None),
-            "posts_count": posts_count
+            "posts_count": posts_count,
+            "discussion_group_id": discussion_group_id  # Добавляем ID группы обсуждений
         }
 
     elif isinstance(entity, User):
