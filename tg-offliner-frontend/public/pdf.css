@@ -21,9 +21,8 @@
   text-decoration: underline;
 }
 .channels-list .channel-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: 100%;
+  height: auto;
   object-fit: cover;
   margin-right: 10px;
   vertical-align: middle;
@@ -94,6 +93,14 @@
   font-size: 0.95em;
   margin-left: 42px;
   white-space: pre-line;
+}
+
+.channel-avatar-wrapper {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: #e0e0e0;
 }
 
 .preview-loading {

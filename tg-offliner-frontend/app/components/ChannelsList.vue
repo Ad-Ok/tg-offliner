@@ -17,12 +17,14 @@
       <ul>
         <li v-for="channel in channels" :key="channel.id" class="channel-item">
           <div class="channel-main">
-            <img
-              v-if="channel.avatar"
-              :src="channelAvatarSrc(channel)"
-              alt="Аватар"
-              class="channel-avatar"
-            />
+            <div class="channel-avatar-wrapper">
+              <img
+                v-if="channel.avatar"
+                :src="channelAvatarSrc(channel)"
+                :alt="channel.name"
+                class="channel-avatar"
+              />
+            </div>
             <router-link :to="`/${channel.id}/posts`">{{ channel.name }}</router-link>
             <div class="channel-info">
               <span v-if="channel.creation_date">Создан {{ channel.creation_date }}</span>
