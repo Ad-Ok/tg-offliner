@@ -400,8 +400,50 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
         # Формируем текст сообщения
         message_text = post.message or ""
         
+        # Обрабатываем звонки (MessageActionPhoneCall)
+        if hasattr(post, 'action') and post.action and 'PhoneCall' in str(type(post.action)):
+            call_action = post.action
+            
+            # Определяем направление звонка по from_id
+            direction = "📤 Исходящий" if (hasattr(post, 'from_id') and post.from_id) else "📥 Входящий"
+            
+            # Определяем тип звонка
+            video_type = "🎥 Видеозвонок" if getattr(call_action, 'video', False) else "📞 Голосовой звонок"
+            
+            # Определяем статус звонка
+            reason = getattr(call_action, 'reason', None)
+            if reason:
+                reason_type = type(reason).__name__
+                if 'Missed' in reason_type:
+                    status = "🔴 Пропущен"
+                elif 'Busy' in reason_type:
+                    status = "📵 Занято"
+                elif 'Hangup' in reason_type:
+                    status = "✅ Завершен"
+                elif 'Disconnect' in reason_type:
+                    status = "🔌 Разорвано"
+                else:
+                    status = f"❓ {reason_type}"
+            else:
+                status = "❓ Неизвестно"
+            
+            # Длительность
+            duration = getattr(call_action, 'duration', None)
+            if duration:
+                minutes = duration // 60
+                seconds = duration % 60
+                duration_str = f"⏰ {minutes}м {seconds}с"
+            else:
+                duration_str = "⏰ Не состоялся"
+            
+            # Формируем текст звонка
+            call_text = f"{direction} {video_type} - {status} {duration_str}"
+            message_text = call_text
+            
+            logging.info(f"Phone call detected: {call_text}")
+        
         # Если есть эмодзи стикера, добавляем его к тексту
-        if sticker_emoji:
+        elif sticker_emoji:
             if message_text:
                 message_text = f"{message_text} {sticker_emoji}"
             else:
