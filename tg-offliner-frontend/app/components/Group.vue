@@ -71,7 +71,7 @@ export default {
       return formatMessageDate(this.firstPost.date);
     },
     postsWithMedia() {
-      return this.posts.filter(post => post.media_url);
+      return this.posts.filter(post => post.media_url && post.media_type);
     },
   },
 };

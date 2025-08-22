@@ -7,7 +7,7 @@ import requests
 from utils.text_format import parse_entities_to_html
 import os
 from message_processing.polls import process_poll
-from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument, MessageMediaWebPage
+from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument, MessageMediaWebPage, DocumentAttributeSticker
 from message_processing.author import process_author
 import shutil
 import os
@@ -307,12 +307,31 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
         media_path = None
         media_type = None
         mime_type = None
+        sticker_emoji = None  # Для хранения эмодзи стикера
 
         if post.media and not post.poll:  # Пропускаем скачивание медиа для опросов
             media_type = type(post.media).__name__  # Тип медиа (например, MessageMediaPhoto)
             
+            # Проверяем, является ли это TGS стикером
+            if (isinstance(post.media, MessageMediaDocument) and 
+                isinstance(post.media.document, Document) and 
+                getattr(post.media.document, 'mime_type', None) == 'application/x-tgsticker'):
+                
+                # Для TGS стикеров ищем эмодзи в атрибутах
+                for attr in post.media.document.attributes:
+                    if isinstance(attr, DocumentAttributeSticker) and attr.alt:
+                        sticker_emoji = attr.alt
+                        logging.info(f"TGS sticker detected: will add emoji {attr.alt} to message text")
+                        break
+                
+                # TGS стикеры не сохраняем как медиа - только эмодзи в тексте
+                if sticker_emoji:
+                    media_type = None  # Не сохраняем как медиа
+                    mime_type = None
+                    media_path = None
+            
             # Обрабатываем MessageMediaWebPage
-            if isinstance(post.media, MessageMediaWebPage):
+            elif isinstance(post.media, MessageMediaWebPage):
                 # Для веб-страниц сохраняем URL страницы в media_url
                 if hasattr(post.media, 'webpage') and post.media.webpage and hasattr(post.media.webpage, 'url'):
                     media_path = post.media.webpage.url
@@ -327,7 +346,10 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
                 if media_path:
                     media_path = os.path.relpath(media_path, DOWNLOADS_DIR)  # Относительный путь от папки downloads
             
-            if isinstance(post.media, MessageMediaDocument) and isinstance(post.media.document, Document):
+            # Устанавливаем mime_type только если это не стикер
+            if (isinstance(post.media, MessageMediaDocument) and 
+                isinstance(post.media.document, Document) and 
+                not sticker_emoji):  # Не устанавливаем mime_type для стикеров
                 mime_type = getattr(post.media.document, 'mime_type', None)
 
         # Обрабатываем автора сообщения
@@ -361,11 +383,21 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
             reply_to = post.reply_to.reply_to_msg_id
             print(f"Сообщение {post.id} является ответом на сообщение {reply_to}")
 
+        # Формируем текст сообщения
+        message_text = post.message or ""
+        
+        # Если есть эмодзи стикера, добавляем его к тексту
+        if sticker_emoji:
+            if message_text:
+                message_text = f"{message_text} {sticker_emoji}"
+            else:
+                message_text = sticker_emoji
+
         return {
             "telegram_id": post.id,
             "channel_id": channel_id,
             "date": post.date.isoformat() if post.date else None,
-            "message": post.message or "",
+            "message": message_text,
             "media_url": media_path,
             "media_type": media_type,
             "mime_type": mime_type,

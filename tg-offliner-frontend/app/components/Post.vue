@@ -20,7 +20,7 @@
 
     <p v-html="post.message"></p>
 
-    <div v-if="post.media_url">
+    <div v-if="post.media_url && post.media_type">
       <PostMedia
         :mediaUrl="post.media_url"
         :mediaType="post.media_type"
