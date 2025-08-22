@@ -393,46 +393,17 @@ def process_html_for_standalone(html_content):
     
     soup = BeautifulSoup(html_content, 'html.parser')
     
-    # Получаем CSS стили с SSR сервера и встраиваем их
-    try:
-        # Находим все ссылки на CSS файлы в исходном HTML
-        css_links = soup.find_all('link', rel='stylesheet')
-        all_css = ""
-        
-        for link in css_links:
-            css_href = link.get('href')
-            if css_href:
-                # Если относительная ссылка, добавляем базовый URL
-                if css_href.startswith('/'):
-                    css_url = f'http://ssr:3000{css_href}'
-                else:
-                    css_url = css_href
-                
-                try:
-                    css_response = requests.get(css_url, timeout=5)
-                    if css_response.status_code == 200:
-                        all_css += css_response.text + "\n"
-                        app.logger.info(f"Загружен CSS: {css_url}")
-                except Exception as css_error:
-                    app.logger.warning(f"Не удалось загрузить CSS {css_url}: {css_error}")
-        
-        # Если получили CSS, встраиваем его
-        if all_css:
-            style_tag = soup.new_tag('style')
-            style_tag.string = all_css
-            
-            # Добавляем в head
-            head = soup.find('head')
-            if head:
-                head.append(style_tag)
-                app.logger.info(f"CSS встроен в HTML ({len(all_css)} символов)")
-                
-    except Exception as e:
-        app.logger.warning(f"Ошибка при обработке CSS: {e}")
-    
-    # Удаляем ссылки на внешние CSS файлы
+    # Удаляем все ссылки на CSS файлы
     for link in soup.find_all('link', rel='stylesheet'):
         link.decompose()
+    
+    # Добавляем ссылку на локальный CSS файл
+    head = soup.find('head')
+    if head:
+        css_link = soup.new_tag('link')
+        css_link['rel'] = 'stylesheet'
+        css_link['href'] = './pdf.css'
+        head.append(css_link)
     
     # Удаляем скрипты (для статичного HTML они не нужны)
     for script in soup.find_all('script'):
@@ -478,6 +449,20 @@ def export_channel_to_html(channel_id):
         # Создаем папку для канала в downloads
         channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
         os.makedirs(channel_dir, exist_ok=True)
+        
+        # Копируем CSS файл из tg-offliner-frontend/public/pdf.css
+        import shutil
+        css_source = os.path.join(os.path.dirname(__file__), 'tg-offliner-frontend', 'public', 'pdf.css')
+        css_dest = os.path.join(channel_dir, 'pdf.css')
+        
+        try:
+            if os.path.exists(css_source):
+                shutil.copy2(css_source, css_dest)
+                app.logger.info(f"CSS файл скопирован: {css_source} -> {css_dest}")
+            else:
+                app.logger.warning(f"CSS файл не найден: {css_source}")
+        except Exception as css_error:
+            app.logger.error(f"Ошибка при копировании CSS: {css_error}")
         
         # Обрабатываем HTML для автономного использования
         processed_html = process_html_for_standalone(html_content)
