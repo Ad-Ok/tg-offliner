@@ -397,30 +397,30 @@ def get_channel_folder(channel_name):
 
     return channel_folder
 
-def save_channel_info(client, channel_username):
-    print("== save_channel_info called ==")
-    try:
-        entity = client.get_entity(channel_username)
-        print("== entity получен ==")
-        channel_data = get_channel_info(client, entity, output_dir="downloads")
-        print("== channel_data:", channel_data)
-        channel_data["id"] = entity.username or str(entity.id)
-        print("== отправляем в API:", channel_data)
-        response = requests.post("http://127.0.0.1:5000/api/channels", json=channel_data)
-        print("== ответ API:", response.status_code, response.text)
-        if response.status_code == 201:
-            print(f"Канал {channel_data['name']} успешно добавлен в базу данных.")
-        elif response.status_code == 200:
-            print(f"Канал {channel_data['name']} уже существует.")
-        else:
-            print(f"Ошибка при добавлении канала: {response.text}")
-    except Exception as e:
-        print(f"Ошибка при сохранении информации о канале: {e}")
+# def save_channel_info(client, channel_username):
+#     print("== save_channel_info called ==")
+#     try:
+#         entity = client.get_entity(channel_username)
+#         print("== entity получен ==")
+#         channel_data = get_channel_info(client, entity, output_dir="downloads")
+#         print("== channel_data:", channel_data)
+#         channel_data["id"] = entity.username or str(entity.id)
+#         print("== отправляем в API:", channel_data)
+#         response = requests.post("http://127.0.0.1:5000/api/channels", json=channel_data)
+#         print("== ответ API:", response.status_code, response.text)
+#         if response.status_code == 201:
+#             print(f"Канал {channel_data['name']} успешно добавлен в базу данных.")
+#         elif response.status_code == 200:
+#             print(f"Канал {channel_data['name']} уже существует.")
+#         else:
+#             print(f"Ошибка при добавлении канала: {response.text}")
+#     except Exception as e:
+#         print(f"Ошибка при сохранении информации о канале: {e}")
 
-def download_channel(channel_name):
-    logging.info(f"Начало скачивания канала: {channel_name}")
-    # Ваш код для скачивания
-    logging.info(f"Канал {channel_name} успешно скачан")
+# def download_channel(channel_name):
+#     logging.info(f"Начало скачивания канала: {channel_name}")
+#     # Ваш код для скачивания
+#     logging.info(f"Канал {channel_name} успешно скачан")
 
 def main(channel_username=None):
     # Очищаем папку текущего канала

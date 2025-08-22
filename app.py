@@ -62,13 +62,13 @@ def should_stop_download(channel_id):
     status = get_download_status(channel_id)
     return status and status.get('status') == 'stopped'
 
-def generate_pdf(html_content, pdf_path):
-    """Генерирует PDF из HTML-контента."""
-    try:
-        HTML(string=html_content).write_pdf(pdf_path)
-        logging.info(f"PDF успешно сохранён в {pdf_path}")
-    except Exception as e:
-        logging.error(f"Ошибка при печати PDF: {str(e)}")
+# def generate_pdf(html_content, pdf_path):
+#     """Генерирует PDF из HTML-контента."""
+#     try:
+#         HTML(string=html_content).write_pdf(pdf_path)
+#         logging.info(f"PDF успешно сохранён в {pdf_path}")
+#     except Exception as e:
+#         logging.error(f"Ошибка при печати PDF: {str(e)}")
 
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
