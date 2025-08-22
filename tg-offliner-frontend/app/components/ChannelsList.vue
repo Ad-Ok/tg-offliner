@@ -5,6 +5,8 @@
     <!-- Панель статуса загрузок -->
     <DownloadStatus 
       :downloadStatuses="downloadStatuses"
+      :channels="channels"
+      :previewChannels="previewChannels"
       @stop-download="stopDownload"
       @clear-status="clearStatus"
     />

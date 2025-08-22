@@ -13,41 +13,40 @@
           <div class="download-progress">
             <span v-if="status.status === 'downloading'">
               ⏳ Загрузка...
-              <span v-if="status.details.posts_processed !== undefined">
-                <br>Постов: {{ status.details.posts_processed }}
-                <span v-if="status.details.total_posts"> из {{ status.details.total_posts }}</span>
-                <span v-if="status.details.comments_processed">, комментариев: {{ status.details.comments_processed }}</span>
-              </span>
             </span>
             <span v-else-if="status.status === 'completed'">
               ✅ Завершено
-              <span v-if="status.details.posts_processed !== undefined">
-                <br>Постов: {{ status.details.posts_processed }}
-                <span v-if="status.details.total_posts"> из {{ status.details.total_posts }}</span>
-                <span v-if="status.details.comments_processed">, комментариев: {{ status.details.comments_processed }}</span>
-              </span>
             </span>
             <span v-else-if="status.status === 'stopped'">
               ⏸️ Остановлено пользователем
-              <span v-if="status.details.posts_processed !== undefined">
-                <br>Загружено постов: {{ status.details.posts_processed }}
-                <span v-if="status.details.comments_processed">, комментариев: {{ status.details.comments_processed }}</span>
-              </span>
             </span>
             <span v-else-if="status.status === 'error'">
               ❌ Ошибка: {{ status.details.error }}
             </span>
+            
+            <!-- Детальная статистика -->
+            <div v-if="status.details.posts_processed !== undefined" class="download-stats">
+              <div class="stats-line">
+                Постов: {{ status.details.posts_processed }}
+                <span v-if="getChannelTotalPosts(channelId) || status.details.total_posts"> 
+                  из {{ getChannelTotalPosts(channelId) || status.details.total_posts }}
+                </span>
+                <span v-if="status.details.comments_processed">, комментариев: {{ status.details.comments_processed }}</span>
+              </div>
+            </div>
           </div>
           <!-- Прогресс-бар для визуального отображения -->
           <div 
-            v-if="status.status === 'downloading' && status.details.total_posts && status.details.posts_processed !== undefined"
+            v-if="shouldShowProgressBar(status, channelId)"
             class="progress-bar"
+            :class="{ 'completed': status.status === 'completed' }"
           >
             <div 
               class="progress-fill"
-              :style="{ width: getProgressPercentage(status) + '%' }"
+              :style="{ width: getProgressPercentage(status, channelId) + '%' }"
+              :class="status.status"
             ></div>
-            <span class="progress-text">{{ getProgressPercentage(status).toFixed(1) }}%</span>
+            <span class="progress-text">{{ getProgressPercentage(status, channelId).toFixed(1) }}%</span>
           </div>
         </div>
         <div class="download-actions">
@@ -56,7 +55,7 @@
             @click="$emit('stop-download', channelId)"
             class="stop-button"
           >
-            ⏹️ Остановить
+            Остановить
           </button>
           <button 
             v-if="['completed', 'stopped', 'error'].includes(status.status)"
@@ -78,6 +77,14 @@ export default {
     downloadStatuses: {
       type: Object,
       default: () => ({})
+    },
+    channels: {
+      type: Array,
+      default: () => []
+    },
+    previewChannels: {
+      type: Array,
+      default: () => []
     }
   },
   computed: {
@@ -100,10 +107,53 @@ export default {
     }
   },
   methods: {
-    getProgressPercentage(status) {
-      const { posts_processed, total_posts } = status.details;
-      if (!total_posts || total_posts === 0) return 0;
-      return Math.min((posts_processed / total_posts) * 100, 100);
+    getChannelTotalPosts(channelId) {
+      // Ищем в загруженных каналах
+      const channel = this.channels.find(ch => ch.id === channelId);
+      if (channel && channel.posts_count !== undefined) {
+        return channel.posts_count;
+      }
+      
+      // Ищем в preview каналах
+      const previewChannel = this.previewChannels.find(ch => ch.id === channelId);
+      if (previewChannel && previewChannel.posts_count !== undefined) {
+        return previewChannel.posts_count;
+      }
+      
+      return null;
+    },
+    getProgressPercentage(status, channelId) {
+      const { posts_processed, total_posts } = status.details || {};
+      
+      // Если total_posts не задан или равен 0, пытаемся получить из информации о канале
+      let actualTotalPosts = total_posts;
+      if (!actualTotalPosts || actualTotalPosts === 0) {
+        actualTotalPosts = this.getChannelTotalPosts(channelId);
+      }
+      
+      if (!actualTotalPosts || actualTotalPosts === 0) return 0;
+      if (posts_processed === undefined) return 0;
+      return Math.min((posts_processed / actualTotalPosts) * 100, 100);
+    },
+    shouldShowProgressBar(status, channelId) {
+      const channelTotalPosts = this.getChannelTotalPosts(channelId);
+      
+      // Отладочная информация
+      console.log('shouldShowProgressBar debug:', {
+        channelId,
+        status: status.status,
+        details: status.details,
+        total_posts: status.details?.total_posts,
+        posts_processed: status.details?.posts_processed,
+        channelTotalPosts,
+        hasDetails: !!status.details
+      });
+      
+      // Показываем прогресс-бар если есть информация о постах
+      return status.details && 
+             status.details.posts_processed !== undefined &&
+             (channelTotalPosts > 0 || status.details.total_posts > 0) &&
+             ['downloading', 'completed', 'stopped'].includes(status.status);
     }
   }
 };
@@ -169,6 +219,17 @@ export default {
   margin-top: 2px;
 }
 
+.download-stats {
+  margin-top: 8px;
+}
+
+.stats-line {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  padding: 4px 0;
+}
+
 .download-actions {
   display: flex;
   gap: 6px;
@@ -207,7 +268,7 @@ export default {
   width: 100%;
   height: 20px;
   background-color: #e9ecef;
-  border-radius: 10px;
+  border-radius: 2px;
   margin-top: 8px;
   overflow: hidden;
 }
@@ -215,8 +276,20 @@ export default {
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #28a745, #20c997);
-  border-radius: 10px;
+  border-radius: 2px;
   transition: width 0.3s ease;
+}
+
+.progress-fill.downloading {
+  background: linear-gradient(90deg, #007bff, #17a2b8);
+}
+
+.progress-fill.completed {
+  background: linear-gradient(90deg, #28a745, #20c997);
+}
+
+.progress-fill.stopped {
+  background: linear-gradient(90deg, #ffc107, #fd7e14);
 }
 
 .progress-text {
