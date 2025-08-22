@@ -180,3 +180,23 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Build artifacts and generated files
+dist/
+build/
+.nuxt/
+.output/
+.cache/
+
+# Generated CSS and map files (in specific locations)
+tg-offliner-frontend/public/pdf.css
+tg-offliner-frontend/public/pdf.css.map
+tg-offliner-frontend/public/*.css
+tg-offliner-frontend/public/*.css.map
+tg-offliner-frontend/public/*.js.map
+tg-offliner-frontend/.nuxt/
+tg-offliner-frontend/dist/
+tg-offliner-frontend/.output/
+
+# General map files
+**/*.map
