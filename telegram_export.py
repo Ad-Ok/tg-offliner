@@ -148,6 +148,21 @@ def import_channel_direct(channel_username, channel_id=None):
                     logging.info(f"Импорт канала {channel_username} остановлен пользователем")
                     return {"success": True, "processed": processed_count, "comments": comments_count, "stopped": True}
                 
+                # Пропускаем системные сообщения, если они отключены
+                if not include_system_messages and post.action:
+                    logging.info(f"Пропущено системное сообщение с ID {post.id}")
+                    continue
+
+                # Пропускаем репосты, если они отключены
+                if not include_reposts and post.fwd_from:
+                    logging.info(f"Пропущен репост с ID {post.id}")
+                    continue
+
+                # Пропускаем опросы, если они отключены
+                if not include_polls and post.poll:
+                    logging.info(f"Пропущен опрос с ID {post.id}")
+                    continue
+                
                 # Обрабатываем сообщение так же, как в main()
                 post_data = process_message_for_api(post, real_id, client, folder_name)
                 if post_data:
@@ -400,47 +415,71 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
         # Формируем текст сообщения
         message_text = post.message or ""
         
-        # Обрабатываем звонки (MessageActionPhoneCall)
-        if hasattr(post, 'action') and post.action and 'PhoneCall' in str(type(post.action)):
-            call_action = post.action
+        # Обрабатываем системные сообщения
+        if hasattr(post, 'action') and post.action:
+            action_type = type(post.action).__name__
             
-            # Определяем направление звонка по from_id
-            direction = "📤 Исходящий" if (hasattr(post, 'from_id') and post.from_id) else "📥 Входящий"
-            
-            # Определяем тип звонка
-            video_type = "🎥 Видеозвонок" if getattr(call_action, 'video', False) else "📞 Голосовой звонок"
-            
-            # Определяем статус звонка
-            reason = getattr(call_action, 'reason', None)
-            if reason:
-                reason_type = type(reason).__name__
-                if 'Missed' in reason_type:
-                    status = "🔴 Пропущен"
-                elif 'Busy' in reason_type:
-                    status = "📵 Занято"
-                elif 'Hangup' in reason_type:
-                    status = "✅ Завершен"
-                elif 'Disconnect' in reason_type:
-                    status = "🔌 Разорвано"
+            if action_type == 'MessageActionChannelCreate':
+                message_text = f"🎉 Канал создан: {post.action.title}"
+            elif action_type == 'MessageActionChatEditPhoto':
+                message_text = "🖼️ Фото канала изменено"
+            elif action_type == 'MessageActionChatEditTitle':
+                message_text = f"✏️ Название изменено на: {post.action.title}"
+            elif action_type == 'MessageActionChatDeletePhoto':
+                message_text = "🗑️ Фото канала удалено"
+            elif action_type == 'MessageActionChatAddUser':
+                message_text = "👥 Пользователь добавлен в группу"
+            elif action_type == 'MessageActionChatDeleteUser':
+                message_text = "👤❌ Пользователь покинул группу"
+            elif action_type == 'MessageActionChatJoinedByLink':
+                message_text = "🔗 Пользователь присоединился по ссылке"
+            elif action_type == 'MessageActionPinMessage':
+                message_text = "📌 Сообщение закреплено"
+            elif action_type == 'MessageActionHistoryClear':
+                message_text = "🧹 История сообщений очищена"
+            elif 'PhoneCall' in action_type:
+                # Обрабатываем звонки (оставляем существующую логику)
+                call_action = post.action
+                
+                # Определяем направление звонка по from_id
+                direction = "📤 Исходящий" if (hasattr(post, 'from_id') and post.from_id) else "📥 Входящий"
+                
+                # Определяем тип звонка
+                video_type = "🎥 Видеозвонок" if getattr(call_action, 'video', False) else "📞 Голосовой звонок"
+                
+                # Определяем статус звонка
+                reason = getattr(call_action, 'reason', None)
+                if reason:
+                    reason_type = type(reason).__name__
+                    if 'Missed' in reason_type:
+                        status = "🔴 Пропущен"
+                    elif 'Busy' in reason_type:
+                        status = "📵 Занято"
+                    elif 'Hangup' in reason_type:
+                        status = "✅ Завершен"
+                    elif 'Disconnect' in reason_type:
+                        status = "🔌 Разорвано"
+                    else:
+                        status = f"❓ {reason_type}"
                 else:
-                    status = f"❓ {reason_type}"
+                    status = "❓ Неизвестно"
+                
+                # Длительность
+                duration = getattr(call_action, 'duration', None)
+                if duration:
+                    minutes = duration // 60
+                    seconds = duration % 60
+                    duration_str = f"⏰ {minutes}м {seconds}с"
+                else:
+                    duration_str = "⏰ Не состоялся"
+                
+                # Формируем текст звонка
+                message_text = f"{direction} {video_type} - {status} {duration_str}"
+                logging.info(f"Phone call detected: {message_text}")
             else:
-                status = "❓ Неизвестно"
-            
-            # Длительность
-            duration = getattr(call_action, 'duration', None)
-            if duration:
-                minutes = duration // 60
-                seconds = duration % 60
-                duration_str = f"⏰ {minutes}м {seconds}с"
-            else:
-                duration_str = "⏰ Не состоялся"
-            
-            # Формируем текст звонка
-            call_text = f"{direction} {video_type} - {status} {duration_str}"
-            message_text = call_text
-            
-            logging.info(f"Phone call detected: {call_text}")
+                # Для неизвестных типов системных сообщений
+                message_text = f"ℹ️ Системное сообщение: {action_type}"
+                logging.info(f"Unknown system message type: {action_type}")
         
         # Если есть эмодзи стикера, добавляем его к тексту
         elif sticker_emoji:
