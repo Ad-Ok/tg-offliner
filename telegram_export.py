@@ -7,7 +7,7 @@ import requests
 from utils.text_format import parse_entities_to_html
 import os
 from message_processing.polls import process_poll
-from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument
+from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument, MessageMediaWebPage
 from message_processing.author import process_author
 import shutil
 import os
@@ -309,17 +309,26 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
         mime_type = None
 
         if post.media and not post.poll:  # Пропускаем скачивание медиа для опросов
-            media_path = client.download_media(
-                post.media,
-                file=os.path.join(channel_folder, "media", f"{post.id}_media")
-            )
             media_type = type(post.media).__name__  # Тип медиа (например, MessageMediaPhoto)
+            
+            # Обрабатываем MessageMediaWebPage
+            if isinstance(post.media, MessageMediaWebPage):
+                # Для веб-страниц сохраняем URL страницы в media_url
+                if hasattr(post.media, 'webpage') and post.media.webpage and hasattr(post.media.webpage, 'url'):
+                    media_path = post.media.webpage.url
+                    logging.info(f"MessageMediaWebPage detected: saving URL {media_path}")
+            else:
+                # Для остальных типов медиа скачиваем файлы
+                media_path = client.download_media(
+                    post.media,
+                    file=os.path.join(channel_folder, "media", f"{post.id}_media")
+                )
+                # Сохраняем относительный путь для файлов
+                if media_path:
+                    media_path = os.path.relpath(media_path, DOWNLOADS_DIR)  # Относительный путь от папки downloads
+            
             if isinstance(post.media, MessageMediaDocument) and isinstance(post.media.document, Document):
                 mime_type = getattr(post.media.document, 'mime_type', None)
-
-            # Сохраняем относительный путь
-            if media_path:
-                media_path = os.path.relpath(media_path, DOWNLOADS_DIR)  # Относительный путь от папки downloads
 
         # Обрабатываем автора сообщения
         sender_name, sender_avatar, sender_link = process_author(post.sender, client, channel_folder, peer_id=post.peer_id, from_id=post.from_id)
@@ -523,17 +532,26 @@ def main(channel_username=None):
         mime_type = None
 
         if post.media and not post.poll:  # Пропускаем скачивание медиа для опросов
-            media_path = client.download_media(
-                post.media,
-                file=os.path.join(channel_folder, "media", f"{post.id}_media")
-            )
             media_type = type(post.media).__name__  # Тип медиа (например, MessageMediaPhoto)
+            
+            # Обрабатываем MessageMediaWebPage
+            if isinstance(post.media, MessageMediaWebPage):
+                # Для веб-страниц сохраняем URL страницы в media_url
+                if hasattr(post.media, 'webpage') and post.media.webpage and hasattr(post.media.webpage, 'url'):
+                    media_path = post.media.webpage.url
+                    logging.info(f"MessageMediaWebPage detected in main(): saving URL {media_path}")
+            else:
+                # Для остальных типов медиа скачиваем файлы
+                media_path = client.download_media(
+                    post.media,
+                    file=os.path.join(channel_folder, "media", f"{post.id}_media")
+                )
+                # Сохраняем относительный путь для файлов
+                if media_path:
+                    media_path = os.path.relpath(media_path, DOWNLOADS_DIR)  # Относительный путь от папки downloads
+            
             if isinstance(post.media, MessageMediaDocument) and isinstance(post.media.document, Document):
                 mime_type = getattr(post.media.document, 'mime_type', None)
-
-            # Сохраняем относительный путь
-            if media_path:
-                media_path = os.path.relpath(media_path, DOWNLOADS_DIR)  # Относительный путь от папки downloads
 
         # Обрабатываем автора сообщения
         sender_name, sender_avatar, sender_link = process_author(post.sender, client, channel_folder, peer_id=post.peer_id, from_id=post.from_id)
