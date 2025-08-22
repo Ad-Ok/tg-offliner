@@ -382,6 +382,122 @@ def print_channel_to_pdf(channel_id):
         app.logger.error(f"Ошибка при генерации PDF для канала {channel_id}: {str(e)}")
         return jsonify({"error": "Ошибка при генерации PDF"}), 500
 
+def process_html_for_standalone(html_content):
+    """
+    Обрабатывает HTML для автономного использования:
+    - Встраивает CSS стили inline
+    - Удаляет ссылки на внешние стили
+    - Добавляет meta-теги для корректного отображения
+    """
+    from bs4 import BeautifulSoup
+    
+    soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # Получаем CSS стили с SSR сервера и встраиваем их
+    try:
+        # Находим все ссылки на CSS файлы в исходном HTML
+        css_links = soup.find_all('link', rel='stylesheet')
+        all_css = ""
+        
+        for link in css_links:
+            css_href = link.get('href')
+            if css_href:
+                # Если относительная ссылка, добавляем базовый URL
+                if css_href.startswith('/'):
+                    css_url = f'http://ssr:3000{css_href}'
+                else:
+                    css_url = css_href
+                
+                try:
+                    css_response = requests.get(css_url, timeout=5)
+                    if css_response.status_code == 200:
+                        all_css += css_response.text + "\n"
+                        app.logger.info(f"Загружен CSS: {css_url}")
+                except Exception as css_error:
+                    app.logger.warning(f"Не удалось загрузить CSS {css_url}: {css_error}")
+        
+        # Если получили CSS, встраиваем его
+        if all_css:
+            style_tag = soup.new_tag('style')
+            style_tag.string = all_css
+            
+            # Добавляем в head
+            head = soup.find('head')
+            if head:
+                head.append(style_tag)
+                app.logger.info(f"CSS встроен в HTML ({len(all_css)} символов)")
+                
+    except Exception as e:
+        app.logger.warning(f"Ошибка при обработке CSS: {e}")
+    
+    # Удаляем ссылки на внешние CSS файлы
+    for link in soup.find_all('link', rel='stylesheet'):
+        link.decompose()
+    
+    # Удаляем скрипты (для статичного HTML они не нужны)
+    for script in soup.find_all('script'):
+        script.decompose()
+    
+    # Добавляем базовые meta-теги если их нет
+    head = soup.find('head')
+    if head:
+        if not soup.find('meta', charset=True):
+            meta_charset = soup.new_tag('meta')
+            meta_charset['charset'] = 'utf-8'
+            head.insert(0, meta_charset)
+        
+        if not soup.find('meta', attrs={'name': 'viewport'}):
+            meta_viewport = soup.new_tag('meta')
+            meta_viewport['name'] = 'viewport'
+            meta_viewport['content'] = 'width=device-width, initial-scale=1.0'
+            head.append(meta_viewport)
+    
+    # Обновляем пути к медиа файлам на относительные
+    # (они уже должны быть в папке downloads/channel_id/media/)
+    for img in soup.find_all('img'):
+        src = img.get('src')
+        if src and src.startswith('/api/media/'):
+            # Заменяем /api/media/channel_id/filename на ./media/filename
+            filename = src.split('/')[-1]
+            img['src'] = f'./media/{filename}'
+    
+    return str(soup)
+
+@app.route('/api/channels/<channel_id>/export-html', methods=['GET'])
+def export_channel_to_html(channel_id):
+    try:
+        # Получаем HTML от SSR без параметра pdf=1 (обычная версия)
+        ssr_url = f'http://ssr:3000/{channel_id}/posts'
+        response = requests.get(ssr_url)
+        if response.status_code != 200:
+            app.logger.error(f"SSR-сервер вернул ошибку: {response.status_code}")
+            return jsonify({"error": "Ошибка SSR-рендеринга"}), 500
+
+        html_content = response.text
+        
+        # Создаем папку для канала в downloads
+        channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
+        os.makedirs(channel_dir, exist_ok=True)
+        
+        # Обрабатываем HTML для автономного использования
+        processed_html = process_html_for_standalone(html_content)
+        
+        # Сохраняем HTML файл
+        html_path = os.path.join(channel_dir, 'index.html')
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(processed_html)
+
+        if not os.path.exists(html_path):
+            app.logger.error(f"HTML-файл не найден после создания: {html_path}")
+            return jsonify({"error": "HTML-файл не был создан"}), 500
+
+        app.logger.info(f"HTML для канала {channel_id} успешно создан: {html_path}")
+        return jsonify({"success": True, "message": f"HTML файл создан в {html_path}"}), 200
+        
+    except Exception as e:
+        app.logger.error(f"Ошибка при экспорте HTML для канала {channel_id}: {str(e)}")
+        return jsonify({"error": "Ошибка при экспорте HTML"}), 500
+
 @app.route('/api/channel_preview', methods=['GET'])
 def channel_preview():
     username = request.args.get('username')

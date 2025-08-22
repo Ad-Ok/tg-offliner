@@ -55,6 +55,7 @@
                 ⏹️ Остановить
               </button>
               <button @click="printPdf(channel.id)" class="print-button">Печать PDF</button>
+              <button @click="exportHtml(channel.id)" class="export-button">Создать HTML</button>
               <button @click="removeChannel(channel.id)" class="delete-button">Удалить канал</button>
             </div>
           </div>
@@ -137,6 +138,7 @@ export default {
       logsOffset: 0, // Offset для логов
       downloadStatuses: {}, // Статусы загрузки каналов
       statusCheckInterval: null, // Интервал проверки статусов
+      loadingChannels: new Set(), // Set для отслеживания загружающихся каналов
     };
   },
   computed: {
@@ -214,6 +216,25 @@ export default {
       } catch (error) {
         eventBus.showAlert(error.message || "Ошибка при печати PDF", "danger");
         console.error("Ошибка при скачивании PDF:", error);
+      }
+    },
+    async exportHtml(channelId) {
+      try {
+        this.loadingChannels.add(channelId);
+        
+        const res = await fetch(`${apiBase}/api/channels/${channelId}/export-html`);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        
+        eventBus.showAlert(`HTML файл для канала ${channelId} успешно создан в папке downloads/${channelId}/index.html`, "success");
+        
+      } catch (error) {
+        eventBus.showAlert(error.message || "Ошибка при создании HTML", "danger");
+        console.error("Ошибка при экспорте HTML:", error);
+      } finally {
+        this.loadingChannels.delete(channelId);
       }
     },
     removeChannel(channelId) {
