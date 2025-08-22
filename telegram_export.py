@@ -357,12 +357,26 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
 
         # Обрабатываем автора репоста, если это репост
         repost_name, repost_avatar, repost_link = None, None, None
-        if post.fwd_from and post.fwd_from.from_id:
-            try:
-                repost_entity = client.get_entity(post.fwd_from.from_id)  # Получаем полную информацию об авторе репоста
-                repost_name, repost_avatar, repost_link = process_author(repost_entity, client, channel_folder)
-            except Exception as e:
-                logging.warning(f"Ошибка при обработке автора репоста: {e}")
+        if post.fwd_from:
+            # Случай 1: есть from_id (можем получить полную информацию)
+            if post.fwd_from.from_id:
+                try:
+                    repost_entity = client.get_entity(post.fwd_from.from_id)  # Получаем полную информацию об авторе репоста
+                    repost_name, repost_avatar, repost_link = process_author(repost_entity, client, channel_folder)
+                except Exception as e:
+                    logging.warning(f"Ошибка при обработке автора репоста: {e}")
+            # Случай 2: есть только from_name (используем имя как есть)
+            elif post.fwd_from.from_name:
+                repost_name = post.fwd_from.from_name
+                logging.info(f"Репост от пользователя: {repost_name} (только имя)")
+            # Случай 3: есть channel_post (репост из канала)
+            elif hasattr(post.fwd_from, 'saved_from_peer') and post.fwd_from.saved_from_peer:
+                try:
+                    channel_entity = client.get_entity(post.fwd_from.saved_from_peer)
+                    repost_name = getattr(channel_entity, 'title', getattr(channel_entity, 'username', 'Unknown Channel'))
+                    logging.info(f"Репост из канала: {repost_name}")
+                except Exception as e:
+                    logging.warning(f"Ошибка при обработке канала репоста: {e}")
 
         # Обрабатываем реакции
         reactions = None
