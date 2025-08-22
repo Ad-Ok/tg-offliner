@@ -247,13 +247,7 @@
   display: flex;
   align-items: center;
   margin-bottom: 10px;
-}
-
-.author img {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  margin-right: 10px;
+  gap: 8px;
 }
 
 .author a {
@@ -264,6 +258,24 @@
 
 .author a:hover {
   text-decoration: underline;
+}
+
+.avatar-wrapper {
+  width: 40px;
+  height: 40px;
+  background-color: #e0e0e0;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .post-with-comments {
