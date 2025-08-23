@@ -56,7 +56,7 @@
               >
                 ⏹️ Остановить
               </button>
-              <button @click="printPdf(channel.id)" class="print-button">Печать PDF</button>
+              <button @click="printPdf(channel.id)" class="print-button">Создать PDF</button>
               <button @click="exportHtml(channel.id)" class="export-button">Создать HTML</button>
               <button @click="removeChannel(channel.id)" class="delete-button">Удалить канал</button>
             </div>
@@ -202,22 +202,22 @@ export default {
       try {
         const res = await fetch(`${apiBase}/api/channels/${channelId}/print`);
         const contentType = res.headers.get('content-type');
-        if (!contentType || !contentType.includes('pdf')) {
-          eventBus.showAlert("Сервер не вернул PDF-файл. Проверьте логи сервера.", "danger");
-          return;
+        
+        // Проверяем, что сервер вернул JSON (а не PDF файл как раньше)
+        if (contentType && contentType.includes('application/json')) {
+          const result = await res.json();
+          if (result.success) {
+            eventBus.showAlert(result.message, "success");
+          } else {
+            eventBus.showAlert(result.error || "Ошибка при создании PDF", "danger");
+          }
+        } else {
+          // Если вернулся не JSON, возможно старое поведение
+          eventBus.showAlert("Неожиданный ответ сервера", "danger");
         }
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `${channelId}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
       } catch (error) {
-        eventBus.showAlert(error.message || "Ошибка при печати PDF", "danger");
-        console.error("Ошибка при скачивании PDF:", error);
+        eventBus.showAlert(error.message || "Ошибка при создании PDF", "danger");
+        console.error("Ошибка при создании PDF:", error);
       }
     },
     async exportHtml(channelId) {

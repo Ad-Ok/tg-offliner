@@ -369,7 +369,12 @@ def print_channel_to_pdf(channel_id):
 
         html_content = response.text
         
-        pdf_path = os.path.join(DOWNLOADS_DIR, f"{channel_id}.pdf")
+        # Создаем папку для канала в downloads
+        channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
+        os.makedirs(channel_dir, exist_ok=True)
+        
+        # Сохраняем PDF в папку канала
+        pdf_path = os.path.join(channel_dir, f"{channel_id}.pdf")
         HTML(string=html_content, base_url='http://ssr:3000').write_pdf(pdf_path)
 
         if not os.path.exists(pdf_path):
@@ -377,7 +382,13 @@ def print_channel_to_pdf(channel_id):
             return jsonify({"error": "PDF-файл не был создан"}), 500
 
         app.logger.info(f"PDF для канала {channel_id} успешно создан: {pdf_path}")
-        return send_from_directory(DOWNLOADS_DIR, f"{channel_id}.pdf", as_attachment=True)
+        
+        # Возвращаем информацию о том, что файл сохранен, вместо отправки файла
+        return jsonify({
+            "success": True, 
+            "message": f"PDF файл создан и сохранен в папку downloads/{channel_id}/",
+            "path": pdf_path
+        }), 200
     except Exception as e:
         app.logger.error(f"Ошибка при генерации PDF для канала {channel_id}: {str(e)}")
         return jsonify({"error": "Ошибка при генерации PDF"}), 500
