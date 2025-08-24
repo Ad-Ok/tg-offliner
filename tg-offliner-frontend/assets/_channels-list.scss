@@ -1,5 +1,35 @@
 
 .channels-list {
+    .header-section {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+
+        h1 {
+            margin: 0;
+        }
+    }
+
+    .test-load-button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s;
+
+        &:hover {
+            background-color: #0056b3;
+        }
+
+        &:active {
+            background-color: #004085;
+        }
+    }
+
     .loading {
     font-size: 18px;
     text-align: center;

@@ -1,6 +1,11 @@
 <template>
   <div class="channels-list">
-    <h1>Список каналов</h1>
+    <div class="header-section">
+      <h1>Список каналов</h1>
+      <button @click="testLoadLlamatest" class="test-load-button">
+        Загрузить llamatest
+      </button>
+    </div>
     
     <!-- Панель статуса загрузок -->
     <DownloadStatus 
@@ -245,7 +250,7 @@ export default {
       this.deleteChannel(channelId);
     },
     deleteChannel(channelId) {
-      api
+      return api
         .delete(`/api/channels/${channelId}`)
         .then((response) => {
           // Если запрос успешен, выводим сообщение об успехе
@@ -253,6 +258,7 @@ export default {
             eventBus.showAlert(response.data.message, "success");
           }
           this.fetchChannels(); // Обновляем список каналов
+          return response;
         })
         .catch((error) => {
           // Если произошла ошибка, выводим сообщение об ошибке
@@ -261,6 +267,7 @@ export default {
           } else {
             eventBus.showAlert("Неизвестная ошибка при удалении канала", "danger");
           }
+          throw error;
         });
     },
     previewChannel() {
@@ -394,6 +401,44 @@ export default {
       // Удаляем статус для канала из локального состояния
       delete this.downloadStatuses[channel];
       this.$forceUpdate(); // Принудительно обновляем компонент
+    },
+    
+    // Тестовая загрузка канала llamatest
+    async testLoadLlamatest() {
+      const channelUsername = 'llamatest';
+      
+      try {
+        // Сначала удаляем канал, если он существует
+        eventBus.showAlert('Удаляем существующий канал llamatest...', 'info');
+        
+        // Ищем канал в списке загруженных каналов
+        const existingChannel = this.channels.find(ch => 
+          ch.username === channelUsername || 
+          ch.name?.toLowerCase().includes('llamatest') ||
+          ch.id?.toString().includes('llamatest')
+        );
+        
+        if (existingChannel) {
+          await this.deleteChannel(existingChannel.id);
+          // Небольшая задержка после удаления
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+        // Затем загружаем канал
+        eventBus.showAlert('Загружаем канал llamatest...', 'info');
+        
+        const response = await api.post('/api/add_channel', {
+          channel_username: channelUsername,
+        });
+        
+        eventBus.showAlert(response.data.message, 'success');
+        this.fetchChannels(); // Обновляем список каналов
+        
+      } catch (error) {
+        const errorMessage = error.response?.data?.error || error.message || 'Ошибка при тестовой загрузке';
+        eventBus.showAlert(errorMessage, 'danger');
+        console.error('Ошибка при тестовой загрузке llamatest:', error);
+      }
     }
   },
   
