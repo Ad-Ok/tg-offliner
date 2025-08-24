@@ -1,5 +1,5 @@
 # tg-offliner-frontend/Dockerfile.ssr
-FROM node:20
+FROM node:22
 
 WORKDIR /app
 COPY . .
