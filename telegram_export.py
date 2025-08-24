@@ -8,7 +8,7 @@ from utils.text_format import parse_entities_to_html
 import os
 from message_processing.polls import process_poll
 from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument, MessageMediaWebPage, DocumentAttributeSticker
-from message_processing.author import process_author
+from message_processing.author import process_author, download_avatar
 import shutil
 import os
 import logging
@@ -369,6 +369,25 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
 
         # Обрабатываем автора сообщения
         sender_name, sender_avatar, sender_link = process_author(post.sender, client, channel_folder, peer_id=post.peer_id, from_id=post.from_id)
+        
+        # Дополнительная обработка для анонимных комментариев из дискуссионных групп
+        if not sender_name and hasattr(post, 'peer_id') and hasattr(post, 'reply_to'):
+            # Если автор пустой и есть peer_id и reply_to, это может быть анонимный комментарий
+            try:
+                # Получаем информацию о группе/канале, где находится сообщение
+                peer_entity = client.get_entity(post.peer_id)
+                if hasattr(peer_entity, 'title'):  # Это группа или канал
+                    sender_name = peer_entity.title
+                    if hasattr(peer_entity, 'username') and peer_entity.username:
+                        sender_link = f"https://t.me/{peer_entity.username}"
+                    elif hasattr(peer_entity, 'id'):
+                        sender_link = f"https://t.me/c/{peer_entity.id}"
+                    
+                    # Попытаемся скачать аватар группы/канала
+                    sender_avatar = download_avatar(peer_entity, client, channel_folder)
+                    logging.info(f"Использована информация о группе {sender_name} для анонимного комментария")
+            except Exception as e:
+                logging.warning(f"Ошибка при получении информации о peer для анонимного комментария: {e}")
 
         # Обрабатываем автора репоста, если это репост
         repost_name, repost_avatar, repost_link = None, None, None
