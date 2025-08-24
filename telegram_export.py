@@ -507,6 +507,18 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
             else:
                 message_text = sticker_emoji
 
+        # Применяем форматирование к тексту, если есть entities
+        if message_text and hasattr(post, 'entities') and post.entities:
+            try:
+                formatted_message = parse_entities_to_html(message_text, post.entities)
+                # Если форматирование применилось успешно, используем отформатированный текст
+                if formatted_message != message_text:
+                    message_text = formatted_message
+                    logging.info(f"Применено форматирование к сообщению {post.id}")
+            except Exception as e:
+                logging.warning(f"Ошибка применения форматирования к сообщению {post.id}: {e}")
+                # В случае ошибки оставляем исходный текст
+
         return {
             "telegram_id": post.id,
             "channel_id": channel_id,
@@ -588,7 +600,7 @@ def main(channel_username=None):
     entity = client.get_entity(channel_username)
 
     # Сохраняем информацию о канале
-    save_channel_info(client, channel_username)
+    # save_channel_info(client, channel_username)  # временно отключено
 
     # Применяем параметры из EXPORT_SETTINGS
     include_system_messages = EXPORT_SETTINGS.get("include_system_messages", False)
