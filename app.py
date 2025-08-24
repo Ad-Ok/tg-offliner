@@ -75,7 +75,15 @@ def get_posts():
     """Возвращает список всех постов или постов из конкретного канала."""
     channel_id = request.args.get('channel_id')  # Получаем ID канала из параметров запроса
     if channel_id:
-        posts = Post.query.filter_by(channel_id=channel_id).all()  # Фильтруем по каналу
+        # Получаем основные посты канала
+        posts = Post.query.filter_by(channel_id=channel_id).all()
+        
+        # Получаем информацию о канале, чтобы найти связанную дискуссионную группу
+        channel = Channel.query.filter_by(id=channel_id).first()
+        if channel and channel.discussion_group_id:
+            # Добавляем комментарии из дискуссионной группы
+            discussion_posts = Post.query.filter_by(channel_id=str(channel.discussion_group_id)).all()
+            posts.extend(discussion_posts)
     else:
         posts = Post.query.all()  # Возвращаем все посты
 
@@ -330,18 +338,40 @@ def get_channels():
 def delete_channel(channel_id):
     """Удаляет канал и связанные с ним данные."""
     try:
-        # Удаляем канал из таблицы channels
+        # Получаем информацию о канале
         channel = Channel.query.filter_by(id=channel_id).first()
         if not channel:
             app.logger.warning(f"Канал с ID {channel_id} не найден.")
             return jsonify({"error": "Канал не найден"}), 404
 
+        discussion_group_id = channel.discussion_group_id
+        
+        # Удаляем канал из таблицы channels
         db.session.delete(channel)
         app.logger.info(f"Канал с ID {channel_id} удалён из таблицы channels.")
 
         # Удаляем все посты, связанные с этим каналом
         posts_deleted = Post.query.filter_by(channel_id=channel_id).delete()
         app.logger.info(f"Удалено {posts_deleted} постов, связанных с каналом {channel_id}.")
+
+        # Если у канала есть дискуссионная группа, удаляем и её
+        if discussion_group_id:
+            # Удаляем дискуссионную группу из таблицы channels
+            discussion_group = Channel.query.filter_by(id=str(discussion_group_id)).first()
+            if discussion_group:
+                db.session.delete(discussion_group)
+                app.logger.info(f"Дискуссионная группа с ID {discussion_group_id} удалена из таблицы channels.")
+            
+            # Удаляем все посты из дискуссионной группы
+            discussion_posts_deleted = Post.query.filter_by(channel_id=str(discussion_group_id)).delete()
+            app.logger.info(f"Удалено {discussion_posts_deleted} постов из дискуссионной группы {discussion_group_id}.")
+            
+            # Удаляем папку дискуссионной группы
+            discussion_folder = os.path.join(DOWNLOADS_DIR, f"discussion_{discussion_group_id}")
+            if os.path.exists(discussion_folder):
+                import shutil
+                shutil.rmtree(discussion_folder)
+                app.logger.info(f"Папка дискуссионной группы {discussion_folder} удалена.")
 
         # Удаляем папку из /downloads
         channel_folder = os.path.join(DOWNLOADS_DIR, channel_id)
@@ -353,7 +383,12 @@ def delete_channel(channel_id):
         # Сохраняем изменения в базе данных
         db.session.commit()
 
-        return jsonify({"message": f"Канал {channel_id} и связанные данные успешно удалены."}), 200
+        # Формируем сообщение об удалении
+        message = f"Канал {channel_id} и связанные данные успешно удалены."
+        if discussion_group_id:
+            message += f" Также удалена дискуссионная группа {discussion_group_id}."
+
+        return jsonify({"message": message}), 200
     except Exception as e:
         app.logger.error(f"Ошибка при удалении канала {channel_id}: {str(e)}")
         return jsonify({"error": "Ошибка при удалении канала"}), 500

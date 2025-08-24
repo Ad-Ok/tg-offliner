@@ -222,6 +222,13 @@ def import_discussion_comments(client, channel_id, discussion_group_id, original
         if discussion_entity is None:
             logging.error(f"Не удалось получить группу обсуждений {discussion_group_id}: {error}")
             return 0
+
+        # Сохраняем информацию о дискуссионной группе в таблицу channels
+        logging.info(f"Сохраняем информацию о дискуссионной группе {discussion_group_id}")
+        try:
+            save_discussion_group_info(client, discussion_entity)
+        except Exception as e:
+            logging.error(f"Ошибка сохранения дискуссионной группы {discussion_group_id}: {e}")
         
         # Создаем папку для комментариев (используем тот же формат, что и для канала)
         folder_name = f"discussion_{discussion_group_id}"
@@ -270,11 +277,13 @@ def import_discussion_comments(client, channel_id, discussion_group_id, original
                             
                             logging.info(f"Найден комментарий {message.id} к форвардированному посту {forwarded_post_id}")
                             
-                            # Обрабатываем комментарий как обычное сообщение
-                            comment_data = process_message_for_api(message, channel_id, client, folder_name)
+                            # Обрабатываем комментарий с discussion_group_id вместо channel_id
+                            logging.info(f"Обрабатываем комментарий {message.id} с channel_id={discussion_group_id}")
+                            comment_data = process_message_for_api(message, str(discussion_group_id), client, folder_name)
                             if comment_data:
                                 # Устанавливаем правильную связь с оригинальным постом канала
                                 comment_data['reply_to'] = original_post_id
+                                logging.info(f"Данные комментария {message.id}: channel_id={comment_data.get('channel_id')}, reply_to={comment_data.get('reply_to')}")
                                 
                                 # Добавляем комментарий в базу данных
                                 api_url = "http://localhost:5000/api/posts"
@@ -308,6 +317,35 @@ def import_discussion_comments(client, channel_id, discussion_group_id, original
     except Exception as e:
         logging.error(f"Ошибка импорта комментариев: {e}")
         return 0
+
+
+def save_discussion_group_info(client, discussion_entity):
+    """
+    Сохраняет информацию о дискуссионной группе в таблицу channels.
+    
+    :param client: Подключённый клиент Telethon
+    :param discussion_entity: Entity дискуссионной группы
+    """
+    try:
+        discussion_info = get_channel_info(client, discussion_entity, output_dir="downloads")
+        discussion_info["id"] = str(discussion_entity.id)
+        
+        # Добавляем метку, что это дискуссионная группа
+        discussion_info["name"] = f"💬 {discussion_info['name']} (обсуждения)"
+        
+        # Убираем discussion_group_id, так как дискуссионная группа не должна ссылаться на другую группу
+        discussion_info["discussion_group_id"] = None
+        
+        # Сохраняем в базу данных
+        api_url = "http://localhost:5000/api/channels"
+        response = requests.post(api_url, json=discussion_info)
+        if response.status_code in [200, 201]:
+            logging.info(f"Информация о дискуссионной группе {discussion_entity.id} сохранена")
+        else:
+            logging.warning(f"Не удалось сохранить информацию о дискуссионной группе {discussion_entity.id}: {response.text}")
+    except Exception as e:
+        logging.error(f"Ошибка сохранения информации о дискуссионной группе {discussion_entity.id}: {e}")
+
 
 def process_message_for_api(post, channel_id, client, folder_name=None):
     """Обрабатывает сообщение для API"""
