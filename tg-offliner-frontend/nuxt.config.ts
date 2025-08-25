@@ -14,7 +14,6 @@ export default defineNuxtConfig({
     },
   },
   css: [
-    '/app/assets/tailwind.css',    // Tailwind через PostCSS
-    '/app/assets/styles.scss'      // Ваши SCSS стили
+    '/app/assets/tailwind.css'
   ],
 })
