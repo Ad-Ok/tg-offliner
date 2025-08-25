@@ -1,14 +1,13 @@
 <template>
-  <div class="post max-w-xl w-full">
+  <div class="post w-full">
     <div class="post-wrap p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm">
-      <div class="post-header flex items-center space-x-1">
+      <div class="post-header flex items-center justify-between space-x-1 mb-2">
         <PostAuthor
           :name="post.author_name"
           :avatar="post.author_avatar"
           :link="post.author_link"
         />
-        <span class="text-sm text-gray-500 dark:text-gray-400">·</span>
-        <span class="post-date text-sm text-gray-500 dark:text-gray-400">{{ formattedDate }}</span>
+        <span class="post-date ml-auto text-xs text-gray-400">{{ formattedDate }}</span>
       </div>
 
       <div class="post-body pl-11">
@@ -33,7 +32,14 @@
       </div>
     </div>
 
-    <PostReactions v-if="post.reactions" :reactions="post.reactions" />
+    <div class="post-footer flex justify-between py-2 px-4 text-sm text-gray-500 dark:text-gray-400">
+      <PostReactions v-if="post.reactions" :reactions="post.reactions" />
+      <div v-if="commentsCount > 0" class="ml-auto">
+        <span class="">
+          {{ commentsCount }} {{ commentText }}
+        </span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -51,6 +57,10 @@ export default {
       type: Object,
       required: true,
     },
+    commentsCount: {
+      type: Number,
+      default: 0,
+    },
   },
   components: {
     PostAuthor,
@@ -61,6 +71,12 @@ export default {
     formattedDate() {
       return formatMessageDate(this.post.date);
     },
+    commentText() {
+      const count = this.commentsCount;
+      if (count === 1) return 'комментарий';
+      if (count >= 2 && count <= 4) return 'комментария';
+      return 'комментариев';
+    }
   },
 };
 </script>

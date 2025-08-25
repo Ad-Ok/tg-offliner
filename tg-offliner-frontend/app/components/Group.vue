@@ -8,7 +8,7 @@
       />
       <div class="post-meta">
         <span class="post-date">{{ formattedDate }}</span>
-        <span class="grouped-id">Медиа-группа: {{ groupedId }}</span>
+        <!-- <span class="grouped-id">Медиа-группа: {{ groupedId }}</span> -->
       </div>
     </div>
 

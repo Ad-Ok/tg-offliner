@@ -1,5 +1,5 @@
 <template>
-  <div class="wall">
+  <div class="wall max-w-xl mx-auto">
     <h1 class="text-4xl mb-8">Стена канала: <span class="font-bold">{{ channelId }}</span></h1>
     <ClientOnly v-if="loading">
       <div class="loading">Загрузка...</div>
@@ -18,6 +18,7 @@
         <Post
           v-else
           :post="item.post"
+          :commentsCount="0"
           :data-post-id="item.post.telegram_id"
           :data-channel-id="item.post.channel_id"
         />
