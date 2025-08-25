@@ -1,43 +1,51 @@
 <template>
-  <div class="group">
-    <div class="group-header">
-      <PostAuthor
-        :name="firstPost.author_name"
-        :avatar="firstPost.author_avatar"
-        :link="firstPost.author_link"
-      />
-      <div class="post-meta">
-        <span class="post-date">{{ formattedDate }}</span>
-        <!-- <span class="grouped-id">Медиа-группа: {{ groupedId }}</span> -->
-      </div>
-    </div>
-
-    <div v-if="firstPost.repost_author_name" class="repost-author">
-      <span>Репост от:</span>
-      <PostAuthor
-        :name="firstPost.repost_author_name"
-        :avatar="firstPost.repost_author_avatar"
-        :link="firstPost.repost_author_link"
-      />
-    </div>
-
-    <p v-if="firstPost.message" v-html="firstPost.message"></p>
-
-    <div class="media-grid">
-      <div
-        v-for="post in postsWithMedia"
-        :key="post.id"
-        class="media-item"
-      >
-        <PostMedia
-          :mediaUrl="post.media_url"
-          :mediaType="post.media_type"
-          :mimeType="post.mime_type"
+  <div class="group w-full" :data-grouped-id="groupedId">
+    <div class="p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm">
+      <div class="group-header flex items-center justify-between space-x-1 mb-2">
+        <PostAuthor
+          :name="firstPost.author_name"
+          :avatar="firstPost.author_avatar"
+          :link="firstPost.author_link"
         />
+          <span class="post-date ml-auto text-xs text-gray-400">{{ formattedDate }}</span>
+      </div>
+      <div class="post-body pl-11">
+        <div v-if="firstPost.repost_author_name" class="repost-author flex items-center space-x-4">
+          <span class="text-sm text-gray-600 dark:text-gray-400">Репост от:</span>
+          <PostAuthor
+            :name="firstPost.repost_author_name"
+            :avatar="firstPost.repost_author_avatar"
+            :link="firstPost.repost_author_link"
+          />
+        </div>
+
+        <p v-if="firstPost.message" v-html="firstPost.message"></p>
+      </div>
+
+      <div class="media-grid mt-2">
+        <div
+          v-for="post in postsWithMedia"
+          :key="post.id"
+          class="media-item"
+        >
+          <PostMedia
+            :mediaUrl="post.media_url"
+            :mediaType="post.media_type"
+            :mimeType="post.mime_type"
+          />
+        </div>
       </div>
     </div>
 
-    <PostReactions v-if="firstPost.reactions" :reactions="firstPost.reactions" />
+    <div class="post-footer flex justify-between py-2 px-4 text-sm text-gray-500 dark:text-gray-400">
+      <PostReactions v-if="firstPost.reactions" :reactions="firstPost.reactions" />
+      <!-- <div v-if="commentsCount > 0" class="ml-auto">
+        <span class="">
+          {{ commentsCount }} {{ commentText }}
+        </span>
+      </div> -->
+    </div>
+
   </div>
 </template>
 
@@ -76,53 +84,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-.group {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
-  background-color: #fff;
-}
-
-.group-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-
-.post-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.grouped-id {
-  font-size: 0.8em;
-  color: #666;
-  font-style: italic;
-  margin-top: 2px;
-}
-
-.repost-author {
-  margin-bottom: 12px;
-  padding: 8px;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  font-size: 0.9em;
-}
-
-.media-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 8px;
-  margin: 12px 0;
-}
-
-.media-item {
-  border-radius: 4px;
-  overflow: hidden;
-}
-</style>

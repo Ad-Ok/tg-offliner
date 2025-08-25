@@ -34,7 +34,10 @@
     </div>
     <div v-else-if="mediaType === 'MessageMediaWebPage'">
       <div class="webpage-preview">
-        <h4>🔗 Ссылка</h4>
+        <div class="flex justify-between align-baseline">
+          <h4>Ссылка</h4>
+          <p class="webpage-note">Нажмите для открытия в новой вкладке</p>
+        </div>
         <a 
           :href="mediaUrl" 
           target="_blank" 
@@ -43,7 +46,6 @@
         >
           {{ mediaUrl }}
         </a>
-        <p class="webpage-note">Нажмите для открытия в новой вкладке</p>
       </div>
     </div>
   </div>
