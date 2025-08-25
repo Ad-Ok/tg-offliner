@@ -12,6 +12,7 @@
     "build:tailwindcss": "tailwindcss -i ./assets/tailwind.css -o ./public/styles.css --minify"
   },
   "dependencies": {
+    "daisyui": "^5.0.50",
     "nuxt": "^4.0.0",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1"
