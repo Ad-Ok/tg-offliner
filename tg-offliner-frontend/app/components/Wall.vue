@@ -4,7 +4,8 @@
     <PostCover 
       v-if="channelInfo" 
       :channel="channelInfo" 
-      :postsCount="posts.length"
+      :postsCount="realPostsCount"
+      :commentsCount="totalCommentsCount"
     />
     
     <ClientOnly v-if="loading">
@@ -155,6 +156,18 @@ export default {
         
         return new Date(dateB) - new Date(dateA);
       });
+    },
+    // Подсчет реальных постов (не включая комментарии)
+    realPostsCount() {
+      return this.organizedPosts.length;
+    },
+    // Подсчет всех комментариев
+    totalCommentsCount() {
+      let count = 0;
+      Object.values(this.postsWithComments).forEach(data => {
+        count += data.comments.length;
+      });
+      return count;
     },
   },
   methods: {
