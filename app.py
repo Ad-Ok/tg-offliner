@@ -334,6 +334,23 @@ def get_channels():
         "discussion_group_id": channel.discussion_group_id
     } for channel in channels])
 
+@app.route('/api/channels/<channel_id>', methods=['GET'])
+def get_channel(channel_id):
+    """Возвращает информацию о конкретном канале."""
+    channel = Channel.query.filter_by(id=channel_id).first()
+    if not channel:
+        return jsonify({'error': 'Channel not found'}), 404
+    
+    return jsonify({
+        "id": channel.id,
+        "name": channel.name,
+        "avatar": channel.avatar,
+        "description": channel.description,
+        "creation_date": channel.creation_date,
+        "subscribers": channel.subscribers,
+        "discussion_group_id": channel.discussion_group_id
+    })
+
 @app.route('/api/channels/<channel_id>', methods=['DELETE'])
 def delete_channel(channel_id):
     """Удаляет канал и связанные с ним данные."""
@@ -602,4 +619,4 @@ def serve_downloads(filename):
     return send_from_directory(DOWNLOADS_DIR, filename)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=False, host='0.0.0.0')

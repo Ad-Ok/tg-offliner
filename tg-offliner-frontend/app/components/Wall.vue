@@ -1,6 +1,12 @@
 <template>
   <div class="wall max-w-xl mx-auto">
-    <h1 class="text-4xl mb-8">Стена канала: <span class="font-bold">{{ channelId }}</span></h1>
+    <!-- Информация о канале -->
+    <PostCover 
+      v-if="channelInfo" 
+      :channel="channelInfo" 
+      :postsCount="posts.length"
+    />
+    
     <ClientOnly v-if="loading">
       <div class="loading">Загрузка...</div>
     </ClientOnly>
@@ -31,13 +37,15 @@
 import Post from './Post.vue';
 import Group from './Group.vue';
 import PostComments from './PostComments.vue';
+import PostCover from './PostCover.vue';
 
 export default {
   name: "Wall",
-  components: { Post, Group, PostComments },
+  components: { Post, Group, PostComments, PostCover },
   props: {
     channelId: { type: String, required: true },
     posts: { type: Array, default: () => [] },
+    channelInfo: { type: Object, default: null },
     loading: { type: Boolean, default: false },
   },
   computed: {
