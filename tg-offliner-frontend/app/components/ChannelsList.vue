@@ -1,7 +1,7 @@
 <template>
   <div class="channels-list">
     <div class="header-section">
-      <h1>Список каналов</h1>
+      <h1 class="text-4xl">Список каналов</h1>
       <button @click="testLoadLlamatest" class="test-load-button">
         Загрузить llamatest
       </button>
@@ -15,59 +15,70 @@
       @stop-download="stopDownload"
       @clear-status="clearStatus"
     />
-    
-    <div v-if="channelsLoading" class="loading">Загрузка списка каналов...</div>
+
+    <div v-if="channelsLoading" class="flex justify-center py-20">
+      <div class="loading loading-xl text-primary mr-4"></div>
+      <div class="text-xl">Загрузка списка каналов...</div>
+    </div>
     
     <!-- Загруженные каналы -->
     <div v-if="!channelsLoading && channels.length > 0">
-      <h2>Загруженные каналы</h2>
-      <ul>
-        <li v-for="channel in channels" :key="channel.id" class="channel-item">
-          <div class="channel-main">
-            <div class="channel-avatar-wrapper">
+      <h2 class="text-2xl mb-2">Загруженные каналы</h2>
+
+      <ul class="list bg-base-100 rounded-box shadow-md mb-8">
+        <li v-for="channel in channels" :key="channel.id" class="list-row">
+          <div class="avatar">
+            <div class="w-16 h-16 rounded-xl bg-base-300">
               <img
                 v-if="channel.avatar"
                 :src="channelAvatarSrc(channel)"
                 :alt="channel.name"
-                class="channel-avatar"
               />
             </div>
-            <router-link :to="`/${channel.id}/posts`">{{ channel.name }}</router-link>
-            <div class="channel-info">
+          </div>
+
+          <div>
+            <router-link :to="`/${channel.id}/posts`" class="text-md font-bold text-primary">{{ channel.name }}</router-link>
+            <div>
               <span v-if="channel.creation_date">Создан {{ channel.creation_date }}</span>
               <span v-if="channel.subscribers">&nbsp;•&nbsp;{{ channel.subscribers }} подписчиков</span>
               <span v-if="channel.discussion_group_id">&nbsp;•&nbsp;Есть группа обсуждений</span>
-              <!-- Индикатор статуса загрузки -->
-              <span v-if="isDownloading(channel.id)" class="download-status downloading">
-                &nbsp;•&nbsp;⏳ Загружается...
-                <span v-if="getDownloadProgress(channel.id)">
-                  ({{ getDownloadProgress(channel.id) }})
-                </span>
-              </span>
-              <span v-else-if="getDownloadStatus(channel.id) === 'stopped'" class="download-status stopped">
-                &nbsp;•&nbsp;⏸️ Остановлено
-              </span>
-              <span v-else-if="getDownloadStatus(channel.id) === 'error'" class="download-status error">
-                &nbsp;•&nbsp;❌ Ошибка
-              </span>
             </div>
-            <div class="channel-actions">
-              <!-- Кнопка остановки загрузки (показываем только во время загрузки) -->
-              <button 
-                v-if="isDownloading(channel.id)" 
-                @click="stopDownload(channel.id)" 
-                class="stop-button"
-                title="Остановить загрузку"
-              >
-                ⏹️ Остановить
-              </button>
-              <button @click="printPdf(channel.id)" class="print-button">Создать PDF</button>
-              <button @click="exportHtml(channel.id)" class="export-button">Создать HTML</button>
-              <button @click="removeChannel(channel.id)" class="delete-button">Удалить канал</button>
+            <div class="list-col-wrap text-xs" v-if="channel.description">
+              {{ channel.description }}
             </div>
           </div>
-          <div class="channel-description" v-if="channel.description">
-            {{ channel.description }}
+
+
+          <div class="text-xs uppercase font-semibold opacity-60">
+            <!-- Индикатор статуса загрузки -->
+            <span v-if="isDownloading(channel.id)" class="download-status downloading">
+              &nbsp;•&nbsp;⏳ Загружается...
+              <span v-if="getDownloadProgress(channel.id)">
+                ({{ getDownloadProgress(channel.id) }})
+              </span>
+            </span>
+            <span v-else-if="getDownloadStatus(channel.id) === 'stopped'" class="download-status stopped">
+              &nbsp;•&nbsp;⏸️ Остановлено
+            </span>
+            <span v-else-if="getDownloadStatus(channel.id) === 'error'" class="download-status error">
+              &nbsp;•&nbsp;❌ Ошибка
+            </span>
+          </div>
+
+          <div class="flex space-x-2">
+            <!-- Кнопка остановки загрузки (показываем только во время загрузки) -->
+            <button 
+              v-if="isDownloading(channel.id)" 
+              @click="stopDownload(channel.id)" 
+              class="btn btn-error"
+              title="Остановить загрузку"
+            >
+              ⏹️ Остановить
+            </button>
+            <button @click="printPdf(channel.id)" class="btn btn-sm btn-soft btn-primary">Создать PDF</button>
+            <button @click="exportHtml(channel.id)" class="btn btn-sm btn-soft btn-info">Создать HTML</button>
+            <button @click="removeChannel(channel.id)" class="btn btn-sm btn-outline btn-error">Удалить канал</button>
           </div>
         </li>
       </ul>
@@ -75,49 +86,71 @@
 
     <!-- Preview каналы -->
     <div v-if="previewChannels.length > 0">
-      <h2>Предварительный просмотр</h2>
-      <ul>
-        <li v-for="(preview, index) in previewChannels" :key="`preview-${preview.id}`" class="channel-item preview-item">
-          <div class="channel-main">
-            <img
-              v-if="preview.avatar"
-              :src="channelAvatarSrc(preview)"
-              alt="Аватар"
-              class="channel-avatar"
-            />
-            <span class="channel-name">{{ preview.name }}</span>
-            <div class="channel-info">
+      <h2 class="text-2xl mb-2">Предварительный просмотр</h2>
+      <ul class="list bg-base-100 rounded-box shadow-md mb-8">
+        <li v-for="(preview, index) in previewChannels" :key="`preview-${preview.id}`" class="list-row">
+
+          <div class="avatar">
+            <div class="w-16 h-16 rounded-xl bg-base-300">
+              <img
+                v-if="preview.avatar"
+                :src="channelAvatarSrc(preview)"
+                alt="Аватар"
+              />
+            </div>
+          </div>
+
+          <div>
+            <span>{{ preview.name }}</span>
+            <div>
               <span v-if="preview.creation_date">Создан {{ preview.creation_date }}</span>
               <span v-if="preview.subscribers">&nbsp;•&nbsp;{{ preview.subscribers }} подписчиков</span>
               <span v-if="preview.posts_count !== undefined">&nbsp;•&nbsp;{{ preview.posts_count }} постов</span>
               <span v-if="preview.discussion_group_id">&nbsp;•&nbsp;Есть группа обсуждений</span>
             </div>
-            <button @click="loadChannel(preview, index)" class="load-button">Загрузить канал</button>
-            <button @click="removePreview(index)" class="cancel-button">Отменить</button>
+            <div class="list-col-wrap text-xs" v-if="preview.description">
+              {{ preview.description }}
+            </div>
           </div>
-          <div class="channel-description" v-if="preview.description">
-            {{ preview.description }}
+
+          <div class="flex space-x-4">
+            <button @click="loadChannel(preview, index)" class="btn btn-primary">Загрузить канал</button>
+            <button @click="removePreview(index)" class="btn btn-soft btn-error">Отменить</button>
           </div>
         </li>
       </ul>
     </div>
 
     <!-- Форма добавления канала -->
-    <div class="add-channel">
-      <input
-        v-model="newChannel"
-        type="text"
-        placeholder="Введите имя канала или ID пользователя"
-        @keyup.enter="previewChannel"
-        :disabled="previewLoading"
-      />
-      <button @click="previewChannel" :disabled="previewLoading">
-        {{ previewLoading ? 'Загрузка...' : 'Предварительный просмотр' }}
-      </button>
-      <div class="input-hint">
-        Поддерживается: @channelname, channelname, @username, username, или числовой ID (123456789)
+    <h2 class="text-2xl mb-2">Добавить канал</h2>
+    <div class="rounded-box shadow-md bg-base-100 p-4 mb-8">
+      <div class="flex items-baseline mb-2">
+        <div class="join">
+          <input
+            v-model="newChannel"
+            type="text"
+            placeholder="Введите имя канала или ID пользователя"
+            @keyup.enter="previewChannel"
+            :disabled="previewLoading"
+            class="input join-item w-80"
+          />
+          <button 
+            @click="previewChannel" 
+            :disabled="previewLoading"
+            class="btn btn-primary join-item"
+            :class="{'btn-disabled': previewLoading}"
+          >
+            {{ previewLoading ? 'Загрузка...' : 'Предварительный просмотр' }}
+          </button>
+        </div>
+        <div v-if="previewLoading" class="ml-4 text-primary">
+          <div class="loading loading-bars loading-sm mr-2"></div>
+          Получаем информацию о канале...
+        </div>
       </div>
-      <div v-if="previewLoading" class="preview-loading">Получаем информацию о канале...</div>
+      <div class="text-sm text-info-content">
+        Поддерживается: @channelname, channelname, @username, username, или PEER ID
+      </div>
     </div>
   </div>
 </template>
