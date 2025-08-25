@@ -1,10 +1,10 @@
 <template>
-  <div class="author">
-    <div class="avatar-wrapper">
-      <img v-if="avatar" :src="avatarSrc" :alt="name" class="avatar-image" />
+  <div class="author flex items-center space-x-3 text-sm min-w-0">
+    <div class="avatar-wrapper h-8 w-8 rounded-full object-cover flex-shrink-0 bg-gray-200">
+      <img v-if="avatar" :src="avatarSrc" :alt="name" class="avatar-image h-full w-full rounded-full object-cover" />
     </div>
-    <a v-if="link" :href="link" target="_blank">{{ name }}</a>
-    <span v-else>{{ name }}</span>
+    <a v-if="link" :href="link" target="_blank" class="font-medium text-gray-900">{{ name }}</a>
+    <span v-else class="font-medium text-gray-900">{{ name }}</span>
   </div>
 </template>
 

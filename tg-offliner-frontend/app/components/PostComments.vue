@@ -9,7 +9,7 @@
     />
     
     <!-- Комментарии -->
-    <div v-if="comments.length > 0" class="comments-section">
+    <div v-if="comments.length > 0" class="comments-section  ml-8">
       <div class="comments-header">
         <span class="comments-count">💬 {{ comments.length }} {{ commentText }}</span>
       </div>
@@ -20,7 +20,7 @@
           :post="comment"
           :data-post-id="comment.telegram_id"
           :data-channel-id="comment.channel_id"
-          class="comment-post"
+          class="comment-post mb-4"
         />
       </div>
     </div>

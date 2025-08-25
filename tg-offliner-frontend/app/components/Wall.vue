@@ -15,7 +15,7 @@
       <div class="loading">Загрузка...</div>
     </ClientOnly>
     <div v-else>
-      <template v-for="item in organizedPosts" :key="item.key">
+      <div v-for="item in organizedPosts" :key="item.key" class="mb-6">
         <Group
           v-if="item.type === 'group'"
           :posts="item.posts"
@@ -31,7 +31,7 @@
           :data-post-id="item.post.telegram_id"
           :data-channel-id="item.post.channel_id"
         />
-      </template>
+      </div>
     </div>
   </div>
 </template>

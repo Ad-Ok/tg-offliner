@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="min-h-screen bg-gray-100">
     <link v-if="$route.query.pdf === '1'" rel="stylesheet" href="/pdf.css" />
     <ClientOnly>
       <SystemAlert
@@ -7,10 +7,11 @@
         :message="alertMessage"
         :type="alertType"
         @closed="clearAlert"
+        class="rounded-lg shadow-md"
       />
     </ClientOnly>
     <NuxtRouteAnnouncer />
-    <NuxtPage />
+    <NuxtPage class="container mx-auto px-4 py-8" />
   </div>
 </template>
 
