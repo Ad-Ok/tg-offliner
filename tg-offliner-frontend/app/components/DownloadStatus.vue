@@ -33,7 +33,7 @@
           </div>
 
           <!-- Прогресс-бар для визуального отображения -->
-          <div v-if="shouldShowProgressBar(status, channelId)" class="w-full mt-3">
+          <div v-if="status.details && status.details.posts_processed !== undefined" class="w-full mt-3">
             <progress 
               class="progress progress-primary w-full h-4"
               :value="getProgressPercentage(status, channelId)"
@@ -130,11 +130,21 @@ export default {
     shouldShowProgressBar(status, channelId) {
       const channelTotalPosts = this.getChannelTotalPosts(channelId);
       
+      // Отладочная информация
+      console.log('shouldShowProgressBar debug:', {
+        channelId,
+        status: status.status,
+        details: status.details,
+        total_posts: status.details?.total_posts,
+        posts_processed: status.details?.posts_processed,
+        channelTotalPosts,
+        hasDetails: !!status.details
+      });
+      
       // Показываем прогресс-бар если есть информация о постах
       return status.details && 
              status.details.posts_processed !== undefined &&
-             (channelTotalPosts > 0 || status.details.total_posts > 0) &&
-             status.status === 'downloading';
+             (channelTotalPosts > 0 || status.details.total_posts > 0);
     }
   }
 };
