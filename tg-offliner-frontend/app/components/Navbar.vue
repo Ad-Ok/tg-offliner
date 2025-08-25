@@ -9,7 +9,7 @@
           </svg>
         </div>
         <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
-          <li><NuxtLink to="/">🏠 Главная</NuxtLink></li>
+          <!-- <li><NuxtLink to="/">🏠 Главная</NuxtLink></li> -->
         </ul>
       </div>
       
@@ -28,13 +28,13 @@
     <div class="navbar-center hidden lg:flex">
       <ul class="menu menu-horizontal px-1">
         <li>
-          <NuxtLink 
+          <!-- <NuxtLink 
             to="/" 
             class="btn btn-ghost"
             :class="{ 'btn-active': $route.path === '/' }"
           >
             🏠 Главная
-          </NuxtLink>
+          </NuxtLink> -->
         </li>
       </ul>
     </div>
@@ -53,10 +53,6 @@
           <li><a>❓ Помощь</a></li>
         </ul>
       </div>
-      
-      <button class="btn btn-primary ml-2">
-        ⚡ Синхронизация
-      </button>
     </div>
   </div>
 </template>

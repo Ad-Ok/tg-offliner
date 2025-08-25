@@ -1,11 +1,6 @@
 <template>
   <div class="channels-list">
-    <div class="header-section">
-      <h1 class="text-4xl">Список каналов</h1>
-      <button @click="testLoadLlamatest" class="test-load-button">
-        Загрузить llamatest
-      </button>
-    </div>
+    <h1 class="text-4xl mb-4">Список каналов</h1>
     
     <!-- Панель статуса загрузок -->
     <DownloadStatus 
@@ -135,6 +130,9 @@
             {{ previewLoading ? 'Загрузка...' : 'Предварительный просмотр' }}
           </button>
         </div>
+        <button @click="testLoadLlamatest" class="btn ml-auto">
+          Загрузить llamatest
+        </button>
         <div v-if="previewLoading" class="ml-4 text-primary">
           <div class="loading loading-bars loading-sm mr-2"></div>
           Получаем информацию о канале...
