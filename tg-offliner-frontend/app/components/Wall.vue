@@ -1,6 +1,6 @@
 <template>
   <div class="wall">
-    <h1>Стена канала: {{ channelId }}</h1>
+    <h1 class="text-4xl mb-8">Стена канала: <span class="font-bold">{{ channelId }}</span></h1>
     <ClientOnly v-if="loading">
       <div class="loading">Загрузка...</div>
     </ClientOnly>

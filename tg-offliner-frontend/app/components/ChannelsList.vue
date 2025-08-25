@@ -68,15 +68,6 @@
           </div>
 
           <div class="flex space-x-2">
-            <!-- Кнопка остановки загрузки (показываем только во время загрузки) -->
-            <button 
-              v-if="isDownloading(channel.id)" 
-              @click="stopDownload(channel.id)" 
-              class="btn btn-error"
-              title="Остановить загрузку"
-            >
-              ⏹️ Остановить
-            </button>
             <button @click="printPdf(channel.id)" class="btn btn-sm btn-soft btn-primary">Создать PDF</button>
             <button @click="exportHtml(channel.id)" class="btn btn-sm btn-soft btn-info">Создать HTML</button>
             <button @click="removeChannel(channel.id)" class="btn btn-sm btn-outline btn-error">Удалить канал</button>
