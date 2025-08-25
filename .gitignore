@@ -189,8 +189,8 @@ build/
 .cache/
 
 # Generated CSS and map files (in specific locations)
-tg-offliner-frontend/public/pdf.css
-tg-offliner-frontend/public/pdf.css.map
+tg-offliner-frontend/public/styles.css
+tg-offliner-frontend/public/styles.css.map
 tg-offliner-frontend/public/*.css
 tg-offliner-frontend/public/*.css.map
 tg-offliner-frontend/public/*.js.map

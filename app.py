@@ -448,7 +448,7 @@ def process_html_for_standalone(html_content):
     if head:
         css_link = soup.new_tag('link')
         css_link['rel'] = 'stylesheet'
-        css_link['href'] = './pdf.css'
+        css_link['href'] = './styles.css'
         head.append(css_link)
     
     # Удаляем скрипты (для статичного HTML они не нужны)
@@ -496,10 +496,10 @@ def export_channel_to_html(channel_id):
         channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
         os.makedirs(channel_dir, exist_ok=True)
         
-        # Копируем CSS файл из tg-offliner-frontend/public/pdf.css
+        # Копируем CSS файл из tg-offliner-frontend/public/styles.css
         import shutil
-        css_source = os.path.join(os.path.dirname(__file__), 'tg-offliner-frontend', 'public', 'pdf.css')
-        css_dest = os.path.join(channel_dir, 'pdf.css')
+        css_source = os.path.join(os.path.dirname(__file__), 'tg-offliner-frontend', 'public', 'styles.css')
+        css_dest = os.path.join(channel_dir, 'styles.css')
         
         try:
             if os.path.exists(css_source):
