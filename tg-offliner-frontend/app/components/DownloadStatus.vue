@@ -52,6 +52,12 @@
           >
             Остановить
           </button>
+          <button 
+            @click="$emit('cancel-download', channelId)"
+            class="btn btn-sm btn-outline btn-error"
+          >
+            Отменить
+          </button>
         </div>
       </div>
     </div>

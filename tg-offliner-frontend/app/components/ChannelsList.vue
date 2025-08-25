@@ -13,6 +13,7 @@
       :channels="channels"
       :previewChannels="previewChannels"
       @stop-download="stopDownload"
+      @cancel-download="cancelDownload"
       @clear-status="clearStatus"
     />
 
@@ -383,6 +384,30 @@ export default {
         this.checkDownloadStatuses(); // Обновляем статусы
       } catch (error) {
         const errorMessage = error.response?.data?.error || 'Ошибка остановки загрузки';
+        eventBus.showAlert(errorMessage, "danger");
+      }
+    },
+    
+    async cancelDownload(channelId) {
+      // Подтверждение действия
+      if (!confirm('Вы уверены, что хотите отменить загрузку и удалить канал? Это действие нельзя отменить.')) {
+        return;
+      }
+      
+      try {
+        // Сначала останавливаем загрузку
+        await api.post(`/api/download/stop/${channelId}`);
+        
+        // Затем удаляем канал и дискуссионную группу
+        const response = await api.delete(`/api/channels/${channelId}`);
+        
+        eventBus.showAlert('Загрузка отменена, канал удален', "success");
+        
+        // Обновляем список каналов и статусы
+        this.loadChannels();
+        this.checkDownloadStatuses();
+      } catch (error) {
+        const errorMessage = error.response?.data?.error || 'Ошибка отмены загрузки';
         eventBus.showAlert(errorMessage, "danger");
       }
     },
