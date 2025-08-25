@@ -44,7 +44,7 @@
               <span v-if="channel.subscribers">&nbsp;•&nbsp;{{ channel.subscribers }} подписчиков</span>
               <span v-if="channel.discussion_group_id">&nbsp;•&nbsp;Есть группа обсуждений</span>
             </div>
-            <div class="list-col-wrap text-xs" v-if="channel.description">
+            <div class="list-col-wrap text-xs mt-2" v-if="channel.description">
               {{ channel.description }}
             </div>
           </div>
@@ -101,14 +101,14 @@
           </div>
 
           <div>
-            <span>{{ preview.name }}</span>
+            <span class="text-md font-bold">{{ preview.name }}</span>
             <div>
               <span v-if="preview.creation_date">Создан {{ preview.creation_date }}</span>
               <span v-if="preview.subscribers">&nbsp;•&nbsp;{{ preview.subscribers }} подписчиков</span>
               <span v-if="preview.posts_count !== undefined">&nbsp;•&nbsp;{{ preview.posts_count }} постов</span>
               <span v-if="preview.discussion_group_id">&nbsp;•&nbsp;Есть группа обсуждений</span>
             </div>
-            <div class="list-col-wrap text-xs" v-if="preview.description">
+            <div class="list-col-wrap text-xs mt-2" v-if="preview.description">
               {{ preview.description }}
             </div>
           </div>
@@ -148,8 +148,8 @@
           Получаем информацию о канале...
         </div>
       </div>
-      <div class="text-sm text-info-content">
-        Поддерживается: @channelname, channelname, @username, username, или PEER ID
+      <div class="text-xs text-info-content">
+        Поддерживается: @channelname, channelname, @username, username, PEER ID
       </div>
     </div>
   </div>
