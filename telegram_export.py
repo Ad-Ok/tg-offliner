@@ -64,13 +64,14 @@ def update_import_progress(channel_id, processed_posts, processed_comments, tota
     except Exception as e:
         logging.warning(f"Не удалось обновить прогресс: {e}")
 
-def import_channel_direct(channel_username, channel_id=None):
+def import_channel_direct(channel_username, channel_id=None, export_settings=None):
     """
     Импортирует канал или переписку с пользователем напрямую, используя существующий клиент.
     Возвращает словарь с результатом.
     
     :param channel_username: Имя канала или пользователя
     :param channel_id: ID канала для отслеживания статуса (опционально)
+    :param export_settings: Настройки экспорта (опционально)
     """
     try:
         # Используем существующий глобальный клиент
@@ -113,11 +114,19 @@ def import_channel_direct(channel_username, channel_id=None):
             return {"success": False, "error": f"Ошибка БД: {response.text}"}
         
         # Импортируем сообщения
-        include_system_messages = EXPORT_SETTINGS.get("include_system_messages", False)
-        include_reposts = EXPORT_SETTINGS.get("include_reposts", True)
-        include_polls = EXPORT_SETTINGS.get("include_polls", True)
-        include_discussion_comments = EXPORT_SETTINGS.get("include_discussion_comments", True)
-        message_limit = EXPORT_SETTINGS.get("message_limit", None)
+        # Используем переданные настройки или значения по умолчанию
+        if export_settings:
+            include_system_messages = export_settings.get("include_system_messages", False)
+            include_reposts = export_settings.get("include_reposts", True)
+            include_polls = export_settings.get("include_polls", True)
+            include_discussion_comments = export_settings.get("include_discussion_comments", True)
+            message_limit = export_settings.get("message_limit", None)
+        else:
+            include_system_messages = EXPORT_SETTINGS.get("include_system_messages", False)
+            include_reposts = EXPORT_SETTINGS.get("include_reposts", True)
+            include_polls = EXPORT_SETTINGS.get("include_polls", True)
+            include_discussion_comments = EXPORT_SETTINGS.get("include_discussion_comments", True)
+            message_limit = EXPORT_SETTINGS.get("message_limit", None)
 
         all_posts = client.iter_messages(
             entity,

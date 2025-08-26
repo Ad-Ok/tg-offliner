@@ -194,6 +194,7 @@ def run_channel_import():
     data = request.json
     app.logger.info(f"Получены данные: {data}")
     channel_username = data.get('channel_username')
+    export_settings = data.get('export_settings', {})
 
     if not channel_username:
         app.logger.error("channel_username обязателен")
@@ -229,7 +230,7 @@ def run_channel_import():
             return jsonify({"error": f"Канал/пользователь {real_id} уже импортирован"}), 400
 
         # Импортируем канал напрямую через API
-        result = import_channel_direct(channel_username, real_id)
+        result = import_channel_direct(channel_username, real_id, export_settings)
         
         if result['success']:
             processed_count = result.get('processed', 0)

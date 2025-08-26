@@ -104,6 +104,59 @@
             <button @click="loadChannel(preview, index)" class="btn btn-primary">Загрузить канал</button>
             <button @click="removePreview(index)" class="btn btn-soft btn-error">Отменить</button>
           </div>
+
+
+            <!-- Настройки экспорта -->
+            <div class="p-3 bg-base-200 rounded-lg col-span-3 row-auto">
+              <div class="text-sm font-medium mb-2">Загрузить:</div>
+              <div class="grid grid-cols-2 gap-2 text-sm mb-3">
+                <label class="flex items-center space-x-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    v-model="exportSettings.include_system_messages"
+                    class="checkbox checkbox-sm"
+                  />
+                  <span>Системные сообщения</span>
+                </label>
+                <label class="flex items-center space-x-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    v-model="exportSettings.include_reposts"
+                    class="checkbox checkbox-sm"
+                  />
+                  <span>Репосты</span>
+                </label>
+                <label class="flex items-center space-x-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    v-model="exportSettings.include_polls"
+                    class="checkbox checkbox-sm"
+                  />
+                  <span>Опросы</span>
+                </label>
+                <label class="flex items-center space-x-2 cursor-pointer" v-if="preview.discussion_group_id">
+                  <input 
+                    type="checkbox" 
+                    v-model="exportSettings.include_discussion_comments"
+                    class="checkbox checkbox-sm"
+                  />
+                  <span>Комментарии</span>
+                </label>
+              </div>
+              <div class="flex items-center space-x-2 text-sm">
+                <span>Лимит сообщений:</span>
+                <input 
+                  type="number" 
+                  v-model.number="exportSettings.message_limit"
+                  placeholder="Без лимита"
+                  class="input input-sm input-bordered w-24"
+                  min="1"
+                />
+                <span class="text-xs opacity-70">(пусто = все сообщения)</span>
+              </div>
+            </div>
+
+
         </li>
       </ul>
     </div>
@@ -169,6 +222,14 @@ export default {
       downloadStatuses: {}, // Статусы загрузки каналов
       statusCheckInterval: null, // Интервал проверки статусов
       loadingChannels: new Set(), // Set для отслеживания загружающихся каналов
+      // Настройки экспорта
+      exportSettings: {
+        include_system_messages: false,
+        include_reposts: true,
+        include_polls: true,
+        include_discussion_comments: true,
+        message_limit: null, // null для безлимитного, число для ограничения
+      },
     };
   },
   computed: {
@@ -336,6 +397,7 @@ export default {
       api
         .post('/api/add_channel', {
           channel_username: channelInput,
+          export_settings: this.exportSettings,
         })
         .then((response) => {
           eventBus.showAlert(response.data.message, "success");
