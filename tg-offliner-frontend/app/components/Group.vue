@@ -32,7 +32,7 @@
 
     <PostFooter 
       :reactions="firstPost.reactions"
-      :comments-count="0"
+      :comments-count="commentsCount"
     />
 
   </div>
@@ -54,6 +54,10 @@ export default {
     originalPost: {
       type: Object,
       default: null,
+    },
+    commentsCount: {
+      type: Number,
+      default: 0,
     },
   },
   components: {

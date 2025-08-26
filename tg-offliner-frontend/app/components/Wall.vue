@@ -9,6 +9,7 @@
         <Group 
           :posts="item.posts" 
           :original-post="item.originalPost"
+          :comments-count="item.discussionComments ? item.discussionComments.length : 0"
         />
       </template>
       
@@ -19,6 +20,7 @@
           :original-post="item.originalPost"
           :data-post-id="item.post.telegram_id"
           :data-channel-id="item.post.channel_id"
+          :comments-count="item.discussionComments ? item.discussionComments.length : 0"
         />
       </template>
       
