@@ -383,22 +383,33 @@ def export_channel_to_html(channel_id):
 def print_channel_to_pdf(channel_id):
     """Экспортирует канал в PDF формат."""
     try:
-        ssr_url = f'http://ssr:3000/{channel_id}/posts?pdf=1'
-        response = requests.get(ssr_url)
-        if response.status_code != 200:
-            current_app.logger.error(f"SSR-сервер вернул ошибку: {response.status_code}")
-            return jsonify({"error": "Ошибка SSR-рендеринга"}), 500
-
-        html_content = response.text
+        current_app.logger.info(f"Начинаем генерацию PDF для канала {channel_id}")
         
-        # Создаем папку для канала в downloads
+        # Сначала экспортируем HTML со всеми ресурсами
+        current_app.logger.info("Экспорт HTML файлов...")
+        html_result = export_channel_to_html(channel_id)
+        
+        # Проверяем результат экспорта HTML
+        if hasattr(html_result, 'status_code') and html_result.status_code != 200:
+            current_app.logger.error("Ошибка при экспорте HTML")
+            return jsonify({"error": "Ошибка при экспорте HTML"}), 500
+        
+        # Определяем путь к созданному HTML файлу
         channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
-        os.makedirs(channel_dir, exist_ok=True)
+        html_path = os.path.join(channel_dir, 'index.html')
         
-        # Сохраняем PDF в папку канала
+        if not os.path.exists(html_path):
+            current_app.logger.error(f"HTML файл не найден: {html_path}")
+            return jsonify({"error": "HTML файл не был создан"}), 500
+        
+        current_app.logger.info(f"HTML файл найден: {html_path}")
+        
+        # Генерируем PDF из локального HTML файла
         from weasyprint import HTML
         pdf_path = os.path.join(channel_dir, f"{channel_id}.pdf")
-        HTML(string=html_content, base_url='http://ssr:3000').write_pdf(pdf_path)
+        
+        current_app.logger.info(f"Генерация PDF: {pdf_path}")
+        HTML(filename=html_path).write_pdf(pdf_path)
 
         if not os.path.exists(pdf_path):
             current_app.logger.error(f"PDF-файл не найден после генерации: {pdf_path}")
@@ -414,4 +425,6 @@ def print_channel_to_pdf(channel_id):
         }), 200
     except Exception as e:
         current_app.logger.error(f"Ошибка при генерации PDF для канала {channel_id}: {str(e)}")
+        import traceback
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({"error": "Ошибка при генерации PDF"}), 500
