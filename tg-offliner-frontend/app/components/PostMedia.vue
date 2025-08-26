@@ -1,6 +1,5 @@
 <template>
-  <div class="post-media">
-    <!-- <p class="debug"><strong>Медиа ({{ mediaType }} - {{ mimeType }}):</strong></p> -->
+  <div class="post-media" :data-media-type="mediaType" :data-mime-type="mimeType">
     <div v-if="mediaType === 'MessageMediaDocument'">
       <img
         v-if="mimeType && mimeType.startsWith('image/')"

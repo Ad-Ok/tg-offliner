@@ -472,6 +472,16 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
         # Формируем текст сообщения
         message_text = post.message or ""
         
+        # Обрабатываем голосования
+        poll_html = process_poll(post)
+        if poll_html:
+            # Если есть текст сообщения, добавляем голосование к нему
+            if message_text:
+                message_text = f"{message_text}<br><br>{poll_html}"
+            else:
+                message_text = poll_html
+            logging.info(f"Добавлено голосование к сообщению {post.id}")
+        
         # Обрабатываем системные сообщения
         if hasattr(post, 'action') and post.action:
             action_type = type(post.action).__name__
