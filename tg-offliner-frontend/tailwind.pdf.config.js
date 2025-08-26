@@ -49,6 +49,21 @@ module.exports = {
           '"Courier New"',
           'monospace'
         ]
+      },
+      fontSize: {
+        // Более компактные размеры для PDF
+        'xs': ['0.6rem', { lineHeight: '1rem' }],
+        'sm': ['0.8rem', { lineHeight: '1.25rem' }], 
+        'base': ['0.9rem', { lineHeight: '1.4rem' }],
+        'lg': ['1rem', { lineHeight: '1.5rem' }],
+        'xl': ['1.125rem', { lineHeight: '1.75rem' }],
+        '2xl': ['1.25rem', { lineHeight: '1.875rem' }],
+        '3xl': ['1.5rem', { lineHeight: '2rem' }],
+      },
+      lineHeight: {
+        'tight': '1.25',
+        'normal': '1.4', 
+        'relaxed': '1.5',
       }
     },
   },
@@ -106,6 +121,8 @@ module.exports = {
     position: true,
     space: true,
     wordBreak: true,
-    whiteSpace: true
+    whiteSpace: true,
+    letterSpacing: true,
+    lineHeight: true
   }
 }

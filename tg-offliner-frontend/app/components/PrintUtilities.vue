@@ -24,12 +24,18 @@
     <div class="font-mono"></div>
     
     <!-- Typography for PDF -->
+    <div class="print:text-xs"></div>
     <div class="print:text-sm"></div>
     <div class="print:text-base"></div>
     <div class="print:text-lg"></div>
     <div class="print:text-xl"></div>
+    <div class="print:leading-tight"></div>
     <div class="print:leading-normal"></div>
     <div class="print:leading-relaxed"></div>
+    
+    <!-- Letter spacing for better typography -->
+    <div class="print:tracking-tight"></div>
+    <div class="print:tracking-normal"></div>
     
     <!-- Screen utilities -->
     <div class="screen:block"></div>
