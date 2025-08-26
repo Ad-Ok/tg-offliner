@@ -4,14 +4,13 @@ multiprocessing.set_start_method("fork", force=True)
 import logging
 import time
 import threading
+import os
+import requests
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
+from weasyprint import HTML
 from models import db, Post, Channel
 from database import create_app, init_db
-import os
-from weasyprint import HTML
-import requests
-from flask import request, jsonify
 from message_processing.channel_info import get_channel_info
 from telegram_client import connect_to_telegram
 
