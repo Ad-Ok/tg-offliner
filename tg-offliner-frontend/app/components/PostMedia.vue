@@ -32,16 +32,16 @@
       />
     </div>
     <div v-else-if="mediaType === 'MessageMediaWebPage'">
-      <div class="webpage-preview">
-        <div class="flex justify-between align-baseline">
-          <h4>Ссылка</h4>
-          <p class="webpage-note">Нажмите для открытия в новой вкладке</p>
+      <div class="webpage-preview mt-2 border border-gray-200 bg-gray-100 rounded-lg px-4 py-2">
+        <div class="flex justify-between align-baseline mb-1">
+          <h4 class="text-sm font-semibold text-gray-500">Ссылка</h4>
+          <p class="webpage-note text-xs text-gray-400 italic">Нажмите для открытия в новой вкладке</p>
         </div>
         <a 
           :href="mediaUrl" 
           target="_blank" 
           rel="noopener noreferrer"
-          class="webpage-link"
+          class="link link-primary"
         >
           {{ mediaUrl }}
         </a>
@@ -72,39 +72,3 @@ export default {
   }
 };
 </script>
-
-<style scoped>
-.webpage-preview {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 12px;
-  margin: 8px 0;
-  background-color: #f9f9f9;
-}
-
-.webpage-preview h4 {
-  margin: 0 0 8px 0;
-  color: #333;
-  font-size: 14px;
-}
-
-.webpage-link {
-  display: block;
-  color: #1976d2;
-  text-decoration: none;
-  word-break: break-all;
-  margin-bottom: 4px;
-  font-weight: 500;
-}
-
-.webpage-link:hover {
-  text-decoration: underline;
-}
-
-.webpage-note {
-  margin: 4px 0 0 0;
-  font-size: 12px;
-  color: #666;
-  font-style: italic;
-}
-</style>

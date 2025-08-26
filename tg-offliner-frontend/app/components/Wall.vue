@@ -176,14 +176,3 @@ export default {
   }
 };
 </script>
-
-<style scoped>
-/* Стили для дискуссий */
-.ml-8 {
-  margin-left: 2rem;
-}
-
-.mt-4 {
-  margin-top: 1rem;
-}
-</style>
