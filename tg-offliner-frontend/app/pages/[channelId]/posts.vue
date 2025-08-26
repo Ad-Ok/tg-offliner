@@ -13,7 +13,7 @@
       :channelId="channelId" 
       :posts="posts" 
       :loading="pending"
-      :discussion-group-id="channelInfo?.discussion_group_id"
+      :discussion-group-id="channelInfo?.discussion_group_id ? String(channelInfo.discussion_group_id) : null"
     />
   </div>
 </template>
