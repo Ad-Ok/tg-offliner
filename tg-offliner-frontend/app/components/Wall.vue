@@ -1,37 +1,35 @@
 <template>
-  <div class="wall max-w-xl mx-auto">
-    <ClientOnly v-if="loading">
-      <div class="loading">Загрузка...</div>
-    </ClientOnly>
-    <div v-else>
-      <div v-for="item in organizedPostsWithDiscussion" :key="item.key" class="mb-6">
-        <!-- Группа -->
-        <template v-if="item.type === 'group'">
-          <Group 
-            :posts="item.posts" 
-            :original-post="item.originalPost"
-          />
-        </template>
-        
-        <!-- Обычный пост -->
-        <template v-else>
-          <Post
-            :post="item.post"
-            :original-post="item.originalPost"
-            :data-post-id="item.post.telegram_id"
-            :data-channel-id="item.post.channel_id"
-          />
-        </template>
-        
-        <!-- Дискуссия (общая для постов и групп) -->
-        <div v-if="item.discussionComments && item.discussionComments.length > 0" class="ml-8 mt-4">
-          <Wall
-            :channel-id="String(discussionGroupId)"
-            :posts="item.discussionComments"
-            :loading="false"
-            :discussion-group-id="null"
-          />
-        </div>
+  <ClientOnly v-if="loading">
+    <div class="loading">Загрузка...</div>
+  </ClientOnly>
+  <div v-else>
+    <div v-for="item in organizedPostsWithDiscussion" :key="item.key" class="mb-6">
+      <!-- Группа -->
+      <template v-if="item.type === 'group'">
+        <Group 
+          :posts="item.posts" 
+          :original-post="item.originalPost"
+        />
+      </template>
+      
+      <!-- Обычный пост -->
+      <template v-else>
+        <Post
+          :post="item.post"
+          :original-post="item.originalPost"
+          :data-post-id="item.post.telegram_id"
+          :data-channel-id="item.post.channel_id"
+        />
+      </template>
+      
+      <!-- Дискуссия (общая для постов и групп) -->
+      <div v-if="item.discussionComments && item.discussionComments.length > 0" class="ml-8 mt-4">
+        <Wall
+          :channel-id="String(discussionGroupId)"
+          :posts="item.discussionComments"
+          :loading="false"
+          :discussion-group-id="null"
+        />
       </div>
     </div>
   </div>

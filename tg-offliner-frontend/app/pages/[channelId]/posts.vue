@@ -1,7 +1,7 @@
 <template>
-  <div>
+  <div class="wall max-w-xl mx-auto">
     <!-- Информация о канале -->
-    <PostCover 
+    <ChannelCover 
       v-if="channelInfo" 
       :channel="channelInfo" 
       :postsCount="realPostsCount"
@@ -21,7 +21,7 @@
 <script setup>
 import { useRoute } from 'vue-router'
 import Wall from '~/components/Wall.vue'
-import PostCover from '~/components/PostCover.vue'
+import ChannelCover from '~/components/ChannelCover.vue'
 import { api } from '~/services/api'
 
 const route = useRoute()
