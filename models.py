@@ -40,3 +40,15 @@ class Channel(db.Model):
 
     def __repr__(self):
         return f"<Channel {self.id} - {self.name}>"
+
+class Edit(db.Model):
+    __tablename__ = 'edits'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    telegram_id = db.Column(db.Integer, nullable=False)  # ID телеграм сообщения
+    channel_id = db.Column(db.String, nullable=False)  # ID канала
+    date = db.Column(db.String, nullable=False)  # Дата редактирования
+    changes = db.Column(JSON, nullable=False)  # JSON с изменениями: {"message": "new text", "reactions": {...}, "hidden": "true"}
+
+    def __repr__(self):
+        return f"<Edit {self.id} for message {self.telegram_id} in channel {self.channel_id}>"
