@@ -1,34 +1,37 @@
 <template>
   <div class="wall max-w-xl mx-auto">
-    <!-- Информация о канале -->
-    <PostCover 
-      v-if="channelInfo" 
-      :channel="channelInfo" 
-      :postsCount="realPostsCount"
-      :commentsCount="totalCommentsCount"
-    />
-    
     <ClientOnly v-if="loading">
       <div class="loading">Загрузка...</div>
     </ClientOnly>
     <div v-else>
-      <div v-for="item in organizedPosts" :key="item.key" class="mb-6">
-        <Group
-          v-if="item.type === 'group'"
-          :posts="item.posts"
-        />
-        <PostComments
-          v-else-if="item.type === 'post-with-comments'"
-          :originalPost="item.originalPost"
-          :comments="item.comments"
-        />
-        <Post
-          v-else
-          :post="item.post"
-          :commentsCount="0"
-          :data-post-id="item.post.telegram_id"
-          :data-channel-id="item.post.channel_id"
-        />
+      <div v-for="item in organizedPostsWithDiscussion" :key="item.key" class="mb-6">
+        <!-- Группа -->
+        <template v-if="item.type === 'group'">
+          <Group 
+            :posts="item.posts" 
+            :original-post="item.originalPost"
+          />
+        </template>
+        
+        <!-- Обычный пост -->
+        <template v-else>
+          <Post
+            :post="item.post"
+            :original-post="item.originalPost"
+            :data-post-id="item.post.telegram_id"
+            :data-channel-id="item.post.channel_id"
+          />
+        </template>
+        
+        <!-- Дискуссия (общая для постов и групп) -->
+        <div v-if="item.discussionComments && item.discussionComments.length > 0" class="ml-8 mt-4">
+          <Wall
+            :channel-id="String(discussionGroupId)"
+            :posts="item.discussionComments"
+            :loading="false"
+            :discussion-group-id="null"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -37,23 +40,33 @@
 <script>
 import Post from './Post.vue';
 import Group from './Group.vue';
-import PostComments from './PostComments.vue';
-import PostCover from './PostCover.vue';
 
 export default {
   name: "Wall",
-  components: { Post, Group, PostComments, PostCover },
+  components: { Post, Group },
   props: {
     channelId: { type: String, required: true },
     posts: { type: Array, default: () => [] },
-    channelInfo: { type: Object, default: null },
     loading: { type: Boolean, default: false },
+    discussionGroupId: { type: String, default: null },
   },
   computed: {
-    filteredPosts() {
-      // Исключаем посты с grouped_id и комментарии (посты с reply_to)
-      return this.posts.filter(post => !post.grouped_id && !post.reply_to);
+    // Основные посты (логика зависит от наличия discussionGroupId)
+    mainPosts() {
+      if (this.discussionGroupId) {
+        const discussionGroupIdStr = String(this.discussionGroupId);
+        // Если есть дискуссионная группа - показываем только основные посты (исключаем комментарии из дискуссионной группы)
+        return this.posts.filter(post => 
+          !post.grouped_id && 
+          post.channel_id !== discussionGroupIdStr // Исключаем все посты из дискуссионной группы
+        );
+      } else {
+        // Если нет дискуссионной группы - показываем все посты кроме сгруппированных (включая комментарии)
+        return this.posts.filter(post => !post.grouped_id);
+      }
     },
+    
+    // Группы постов
     groupedPosts() {
       const groups = {};
       this.posts.forEach(post => {
@@ -66,115 +79,105 @@ export default {
       });
       return groups;
     },
-    postsWithComments() {
-      // Группируем комментарии по reply_to
-      const commentsMap = {};
-      const originalPostsMap = {};
-      
-      // Сначала собираем все оригинальные посты и комментарии
+    
+    // Карта постов для быстрого поиска по telegram_id
+    postsMap() {
+      const map = {};
       this.posts.forEach(post => {
-        if (post.reply_to) {
-          // Это комментарий
-          const replyToId = post.reply_to;
-          if (!commentsMap[replyToId]) {
-            commentsMap[replyToId] = [];
-          }
-          commentsMap[replyToId].push(post);
-        } else if (!post.grouped_id) {
-          // Это оригинальный пост (не комментарий и не в группе)
-          originalPostsMap[post.telegram_id] = post;
-        }
+        map[post.telegram_id] = post;
       });
-      
-      // Создаем объекты для постов с комментариями
-      const result = {};
-      Object.keys(commentsMap).forEach(originalPostId => {
-        const originalPost = originalPostsMap[originalPostId];
-        if (originalPost) {
-          result[originalPostId] = {
-            originalPost,
-            comments: commentsMap[originalPostId]
-          };
-        }
-      });
-      
-      return result;
+      return map;
     },
+    
+    // Карта постов дискуссионной группы
+    discussionPostsMap() {
+      if (!this.discussionGroupId) return {};
+      
+      const discussionGroupIdStr = String(this.discussionGroupId);
+      const map = {};
+      this.posts.forEach(post => {
+        if (post.channel_id === discussionGroupIdStr) {
+          map[post.telegram_id] = post;
+        }
+      });
+      return map;
+    },
+    
+    // Организованные посты для отображения
     organizedPosts() {
       const result = [];
       
-      // Добавляем посты с комментариями
-      Object.entries(this.postsWithComments).forEach(([postId, data]) => {
+      // Добавляем обычные посты
+      this.mainPosts.forEach(post => {
+        const originalPost = post.reply_to ? this.postsMap[post.reply_to] : null;
+        
         result.push({
-          type: 'post-with-comments',
-          key: `post-comments-${postId}`,
-          originalPost: data.originalPost,
-          comments: data.comments
+          type: 'post',
+          key: `post-${post.id}`,
+          post: post,
+          date: post.date,
+          originalPost: originalPost
         });
-      });
-      
-      // Добавляем обычные посты (без комментариев)
-      this.filteredPosts.forEach(post => {
-        // Проверяем, что у этого поста нет комментариев
-        if (!this.postsWithComments[post.telegram_id]) {
-          result.push({
-            type: 'post',
-            key: `post-${post.id}`,
-            post: post
-          });
-        }
       });
       
       // Добавляем группы
       Object.entries(this.groupedPosts).forEach(([groupId, posts]) => {
+        const sortedPosts = posts.sort((a, b) => a.telegram_id - b.telegram_id);
+        const firstPost = sortedPosts[0];
+        const originalPost = firstPost.reply_to ? this.postsMap[firstPost.reply_to] : null;
+        
         result.push({
           type: 'group',
           key: `group-${groupId}`,
-          posts: posts.sort((a, b) => a.telegram_id - b.telegram_id) // Сортируем по telegram_id
+          posts: sortedPosts,
+          date: firstPost.date,
+          originalPost: originalPost
         });
       });
       
       // Сортируем все по дате (новые сверху)
       return result.sort((a, b) => {
-        let dateA, dateB;
-        
-        if (a.type === 'post') {
-          dateA = a.post.date;
-        } else if (a.type === 'post-with-comments') {
-          dateA = a.originalPost.date;
-        } else if (a.type === 'group') {
-          dateA = a.posts[0].date;
-        }
-        
-        if (b.type === 'post') {
-          dateB = b.post.date;
-        } else if (b.type === 'post-with-comments') {
-          dateB = b.originalPost.date;
-        } else if (b.type === 'group') {
-          dateB = b.posts[0].date;
-        }
-        
-        return new Date(dateB) - new Date(dateA);
+        return new Date(b.date) - new Date(a.date);
       });
     },
-    // Подсчет реальных постов (не включая комментарии)
-    realPostsCount() {
-      return this.organizedPosts.length;
-    },
-    // Подсчет всех комментариев
-    totalCommentsCount() {
-      let count = 0;
-      Object.values(this.postsWithComments).forEach(data => {
-        count += data.comments.length;
+    
+    // Посты с комментариями из дискуссионной группы
+    organizedPostsWithDiscussion() {
+      if (!this.discussionGroupId) {
+        return this.organizedPosts;
+      }
+
+      // Приводим discussionGroupId к строке для корректного сравнения
+      const discussionGroupIdStr = String(this.discussionGroupId);
+
+      return this.organizedPosts.map(item => {
+        // Определяем telegram_id поста для поиска комментариев
+        const targetPostId = item.type === 'group' ? item.posts[0].telegram_id : item.post.telegram_id;
+        
+        // Ищем комментарии среди ВСЕХ постов по channel_id и reply_to
+        const discussionComments = this.posts.filter(post => {
+          const channelMatch = post.channel_id === discussionGroupIdStr;
+          const replyMatch = post.reply_to === targetPostId;
+          return channelMatch && replyMatch;
+        });
+        
+        return {
+          ...item,
+          discussionComments: discussionComments
+        };
       });
-      return count;
-    },
-  },
-  methods: {
-    goBack() {
-      // Используем Vue Router для навигации назад
-      this.$router.push('/');
     }
   }
 };
 </script>
+
+<style scoped>
+/* Стили для дискуссий */
+.ml-8 {
+  margin-left: 2rem;
+}
+
+.mt-4 {
+  margin-top: 1rem;
+}
+</style>
