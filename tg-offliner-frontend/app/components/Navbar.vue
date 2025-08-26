@@ -1,5 +1,5 @@
 <template>
-  <div class="navbar bg-base-100 shadow-lg">
+  <div class="navbar bg-base-100 shadow-lg print:hidden">
     <div class="navbar-start">
       <!-- Mobile menu -->
       <div class="dropdown">

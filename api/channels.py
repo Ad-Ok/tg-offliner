@@ -278,6 +278,26 @@ def channel_preview():
         if client:
             current_app.logger.info("Запрос к Telegram завершен")
 
+def clean_css_for_pdf(css_content):
+    """
+    Очищает CSS от проблемных для WeasyPrint конструкций:
+    - Удаляет пустые CSS custom properties (--tw-*)
+    - Удаляет другие проблемные Tailwind конструкции
+    """
+    import re
+    
+    # Удаляем пустые CSS custom properties
+    css_content = re.sub(r'--tw-[^:]*:\s*;', '', css_content)
+    css_content = re.sub(r'--tw-[^:]*:\s*``;', '', css_content)
+    
+    # Удаляем другие пустые custom properties
+    css_content = re.sub(r'--[^:]*:\s*;', '', css_content)
+    
+    # Удаляем пустые строки, которые могли появиться после очистки
+    css_content = re.sub(r'\n\s*\n', '\n', css_content)
+    
+    return css_content
+
 def process_html_for_standalone(html_content):
     """
     Обрабатывает HTML для автономного использования:
@@ -379,37 +399,121 @@ def export_channel_to_html(channel_id):
         current_app.logger.error(f"Ошибка при экспорте HTML для канала {channel_id}: {str(e)}")
         return jsonify({"error": "Ошибка при экспорте HTML"}), 500
 
+def create_pdf_html(channel_id):
+    """Создает HTML специально для PDF с минимальным CSS."""
+    try:
+        # Получаем HTML от SSR
+        ssr_url = f'http://ssr:3000/{channel_id}/posts'
+        response = requests.get(ssr_url)
+        if response.status_code != 200:
+            current_app.logger.error(f"SSR-сервер вернул ошибку: {response.status_code}")
+            return None
+
+        html_content = response.text
+        
+        # Создаем папку для канала
+        channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
+        os.makedirs(channel_dir, exist_ok=True)
+        
+        # Копируем PDF CSS файл 
+        pdf_css_source = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tg-offliner-frontend', 'public', 'styles-pdf.css')
+        pdf_css_dest = os.path.join(channel_dir, 'styles-pdf.css')
+        
+        if os.path.exists(pdf_css_source):
+            # Читаем CSS файл
+            with open(pdf_css_source, 'r', encoding='utf-8') as f:
+                css_content = f.read()
+            
+            # Очищаем CSS от проблемных конструкций
+            cleaned_css = clean_css_for_pdf(css_content)
+            
+            # Сохраняем очищенный CSS
+            with open(pdf_css_dest, 'w', encoding='utf-8') as f:
+                f.write(cleaned_css)
+            
+            current_app.logger.info(f"PDF CSS файл скопирован и очищен: {pdf_css_source} -> {pdf_css_dest}")
+        else:
+            current_app.logger.warning(f"PDF CSS файл не найден: {pdf_css_source}")
+            return None
+        
+        # Обрабатываем HTML для PDF
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Удаляем все существующие CSS ссылки
+        for link in soup.find_all('link', rel='stylesheet'):
+            link.decompose()
+        
+        # Добавляем ссылку на PDF CSS
+        head = soup.find('head')
+        if head:
+            css_link = soup.new_tag('link')
+            css_link['rel'] = 'stylesheet'
+            css_link['href'] = './styles-pdf.css'
+            head.append(css_link)
+        
+        # Удаляем скрипты
+        for script in soup.find_all('script'):
+            script.decompose()
+        
+        # Добавляем базовые meta-теги
+        if head:
+            if not soup.find('meta', charset=True):
+                meta_charset = soup.new_tag('meta')
+                meta_charset['charset'] = 'utf-8'
+                head.insert(0, meta_charset)
+        
+        # Обновляем пути к медиа файлам
+        for img in soup.find_all('img'):
+            src = img.get('src')
+            if src and src.startswith('/api/media/'):
+                filename = src.split('/')[-1]
+                img['src'] = f'./media/{filename}'
+        
+        # Сохраняем PDF HTML
+        pdf_html_path = os.path.join(channel_dir, 'index-pdf.html')
+        with open(pdf_html_path, 'w', encoding='utf-8') as f:
+            f.write(str(soup))
+        
+        current_app.logger.info(f"PDF HTML создан: {pdf_html_path}")
+        return pdf_html_path
+        
+    except Exception as e:
+        current_app.logger.error(f"Ошибка при создании PDF HTML: {str(e)}")
+        return None
+
 @channels_bp.route('/channels/<channel_id>/print', methods=['GET'])
 def print_channel_to_pdf(channel_id):
-    """Экспортирует канал в PDF формат."""
+    """Экспортирует канал в PDF формат с минимальным CSS."""
+    # Повышаем лимит рекурсии в самом начале
+    import sys
+    old_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(50000)
+    
     try:
-        current_app.logger.info(f"Начинаем генерацию PDF для канала {channel_id}")
+        current_app.logger.info(f"=== НАЧАЛО PDF ГЕНЕРАЦИИ для канала {channel_id} ===")
+        current_app.logger.info(f"Лимит рекурсии изменен с {old_limit} на 50000")
         
-        # Сначала экспортируем HTML со всеми ресурсами
-        current_app.logger.info("Экспорт HTML файлов...")
-        html_result = export_channel_to_html(channel_id)
+        # Создаем специальный HTML для PDF
+        current_app.logger.info("Создание PDF HTML с минимальным CSS...")
+        pdf_html_path = create_pdf_html(channel_id)
         
-        # Проверяем результат экспорта HTML
-        if hasattr(html_result, 'status_code') and html_result.status_code != 200:
-            current_app.logger.error("Ошибка при экспорте HTML")
-            return jsonify({"error": "Ошибка при экспорте HTML"}), 500
+        if not pdf_html_path or not os.path.exists(pdf_html_path):
+            current_app.logger.error("PDF HTML не был создан")
+            return jsonify({"error": "Ошибка при создании PDF HTML"}), 500
         
-        # Определяем путь к созданному HTML файлу
-        channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
-        html_path = os.path.join(channel_dir, 'index.html')
-        
-        if not os.path.exists(html_path):
-            current_app.logger.error(f"HTML файл не найден: {html_path}")
-            return jsonify({"error": "HTML файл не был создан"}), 500
-        
-        current_app.logger.info(f"HTML файл найден: {html_path}")
+        current_app.logger.info(f"PDF HTML создан: {pdf_html_path}")
         
         # Генерируем PDF из локального HTML файла
+        current_app.logger.info("Импорт weasyprint...")
         from weasyprint import HTML
-        pdf_path = os.path.join(channel_dir, f"{channel_id}.pdf")
         
-        current_app.logger.info(f"Генерация PDF: {pdf_path}")
-        HTML(filename=html_path).write_pdf(pdf_path)
+        channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
+        pdf_path = os.path.join(channel_dir, f"{channel_id}.pdf")
+        current_app.logger.info(f"Начинаем генерацию PDF: {pdf_path}")
+        
+        HTML(filename=pdf_html_path).write_pdf(pdf_path)
+        current_app.logger.info("PDF успешно сгенерирован")
 
         if not os.path.exists(pdf_path):
             current_app.logger.error(f"PDF-файл не найден после генерации: {pdf_path}")
@@ -417,14 +521,20 @@ def print_channel_to_pdf(channel_id):
 
         current_app.logger.info(f"PDF для канала {channel_id} успешно создан: {pdf_path}")
         
-        # Возвращаем информацию о том, что файл сохранен, вместо отправки файла
         return jsonify({
             "success": True, 
             "message": f"PDF файл создан и сохранен в папку downloads/{channel_id}/",
             "path": pdf_path
         }), 200
+        
     except Exception as e:
-        current_app.logger.error(f"Ошибка при генерации PDF для канала {channel_id}: {str(e)}")
+        current_app.logger.error(f"ОШИБКА при генерации PDF для канала {channel_id}: {str(e)}")
         import traceback
         current_app.logger.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({"error": "Ошибка при генерации PDF"}), 500
+        return jsonify({"error": f"Ошибка при генерации PDF: {str(e)}"}), 500
+        
+    finally:
+        # Восстанавливаем лимит рекурсии в любом случае
+        sys.setrecursionlimit(old_limit)
+        current_app.logger.info(f"Лимит рекурсии восстановлен до {old_limit}")
+        current_app.logger.info("=== КОНЕЦ PDF ГЕНЕРАЦИИ ===")

@@ -9,7 +9,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "watch:tailwindcss": "tailwindcss -i ./assets/tailwind.css -o ./public/styles.css --watch",
-    "build:tailwindcss": "tailwindcss -i ./assets/tailwind.css -o ./public/styles.css --minify"
+    "build:tailwindcss": "tailwindcss -i ./assets/tailwind.css -o ./public/styles.css --minify",
+    "build:pdf-css": "tailwindcss -c ./tailwind.pdf.config.js -i ./assets/tailwind.css -o ./public/styles-pdf.css --minify"
   },
   "dependencies": {
     "daisyui": "^5.0.50",
