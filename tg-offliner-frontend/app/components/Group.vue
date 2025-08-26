@@ -7,24 +7,13 @@
         :author-link="firstPost.author_link"
         :date="firstPost.date"
       />
-      <div class="post-body pl-11">
-        <!-- Цитата оригинального поста для комментариев -->
-        <PostQuote 
-          v-if="originalPost"
-          :original-post="originalPost"
-        />
-        
-        <div v-if="firstPost.repost_author_name" class="repost-author flex items-center space-x-4">
-          <span class="text-sm text-gray-600 dark:text-gray-400">Репост от:</span>
-          <PostAuthor
-            :name="firstPost.repost_author_name"
-            :avatar="firstPost.repost_author_avatar"
-            :link="firstPost.repost_author_link"
-          />
-        </div>
-
-        <p v-if="firstPost.message" v-html="firstPost.message"></p>
-      </div>
+      <PostBody
+        :original-post="originalPost"
+        :message="firstPost.message"
+        :repost-author-name="firstPost.repost_author_name"
+        :repost-author-avatar="firstPost.repost_author_avatar"
+        :repost-author-link="firstPost.repost_author_link"
+      />
 
       <div class="media-grid mt-2">
         <div
@@ -51,10 +40,9 @@
 
 <script>
 import PostHeader from './PostHeader.vue';
-import PostAuthor from './PostAuthor.vue';
 import PostMedia from './PostMedia.vue';
 import PostFooter from './PostFooter.vue';
-import PostQuote from './PostQuote.vue';
+import PostBody from './PostBody.vue';
 
 export default {
   name: "Group",
@@ -70,10 +58,9 @@ export default {
   },
   components: {
     PostHeader,
-    PostAuthor,
     PostMedia,
     PostFooter,
-    PostQuote,
+    PostBody,
   },
   computed: {
     firstPost() {
