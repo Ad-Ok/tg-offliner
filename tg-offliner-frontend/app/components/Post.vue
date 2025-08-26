@@ -30,21 +30,17 @@
       </div>
     </div>
 
-    <div class="post-footer flex justify-between py-2 px-4 text-sm text-gray-500 dark:text-gray-400">
-      <PostReactions v-if="post.reactions" :reactions="post.reactions" />
-      <div v-if="commentsCount > 0" class="ml-auto">
-        <span class="">
-          {{ commentsCount }} {{ commentText }}
-        </span>
-      </div>
-    </div>
+    <PostFooter 
+      :reactions="post.reactions"
+      :comments-count="commentsCount"
+    />
   </div>
 </template>
 
 <script>
 import PostHeader from './PostHeader.vue';
 import PostMedia from './PostMedia.vue';
-import PostReactions from './PostReactions.vue';
+import PostFooter from './PostFooter.vue';
 
 export default {
   // eslint-disable-next-line vue/multi-word-component-names
@@ -62,15 +58,7 @@ export default {
   components: {
     PostHeader,
     PostMedia,
-    PostReactions,
-  },
-  computed: {
-    commentText() {
-      const count = this.commentsCount;
-      if (count === 1) return 'комментарий';
-      if (count >= 2 && count <= 4) return 'комментария';
-      return 'комментариев';
-    }
+    PostFooter,
   },
 };
 </script>

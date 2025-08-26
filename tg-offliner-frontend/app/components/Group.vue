@@ -35,14 +35,10 @@
       </div>
     </div>
 
-    <div class="post-footer flex justify-between py-2 px-4 text-sm text-gray-500 dark:text-gray-400">
-      <PostReactions v-if="firstPost.reactions" :reactions="firstPost.reactions" />
-      <!-- <div v-if="commentsCount > 0" class="ml-auto">
-        <span class="">
-          {{ commentsCount }} {{ commentText }}
-        </span>
-      </div> -->
-    </div>
+    <PostFooter 
+      :reactions="firstPost.reactions"
+      :comments-count="0"
+    />
 
   </div>
 </template>
@@ -51,7 +47,7 @@
 import PostHeader from './PostHeader.vue';
 import PostAuthor from './PostAuthor.vue';
 import PostMedia from './PostMedia.vue';
-import PostReactions from './PostReactions.vue';
+import PostFooter from './PostFooter.vue';
 
 export default {
   name: "Group",
@@ -65,7 +61,7 @@ export default {
     PostHeader,
     PostAuthor,
     PostMedia,
-    PostReactions,
+    PostFooter,
   },
   computed: {
     firstPost() {
