@@ -41,6 +41,22 @@
     
     <!-- Actions -->
     <div class="navbar-end">
+      <!-- Edit Mode Toggle Button - только на странице канала -->
+      <button 
+        v-if="isChannelPage"
+        @click="editModeStore.toggleEditMode()"
+        :class="editModeStore.isEditMode ? 'btn-error' : 'btn-outline'"
+        class="btn btn-sm mr-3"
+      >
+        <svg v-if="!editModeStore.isEditMode" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+        <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        {{ editModeStore.isEditMode ? 'Выйти' : 'Редактировать' }}
+      </button>
+      
       <div class="dropdown dropdown-end">
         <div tabindex="0" role="button" class="btn btn-ghost btn-circle">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -58,5 +74,22 @@
 </template>
 
 <script setup>
-// DaisyUI компоненты работают автоматически без дополнительных импортов
+import { useEditModeStore } from '~/stores/editMode'
+
+// Используем store для режима редактирования
+const editModeStore = useEditModeStore()
+
+// Определяем, находимся ли мы на странице канала
+const route = useRoute()
+const isChannelPage = computed(() => {
+  // Проверяем, что путь соответствует паттерну /[channelId]/posts
+  return route.path.includes('/posts') && route.params.channelId
+})
+
+// Сбрасываем режим редактирования при переходе на другую страницу
+watch(() => route.path, (newPath) => {
+  if (!newPath.includes('/posts')) {
+    editModeStore.disableEditMode()
+  }
+})
 </script>

@@ -13,8 +13,10 @@
     "build:pdf-css": "tailwindcss -c ./tailwind.pdf.config.js -i ./assets/tailwind.css -o ./public/styles-pdf.css --minify"
   },
   "dependencies": {
+    "@pinia/nuxt": "^0.11.2",
     "daisyui": "^5.0.50",
     "nuxt": "^4.0.0",
+    "pinia": "^3.0.3",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1"
   },
