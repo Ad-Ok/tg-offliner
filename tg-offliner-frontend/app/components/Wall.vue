@@ -69,6 +69,14 @@ export default {
       const groups = {};
       this.posts.forEach(post => {
         if (post.grouped_id) {
+          // Если есть дискуссионная группа, исключаем посты из неё из основных групп
+          if (this.discussionGroupId) {
+            const discussionGroupIdStr = String(this.discussionGroupId);
+            if (post.channel_id === discussionGroupIdStr) {
+              return; // Пропускаем посты из дискуссионной группы
+            }
+          }
+          
           if (!groups[post.grouped_id]) {
             groups[post.grouped_id] = [];
           }
