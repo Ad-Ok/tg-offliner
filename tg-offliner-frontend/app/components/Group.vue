@@ -1,14 +1,12 @@
 <template>
   <div class="group w-full" :data-grouped-id="groupedId">
     <div class="p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm">
-      <div class="group-header flex items-center justify-between space-x-1 mb-2">
-        <PostAuthor
-          :name="firstPost.author_name"
-          :avatar="firstPost.author_avatar"
-          :link="firstPost.author_link"
-        />
-          <span class="post-date ml-auto text-xs text-gray-400">{{ formattedDate }}</span>
-      </div>
+      <PostHeader
+        :author-name="firstPost.author_name"
+        :author-avatar="firstPost.author_avatar"
+        :author-link="firstPost.author_link"
+        :date="firstPost.date"
+      />
       <div class="post-body pl-11">
         <div v-if="firstPost.repost_author_name" class="repost-author flex items-center space-x-4">
           <span class="text-sm text-gray-600 dark:text-gray-400">Репост от:</span>
@@ -50,10 +48,10 @@
 </template>
 
 <script>
+import PostHeader from './PostHeader.vue';
 import PostAuthor from './PostAuthor.vue';
 import PostMedia from './PostMedia.vue';
 import PostReactions from './PostReactions.vue';
-import { formatMessageDate } from '@/services/dateService';
 
 export default {
   name: "Group",
@@ -64,6 +62,7 @@ export default {
     },
   },
   components: {
+    PostHeader,
     PostAuthor,
     PostMedia,
     PostReactions,
@@ -74,9 +73,6 @@ export default {
     },
     groupedId() {
       return this.firstPost.grouped_id;
-    },
-    formattedDate() {
-      return formatMessageDate(this.firstPost.date);
     },
     postsWithMedia() {
       return this.posts.filter(post => post.media_url && post.media_type);

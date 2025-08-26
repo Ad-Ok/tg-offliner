@@ -1,14 +1,12 @@
 <template>
   <div class="post w-full">
     <div class="post-wrap p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm">
-      <div class="post-header flex items-center justify-between space-x-1 mb-2">
-        <PostAuthor
-          :name="post.author_name"
-          :avatar="post.author_avatar"
-          :link="post.author_link"
-        />
-        <span class="post-date ml-auto text-xs text-gray-400">{{ formattedDate }}</span>
-      </div>
+      <PostHeader
+        :author-name="post.author_name"
+        :author-avatar="post.author_avatar"
+        :author-link="post.author_link"
+        :date="post.date"
+      />
 
       <div class="post-body pl-11">
         <div v-if="post.repost_author_name" class="repost-author flex items-center space-x-4">
@@ -44,10 +42,9 @@
 </template>
 
 <script>
-import PostAuthor from './PostAuthor.vue';
+import PostHeader from './PostHeader.vue';
 import PostMedia from './PostMedia.vue';
 import PostReactions from './PostReactions.vue';
-import { formatMessageDate } from '@/services/dateService'; // Импорт сервиса
 
 export default {
   // eslint-disable-next-line vue/multi-word-component-names
@@ -63,14 +60,11 @@ export default {
     },
   },
   components: {
-    PostAuthor,
+    PostHeader,
     PostMedia,
     PostReactions,
   },
   computed: {
-    formattedDate() {
-      return formatMessageDate(this.post.date);
-    },
     commentText() {
       const count = this.commentsCount;
       if (count === 1) return 'комментарий';
