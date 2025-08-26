@@ -23,6 +23,33 @@ module.exports = {
         print: { raw: 'print' },    // Стили для печати
         screen: { raw: 'screen' },  // Стили для экрана
       },
+      fontFamily: {
+        // Определяем безопасные системные шрифты для PDF
+        'sans': [
+          '-apple-system',
+          'BlinkMacSystemFont', 
+          '"Segoe UI"',
+          'Roboto',
+          '"Helvetica Neue"',
+          'Arial',
+          'sans-serif'
+        ],
+        'serif': [
+          'Georgia',
+          '"Times New Roman"',
+          'Times',
+          'serif'
+        ],
+        'mono': [
+          '"SF Mono"',
+          'Monaco',
+          'Inconsolata',
+          '"Roboto Mono"',
+          'Consolas',
+          '"Courier New"',
+          'monospace'
+        ]
+      }
     },
   },
   // Отключаем DaisyUI для PDF - оно добавляет много ненужных стилей

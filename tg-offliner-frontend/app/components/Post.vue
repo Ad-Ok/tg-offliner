@@ -1,6 +1,6 @@
 <template>
-  <div class="post w-full">
-    <div class="post-wrap p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm">
+  <div class="post w-full font-sans">
+    <div class="post-wrap p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm print:shadow-none print:border print:border-gray-300">
       <PostHeader
         :author-name="post.author_name"
         :author-avatar="post.author_avatar"

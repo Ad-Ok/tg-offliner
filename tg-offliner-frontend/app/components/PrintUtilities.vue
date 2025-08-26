@@ -15,6 +15,22 @@
     <div class="print:shadow-none"></div>
     <div class="print:border-none"></div>
     
+    <!-- PDF Font utilities - используем стандартные Tailwind классы -->
+    <div class="print:font-sans"></div>
+    <div class="print:font-serif"></div>
+    <div class="print:font-mono"></div>
+    <div class="font-sans"></div>
+    <div class="font-serif"></div>
+    <div class="font-mono"></div>
+    
+    <!-- Typography for PDF -->
+    <div class="print:text-sm"></div>
+    <div class="print:text-base"></div>
+    <div class="print:text-lg"></div>
+    <div class="print:text-xl"></div>
+    <div class="print:leading-normal"></div>
+    <div class="print:leading-relaxed"></div>
+    
     <!-- Screen utilities -->
     <div class="screen:block"></div>
     <div class="screen:hidden"></div>

@@ -2,6 +2,7 @@
 API endpoints для работы с каналами
 """
 import os
+import re
 import time
 import logging
 import shutil
@@ -280,21 +281,12 @@ def channel_preview():
 
 def clean_css_for_pdf(css_content):
     """
-    Очищает CSS от проблемных для WeasyPrint конструкций:
-    - Удаляет пустые CSS custom properties (--tw-*)
-    - Удаляет другие проблемные Tailwind конструкции
+    Очищает CSS от проблемных правил для WeasyPrint
     """
-    import re
-    
-    # Удаляем пустые CSS custom properties
+    # Удаляем пустые CSS custom properties, которые вызывают warnings
+    # Например: --tw-gradient-via-position: ;
     css_content = re.sub(r'--tw-[^:]*:\s*;', '', css_content)
-    css_content = re.sub(r'--tw-[^:]*:\s*``;', '', css_content)
-    
-    # Удаляем другие пустые custom properties
     css_content = re.sub(r'--[^:]*:\s*;', '', css_content)
-    
-    # Удаляем пустые строки, которые могли появиться после очистки
-    css_content = re.sub(r'\n\s*\n', '\n', css_content)
     
     return css_content
 
