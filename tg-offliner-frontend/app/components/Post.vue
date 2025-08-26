@@ -4,11 +4,13 @@
     <button 
       v-if="editModeStore.showDeleteButtons"
       @click="togglePostVisibility"
+      :disabled="isSaving"
       :class="isHidden ? 'bg-gray-500 hover:bg-gray-600' : 'bg-red-500 hover:bg-red-600'"
-      class="absolute top-2 right-2 z-10 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold cursor-pointer transition-colors shadow-lg print:hidden"
-      :title="isHidden ? 'Показать пост' : 'Скрыть пост'"
+      class="absolute top-2 right-2 z-10 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold cursor-pointer transition-colors shadow-lg print:hidden disabled:opacity-50 disabled:cursor-not-allowed"
+      :title="isSaving ? 'Сохранение...' : (isHidden ? 'Показать пост' : 'Скрыть пост')"
     >
-      <span v-if="isHidden">👁</span>
+      <span v-if="isSaving">⏳</span>
+      <span v-else-if="isHidden">👁</span>
       <span v-else>×</span>
     </button>
     
@@ -78,32 +80,67 @@ export default {
     PostFooter,
     PostBody,
   },
-  setup() {
+  setup(props) {
     const editModeStore = useEditModeStore()
     
     // Состояние скрытости поста
     const isHidden = ref(false)
+    const isSaving = ref(false)
     
     // Методы для скрытия и показа поста
-    const hidePost = () => {
+    const hidePost = async () => {
       isHidden.value = true
+      await saveHiddenState(true)
     }
     
-    const showPost = () => {
+    const showPost = async () => {
       isHidden.value = false
+      await saveHiddenState(false)
     }
     
-    const togglePostVisibility = () => {
+    const togglePostVisibility = async () => {
+      if (isSaving.value) return // Предотвращаем множественные клики
+      
       if (isHidden.value) {
-        showPost()
+        await showPost()
       } else {
-        hidePost()
+        await hidePost()
+      }
+    }
+    
+    // Сохранение состояния в базу данных
+    const saveHiddenState = async (hidden) => {
+      try {
+        isSaving.value = true
+        
+        // Импортируем сервис динамически
+        const { editsService } = await import('~/services/editsService.js')
+        
+        await editsService.setPostHidden(
+          props.post.telegram_id,
+          props.post.channel_id,
+          hidden
+        )
+        
+        console.log(`Post ${props.post.telegram_id} ${hidden ? 'hidden' : 'shown'} successfully`)
+        
+      } catch (error) {
+        console.error('Error saving post visibility state:', error)
+        // Откатываем состояние при ошибке
+        isHidden.value = !hidden
+        
+        // Можно добавить уведомление пользователя об ошибке
+        alert('Ошибка при сохранении изменений. Попробуйте еще раз.')
+        
+      } finally {
+        isSaving.value = false
       }
     }
     
     return {
       editModeStore,
       isHidden,
+      isSaving,
       hidePost,
       showPost,
       togglePostVisibility
