@@ -100,63 +100,66 @@
             </div>
           </div>
 
-          <div class="flex space-x-4">
-            <button @click="loadChannel(preview, index)" class="btn btn-primary">Загрузить канал</button>
-            <button @click="removePreview(index)" class="btn btn-soft btn-error">Отменить</button>
-          </div>
-
-
             <!-- Настройки экспорта -->
-            <div class="p-3 bg-base-200 rounded-lg col-span-3 row-auto">
+            <div class="p-3 bg-base-200 rounded-lg list-col-wrap list-col-grow col-span-full">
               <div class="text-sm font-medium mb-2">Загрузить:</div>
-              <div class="grid grid-cols-2 gap-2 text-sm mb-3">
-                <label class="flex items-center space-x-2 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    v-model="exportSettings.include_system_messages"
-                    class="checkbox checkbox-sm"
-                  />
-                  <span>Системные сообщения</span>
-                </label>
-                <label class="flex items-center space-x-2 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    v-model="exportSettings.include_reposts"
-                    class="checkbox checkbox-sm"
-                  />
-                  <span>Репосты</span>
-                </label>
-                <label class="flex items-center space-x-2 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    v-model="exportSettings.include_polls"
-                    class="checkbox checkbox-sm"
-                  />
-                  <span>Опросы</span>
-                </label>
-                <label class="flex items-center space-x-2 cursor-pointer" v-if="preview.discussion_group_id">
-                  <input 
-                    type="checkbox" 
-                    v-model="exportSettings.include_discussion_comments"
-                    class="checkbox checkbox-sm"
-                  />
-                  <span>Комментарии</span>
-                </label>
+              <div class="flex items-end">
+                <div>
+
+                  <div class="flex space-x-2 text-sm mb-3">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        v-model="exportSettings.include_system_messages"
+                        class="checkbox checkbox-sm"
+                      />
+                      <span>Системные сообщения</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        v-model="exportSettings.include_reposts"
+                        class="checkbox checkbox-sm"
+                      />
+                      <span>Репосты</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        v-model="exportSettings.include_polls"
+                        class="checkbox checkbox-sm"
+                      />
+                      <span>Опросы</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer" v-if="preview.discussion_group_id">
+                      <input 
+                        type="checkbox" 
+                        v-model="exportSettings.include_discussion_comments"
+                        class="checkbox checkbox-sm"
+                      />
+                      <span>Комментарии</span>
+                    </label>
+                  </div>
+                  <div class="flex items-center space-x-2 text-sm">
+                    <span>Лимит сообщений:</span>
+                    <input 
+                      type="number" 
+                      v-model.number="exportSettings.message_limit"
+                      placeholder="Без лимита"
+                      class="input input-sm input-bordered w-24"
+                      min="1"
+                    />
+                    <span class="text-xs opacity-70">(пусто = все сообщения)</span>
+                  </div>
+                </div>
+
+                <div class="flex space-x-4 ml-auto">
+                  <button @click="removePreview(index)" class="btn btn-soft btn-error">Отменить</button>
+                  <button @click="loadChannel(preview, index)" class="btn btn-primary">Загрузить канал</button>
+                </div>
               </div>
-              <div class="flex items-center space-x-2 text-sm">
-                <span>Лимит сообщений:</span>
-                <input 
-                  type="number" 
-                  v-model.number="exportSettings.message_limit"
-                  placeholder="Без лимита"
-                  class="input input-sm input-bordered w-24"
-                  min="1"
-                />
-                <span class="text-xs opacity-70">(пусто = все сообщения)</span>
-              </div>
+
             </div>
-
-
         </li>
       </ul>
     </div>
