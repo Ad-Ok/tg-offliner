@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-base-200">
     <Navbar />
-    <main class="container mx-auto px-4 py-8">
+    <main class="container mx-auto pt-24 p-4 pb-8">
       <slot />
     </main>
   </div>

@@ -7,8 +7,8 @@
       v-if="editModeStore.showDeleteButtons"
       @click="togglePostVisibility"
       :disabled="isSaving"
-      :class="isHidden ? 'bg-gray-500 hover:bg-gray-600' : 'bg-red-500 hover:bg-red-600'"
-      class="absolute top-2 right-2 z-10 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold cursor-pointer transition-colors shadow-lg print:hidden disabled:opacity-50 disabled:cursor-not-allowed"
+      :class="isHidden ? 'btn-info' : 'btn-error'"
+      class="absolute top-2 left-full ml-2 z-10 btn btn-circle btn-sm btn-outline text-xl print:hidden disabled:opacity-50 disabled:cursor-not-allowed"
       :title="isSaving ? 'Сохранение...' : (isHidden ? 'Показать пост' : 'Скрыть пост')"
     >
       <span v-if="isSaving">⏳</span>

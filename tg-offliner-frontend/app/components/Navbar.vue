@@ -1,5 +1,5 @@
 <template>
-  <div class="navbar bg-base-100 shadow-lg print:hidden">
+  <div class="navbar fixed top-0 right-0 left-0 z-10 bg-base-100 shadow-lg print:hidden">
     <div class="navbar-start">
       <!-- Mobile menu -->
       <div class="dropdown">
