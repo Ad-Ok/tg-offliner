@@ -11,6 +11,29 @@ function isPdfSsr() {
   return false;
 }
 
+function isExportSsr() {
+  if (typeof window !== 'undefined') return false;
+  // Nuxt 3/4: доступен useRequestEvent
+  try {
+    const { useRequestEvent } = require('#app');
+    const event = useRequestEvent && useRequestEvent();
+    if (event && event.node && event.node.req && event.node.req.url) {
+      const url = event.node.req.url;
+      const hasExportParam = url.includes('export=1');
+      console.log('🔍 [SSR] isExportSsr - URL:', url);
+      console.log('🔍 [SSR] isExportSsr - hasExportParam:', hasExportParam);
+      console.log('🔍 [SSR] isExportSsr - headers:', event.node.req.headers);
+      return hasExportParam;
+    }
+  } catch (e) {
+    console.error('❌ [SSR] Error in isExportSsr:', e);
+  }
+  console.log('🔍 [SSR] isExportSsr - returning false (no url found)');
+  return false;
+}
+
+export { isExportSsr };
+
 export const apiBase =
   typeof window === 'undefined'
     ? 'http://app:5000'

@@ -346,9 +346,13 @@ def process_html_for_standalone(html_content):
 def export_channel_to_html(channel_id):
     """Экспортирует канал в HTML формат для автономного использования."""
     try:
-        # Получаем HTML от SSR без параметра pdf=1 (обычная версия)
-        ssr_url = f'http://ssr:3000/{channel_id}/posts'
+        # Получаем HTML от SSR с параметром export=1 для включения режима экспорта
+        ssr_url = f'http://ssr:3000/{channel_id}/posts?export=1'
+        current_app.logger.info(f"🔍 [BACKEND] Making SSR request to: {ssr_url}")
+        
         response = requests.get(ssr_url)
+        current_app.logger.info(f"🔍 [BACKEND] SSR response status: {response.status_code}")
+        
         if response.status_code != 200:
             current_app.logger.error(f"SSR-сервер вернул ошибку: {response.status_code}")
             return jsonify({"error": "Ошибка SSR-рендеринга"}), 500

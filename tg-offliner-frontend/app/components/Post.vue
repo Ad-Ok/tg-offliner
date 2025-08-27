@@ -1,6 +1,8 @@
 <template>
-   <div class="post w-full font-sans print:text-sm relative">
-    <!-- Кнопка скрытия/показа в режиме редактирования -->
+  <div 
+    class="post-container relative"
+    :class="{ 'hidden': isHidden && editModeStore.isExportMode }"
+  >
     <button 
       v-if="editModeStore.showDeleteButtons"
       @click="togglePostVisibility"
@@ -15,38 +17,39 @@
     </button>
     
     <div 
-      class="post-wrap p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm print:shadow-none print:border print:border-gray-300 print:p-3"
-      :class="{ 'opacity-25 print:hidden': isHidden }"
+      class="post w-full font-sans print:text-sm"
+      :class="{ 'opacity-25 print:hidden': isHidden && !editModeStore.isExportMode }"
     >
-      <PostHeader
-        :author-name="post.author_name"
-        :author-avatar="post.author_avatar"
-        :author-link="post.author_link"
-        :date="post.date"
-      />
-
-      <PostBody
-        :original-post="originalPost"
-        :message="post.message"
-        :repost-author-name="post.repost_author_name"
-        :repost-author-avatar="post.repost_author_avatar"
-        :repost-author-link="post.repost_author_link"
-      />
-
-      <div v-if="post.media_url && post.media_type" class="mt-2 pl-11">
-        <PostMedia
-          :mediaUrl="post.media_url"
-          :mediaType="post.media_type"
-          :mimeType="post.mime_type"
+      <div class="post-wrap p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm print:shadow-none print:border print:border-gray-300 print:p-3">
+        <PostHeader
+          :author-name="post.author_name"
+          :author-avatar="post.author_avatar"
+          :author-link="post.author_link"
+          :date="post.date"
         />
-      </div>
-    </div>
 
-    <PostFooter 
-      :reactions="post.reactions"
-      :comments-count="commentsCount"
-      :class="{ 'opacity-25 print:hidden': isHidden }"
-    />
+        <PostBody
+          :original-post="originalPost"
+          :message="post.message"
+          :repost-author-name="post.repost_author_name"
+          :repost-author-avatar="post.repost_author_avatar"
+          :repost-author-link="post.repost_author_link"
+        />
+
+        <div v-if="post.media_url && post.media_type" class="mt-2 pl-11">
+          <PostMedia
+            :mediaUrl="post.media_url"
+            :mediaType="post.media_type"
+            :mimeType="post.mime_type"
+          />
+        </div>
+      </div>
+
+      <PostFooter 
+        :reactions="post.reactions"
+        :comments-count="commentsCount"
+      />
+    </div>
   </div>
 </template>
 
@@ -83,17 +86,18 @@ export default {
   setup(props) {
     const editModeStore = useEditModeStore()
     
-    // Состояние скрытости поста
-    const isHidden = ref(false)
+    const isHidden = ref(props.post.isHidden || false)
     const isSaving = ref(false)
     const isLoading = ref(false)
     
-    // Загрузка состояния скрытости при инициализации
     const loadHiddenState = async () => {
+      if (props.post.isHidden !== undefined) {
+        return
+      }
+      
       try {
         isLoading.value = true
         
-        // Импортируем сервис динамически
         const { editsService } = await import('~/services/editsService.js')
         
         const hiddenState = await editsService.getPostHiddenState(
@@ -111,7 +115,6 @@ export default {
       }
     }
     
-    // Методы для скрытия и показа поста
     const hidePost = async () => {
       isHidden.value = true
       await saveHiddenState(true)
@@ -132,12 +135,10 @@ export default {
       }
     }
     
-    // Сохранение состояния в базу данных
     const saveHiddenState = async (hidden) => {
       try {
         isSaving.value = true
         
-        // Импортируем сервис динамически
         const { editsService } = await import('~/services/editsService.js')
         
         await editsService.setPostHidden(
@@ -146,14 +147,10 @@ export default {
           hidden
         )
         
-        console.log(`Post ${props.post.telegram_id} ${hidden ? 'hidden' : 'shown'} successfully`)
-        
       } catch (error) {
         console.error('Error saving post visibility state:', error)
-        // Откатываем состояние при ошибке
         isHidden.value = !hidden
         
-        // Можно добавить уведомление пользователя об ошибке
         alert('Ошибка при сохранении изменений. Попробуйте еще раз.')
         
       } finally {
@@ -161,9 +158,9 @@ export default {
       }
     }
     
-    // Загружаем состояние при монтировании компонента
     onMounted(() => {
       loadHiddenState()
+      editModeStore.checkAndSetExportMode()
     })
     
     return {

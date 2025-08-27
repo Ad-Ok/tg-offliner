@@ -1,13 +1,6 @@
 import { api } from './api.js'
 
 export const editsService = {
-  /**
-   * Создание новой правки поста или обновление существующей
-   * @param {number} telegramId - ID телеграм сообщения
-   * @param {string} channelId - ID канала
-   * @param {object} changes - Объект с изменениями
-   * @returns {Promise} - Промис с результатом
-   */
   async createOrUpdateEdit(telegramId, channelId, changes) {
     try {
       const response = await api.post('/api/edits', {
@@ -22,12 +15,6 @@ export const editsService = {
     }
   },
 
-  /**
-   * Получение правки для конкретного поста
-   * @param {number} telegramId - ID телеграм сообщения
-   * @param {string} channelId - ID канала
-   * @returns {Promise} - Промис с правкой или null
-   */
   async getEditForPost(telegramId, channelId) {
     try {
       const response = await api.get(`/api/edits/${telegramId}/${channelId}`)
@@ -38,11 +25,6 @@ export const editsService = {
     }
   },
 
-  /**
-   * Получение всех правок для канала
-   * @param {string} channelId - ID канала
-   * @returns {Promise} - Промис с массивом правок
-   */
   async getEditsForChannel(channelId) {
     try {
       const response = await api.get(`/api/edits/${channelId}`)
@@ -53,25 +35,12 @@ export const editsService = {
     }
   },
 
-  /**
-   * Создание/обновление правки для скрытия поста
-   * @param {number} telegramId - ID телеграм сообщения
-   * @param {string} channelId - ID канала
-   * @param {boolean} hidden - Скрыт ли пост
-   * @returns {Promise} - Промис с результатом
-   */
   async setPostHidden(telegramId, channelId, hidden) {
     return this.createOrUpdateEdit(telegramId, channelId, {
       hidden: hidden.toString()
     })
   },
 
-  /**
-   * Получение состояния скрытости поста
-   * @param {number} telegramId - ID телеграм сообщения
-   * @param {string} channelId - ID канала
-   * @returns {Promise<boolean>} - Промис с состоянием скрытости
-   */
   async getPostHiddenState(telegramId, channelId) {
     try {
       const edit = await this.getEditForPost(telegramId, channelId)
