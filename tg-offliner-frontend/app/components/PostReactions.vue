@@ -24,17 +24,17 @@ export default {
     parsedReactions(reactions) {
       // Преобразуем реакции, чтобы извлечь только эмодзи
       return reactions.map(reaction => {
-        const reactionStr = reaction.reaction;
-        
+        let reactionStr = reaction.reaction;
+        // Заменяем экранированный и реальный ZWJ на '+'
+        reactionStr = reactionStr.replace(/\\u200d/g, '+').replace(/\u200d/g, '+');
         // Проверяем, является ли это обычной эмодзи-реакцией
         const emojiMatch = reactionStr.match(/emoticon='(.*?)'/);
         if (emojiMatch) {
           return {
-            reaction: emojiMatch[1], // Извлекаем эмодзи
+            reaction: emojiMatch[1],
             count: reaction.count,
           };
         }
-        
         // Проверяем, является ли это платной реакцией
         if (reactionStr.includes('ReactionPaid')) {
           return {
@@ -42,7 +42,6 @@ export default {
             count: reaction.count,
           };
         }
-        
         // Для всех остальных случаев оставляем как есть
         return {
           reaction: reactionStr,
