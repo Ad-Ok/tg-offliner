@@ -3,7 +3,6 @@
     class="post-container relative"
     :class="{ 'hidden': isHidden && editModeStore.isExportMode }"
   >
-    <!-- Компонент редактирования поста -->
     <PostEditor :post="post" @hiddenStateChanged="onHiddenStateChanged" />
     
     <div 

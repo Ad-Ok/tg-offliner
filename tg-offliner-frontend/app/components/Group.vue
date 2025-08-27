@@ -1,6 +1,6 @@
 <template>
   <div class="group w-full" :data-grouped-id="groupedId">
-    <div class="p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm">
+    <div class="p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg shadow-sm">
       <PostHeader
         :author-name="firstPost.author_name"
         :author-avatar="firstPost.author_avatar"
@@ -19,12 +19,15 @@
         <div
           v-for="post in postsWithMedia"
           :key="post.id"
-          class="media-item"
+          class="media-item relative"
+          :class="{ 'hidden': getPostHiddenState(post) && editModeStore.isExportMode }"
         >
+          <PostEditor :post="post" @hiddenStateChanged="(state) => onHiddenStateChanged(post, state)"/>
           <PostMedia
             :mediaUrl="post.media_url"
             :mediaType="post.media_type"
             :mimeType="post.mime_type"
+            :class="{ 'opacity-25 print:hidden': getPostHiddenState(post) && !editModeStore.isExportMode }"
           />
         </div>
       </div>
@@ -43,6 +46,8 @@ import PostHeader from './PostHeader.vue';
 import PostMedia from './PostMedia.vue';
 import PostFooter from './PostFooter.vue';
 import PostBody from './PostBody.vue';
+import PostEditor from './PostEditor.vue';
+import { useEditModeStore } from '~/stores/editMode'
 
 export default {
   name: "Group",
@@ -65,6 +70,7 @@ export default {
     PostMedia,
     PostFooter,
     PostBody,
+    PostEditor,
   },
   computed: {
     firstPost() {
@@ -77,5 +83,44 @@ export default {
       return this.posts.filter(post => post.media_url && post.media_type);
     },
   },
+  setup(props) {
+    const editModeStore = useEditModeStore()
+    
+    // Храним состояние скрытости для каждого поста в группе
+    const hiddenStates = ref(new Map())
+    
+    // Инициализируем состояния для всех постов с медиа
+    const initializeHiddenStates = () => {
+      props.posts.forEach(post => {
+        if (post.media_url && post.media_type) {
+          const key = `${post.channel_id}:${post.telegram_id}`
+          hiddenStates.value.set(key, post.isHidden || false)
+        }
+      })
+    }
+    
+    // Инициализируем состояния сразу при создании компонента
+    initializeHiddenStates()
+    
+    const getPostHiddenState = (post) => {
+      const key = `${post.channel_id}:${post.telegram_id}`
+      return hiddenStates.value.get(key) || false
+    }
+    
+    const onHiddenStateChanged = (post, newHiddenState) => {
+      const key = `${post.channel_id}:${post.telegram_id}`
+      hiddenStates.value.set(key, newHiddenState)
+    }
+    
+    onMounted(() => {
+      editModeStore.checkAndSetExportMode()
+    })
+    
+    return {
+      editModeStore,
+      getPostHiddenState,
+      onHiddenStateChanged
+    }
+  }
 };
 </script>
