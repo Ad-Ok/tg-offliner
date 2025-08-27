@@ -3,18 +3,8 @@
     class="post-container relative"
     :class="{ 'hidden': isHidden && editModeStore.isExportMode }"
   >
-    <button 
-      v-if="editModeStore.showDeleteButtons"
-      @click="togglePostVisibility"
-      :disabled="isSaving"
-      :class="isHidden ? 'btn-info' : 'btn-error'"
-      class="absolute top-2 left-full ml-2 z-10 btn btn-circle btn-sm btn-outline text-xl print:hidden disabled:opacity-50 disabled:cursor-not-allowed"
-      :title="isSaving ? 'Сохранение...' : (isHidden ? 'Показать пост' : 'Скрыть пост')"
-    >
-      <span v-if="isSaving">⏳</span>
-      <span v-else-if="isHidden">👁</span>
-      <span v-else>×</span>
-    </button>
+    <!-- Компонент редактирования поста -->
+    <PostEditor :post="post" @hiddenStateChanged="onHiddenStateChanged" />
     
     <div 
       class="post w-full font-sans print:text-sm"
@@ -58,6 +48,7 @@ import PostHeader from './PostHeader.vue';
 import PostMedia from './PostMedia.vue';
 import PostFooter from './PostFooter.vue';
 import PostBody from './PostBody.vue';
+import PostEditor from './PostEditor.vue';
 import { useEditModeStore } from '~/stores/editMode'
 
 export default {
@@ -82,95 +73,24 @@ export default {
     PostMedia,
     PostFooter,
     PostBody,
+    PostEditor,
   },
   setup(props) {
     const editModeStore = useEditModeStore()
-    
     const isHidden = ref(props.post.isHidden || false)
-    const isSaving = ref(false)
-    const isLoading = ref(false)
     
-    const loadHiddenState = async () => {
-      if (props.post.isHidden !== undefined) {
-        return
-      }
-      
-      try {
-        isLoading.value = true
-        
-        const { editsService } = await import('~/services/editsService.js')
-        
-        const hiddenState = await editsService.getPostHiddenState(
-          props.post.telegram_id,
-          props.post.channel_id
-        )
-        
-        isHidden.value = hiddenState
-        
-      } catch (error) {
-        console.error('Error loading post hidden state:', error)
-        
-      } finally {
-        isLoading.value = false
-      }
-    }
-    
-    const hidePost = async () => {
-      isHidden.value = true
-      await saveHiddenState(true)
-    }
-    
-    const showPost = async () => {
-      isHidden.value = false
-      await saveHiddenState(false)
-    }
-    
-    const togglePostVisibility = async () => {
-      if (isSaving.value) return // Предотвращаем множественные клики
-      
-      if (isHidden.value) {
-        await showPost()
-      } else {
-        await hidePost()
-      }
-    }
-    
-    const saveHiddenState = async (hidden) => {
-      try {
-        isSaving.value = true
-        
-        const { editsService } = await import('~/services/editsService.js')
-        
-        await editsService.setPostHidden(
-          props.post.telegram_id,
-          props.post.channel_id,
-          hidden
-        )
-        
-      } catch (error) {
-        console.error('Error saving post visibility state:', error)
-        isHidden.value = !hidden
-        
-        alert('Ошибка при сохранении изменений. Попробуйте еще раз.')
-        
-      } finally {
-        isSaving.value = false
-      }
+    const onHiddenStateChanged = (newHiddenState) => {
+      isHidden.value = newHiddenState
     }
     
     onMounted(() => {
-      loadHiddenState()
       editModeStore.checkAndSetExportMode()
     })
     
     return {
       editModeStore,
       isHidden,
-      isSaving,
-      isLoading,
-      hidePost,
-      showPost,
-      togglePostVisibility
+      onHiddenStateChanged
     }
   }
 };
