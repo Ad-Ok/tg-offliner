@@ -63,9 +63,8 @@
           </div>
 
           <div class="flex space-x-2">
-            <button @click="printPdf(channel.id)" class="btn btn-sm btn-soft btn-primary">Создать PDF</button>
-            <button @click="exportHtml(channel.id)" class="btn btn-sm btn-soft btn-info">Создать HTML</button>
-            <button @click="removeChannel(channel.id)" class="btn btn-sm btn-outline btn-error">Удалить канал</button>
+            <ChannelExports :channelId="channel.id" />
+            <button @click="removeChannel(channel.id)" class="btn btn-xs btn-outline btn-error">Удалить канал</button>
           </div>
         </li>
       </ul>
@@ -203,13 +202,15 @@
 
 <script>
 import { eventBus } from "~/eventBus";
-import { api, apiBase, mediaBase } from '~/services/api'; // добавь mediaBase
+import { api, apiBase, mediaBase } from '~/services/api';
 import DownloadStatus from './DownloadStatus.vue';
+import ChannelExports from './ChannelExports.vue';
 
 export default {
   name: "ChannelsList",
   components: {
     DownloadStatus,
+    ChannelExports,
   },
   data() {
     return {
@@ -224,7 +225,6 @@ export default {
       logsOffset: 0, // Offset для логов
       downloadStatuses: {}, // Статусы загрузки каналов
       statusCheckInterval: null, // Интервал проверки статусов
-      loadingChannels: new Set(), // Set для отслеживания загружающихся каналов
       // Настройки экспорта
       exportSettings: {
         include_system_messages: false,
@@ -289,47 +289,6 @@ export default {
             eventBus.showAlert("Ошибка при добавлении канала", "danger");
           }
         });
-    },
-    async printPdf(channelId) {
-      try {
-        const res = await fetch(`${apiBase}/api/channels/${channelId}/print`);
-        const contentType = res.headers.get('content-type');
-        
-        // Проверяем, что сервер вернул JSON (а не PDF файл как раньше)
-        if (contentType && contentType.includes('application/json')) {
-          const result = await res.json();
-          if (result.success) {
-            eventBus.showAlert(result.message, "success");
-          } else {
-            eventBus.showAlert(result.error || "Ошибка при создании PDF", "danger");
-          }
-        } else {
-          // Если вернулся не JSON, возможно старое поведение
-          eventBus.showAlert("Неожиданный ответ сервера", "danger");
-        }
-      } catch (error) {
-        eventBus.showAlert(error.message || "Ошибка при создании PDF", "danger");
-        console.error("Ошибка при создании PDF:", error);
-      }
-    },
-    async exportHtml(channelId) {
-      try {
-        this.loadingChannels.add(channelId);
-        
-        const res = await fetch(`${apiBase}/api/channels/${channelId}/export-html`);
-        
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        
-        eventBus.showAlert(`HTML файл для канала ${channelId} успешно создан в папке downloads/${channelId}/index.html`, "success");
-        
-      } catch (error) {
-        eventBus.showAlert(error.message || "Ошибка при создании HTML", "danger");
-        console.error("Ошибка при экспорте HTML:", error);
-      } finally {
-        this.loadingChannels.delete(channelId);
-      }
     },
     removeChannel(channelId) {
       if (!confirm("Вы уверены, что хотите удалить этот канал?")) return;

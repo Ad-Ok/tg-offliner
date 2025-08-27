@@ -9,6 +9,12 @@
           </svg>
         </div>
         <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+          <!-- Export buttons for mobile -->
+          <li v-if="isChannelPage && route.params.channelId" class="p-2">
+            <ChannelExports 
+              :channelId="route.params.channelId"
+            />
+          </li>
           <!-- <li><NuxtLink to="/">🏠 Главная</NuxtLink></li> -->
         </ul>
       </div>
@@ -28,6 +34,11 @@
     <div class="navbar-center hidden lg:flex">
       <ul class="menu menu-horizontal px-1">
         <li>
+          <!-- Export Buttons - только на странице канала -->
+          <ChannelExports 
+            v-if="isChannelPage && route.params.channelId"
+            :channelId="route.params.channelId"
+          />
           <!-- <NuxtLink 
             to="/" 
             class="btn btn-ghost"
@@ -75,6 +86,7 @@
 
 <script setup>
 import { useEditModeStore } from '~/stores/editMode'
+import ChannelExports from '~/components/ChannelExports.vue'
 
 // Используем store для режима редактирования
 const editModeStore = useEditModeStore()
