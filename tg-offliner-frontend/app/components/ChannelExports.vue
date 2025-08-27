@@ -54,7 +54,13 @@ const handlePrintPdf = async () => {
     if (contentType && contentType.includes('application/json')) {
       const result = await res.json()
       if (result.success) {
-        eventBus.showAlert(result.message, "success")
+        const filePath = `downloads/${props.channelId}/${props.channelId}.pdf`;
+        const fileUrl = `http://localhost:5000/${filePath}`;
+        eventBus.showAlert(
+          `PDF файл для канала <strong>${props.channelId}</strong> успешно создан: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,
+          "success",
+          { html: true }
+        );
       } else {
         eventBus.showAlert(result.error || "Ошибка при создании PDF", "danger")
       }
@@ -79,9 +85,12 @@ const handleExportHtml = async () => {
       throw new Error(`HTTP ${res.status}`)
     }
     
+    const filePath = `downloads/${props.channelId}/index.html`;
+    const fileUrl = `http://localhost:5000/${filePath}`;
     eventBus.showAlert(
-      `HTML файл для канала ${props.channelId} успешно создан в папке downloads/${props.channelId}/index.html`, 
-      "success"
+      `HTML файл для канала <strong>${props.channelId}</strong> успешно создан: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,
+      "success",
+      { html: true }
     )
     
   } catch (error) {

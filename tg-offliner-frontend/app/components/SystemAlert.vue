@@ -5,7 +5,7 @@
     class="system-alert"
     role="alert"
   >
-    <span>{{ message }}</span>
+  <span v-html="message"></span>
     <button type="button" class="close" @click="closeAlert">
       <span aria-hidden="true">&times;</span>
     </button>
