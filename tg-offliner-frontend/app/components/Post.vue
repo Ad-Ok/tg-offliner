@@ -86,6 +86,30 @@ export default {
     // Состояние скрытости поста
     const isHidden = ref(false)
     const isSaving = ref(false)
+    const isLoading = ref(false)
+    
+    // Загрузка состояния скрытости при инициализации
+    const loadHiddenState = async () => {
+      try {
+        isLoading.value = true
+        
+        // Импортируем сервис динамически
+        const { editsService } = await import('~/services/editsService.js')
+        
+        const hiddenState = await editsService.getPostHiddenState(
+          props.post.telegram_id,
+          props.post.channel_id
+        )
+        
+        isHidden.value = hiddenState
+        
+      } catch (error) {
+        console.error('Error loading post hidden state:', error)
+        
+      } finally {
+        isLoading.value = false
+      }
+    }
     
     // Методы для скрытия и показа поста
     const hidePost = async () => {
@@ -137,10 +161,16 @@ export default {
       }
     }
     
+    // Загружаем состояние при монтировании компонента
+    onMounted(() => {
+      loadHiddenState()
+    })
+    
     return {
       editModeStore,
       isHidden,
       isSaving,
+      isLoading,
       hidePost,
       showPost,
       togglePostVisibility

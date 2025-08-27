@@ -6,8 +6,8 @@ import json
 edits_bp = Blueprint('edits', __name__)
 
 @edits_bp.route('/api/edits', methods=['POST'])
-def create_edit():
-    """Создание новой записи о правке поста"""
+def create_or_update_edit():
+    """Создание новой записи о правке поста или обновление существующей"""
     try:
         data = request.get_json()
         
@@ -17,50 +17,69 @@ def create_edit():
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
-        # Создание новой записи
-        edit = Edit(
+        # Ищем существующую запись для данного поста
+        existing_edit = Edit.query.filter_by(
             telegram_id=data['telegram_id'],
-            channel_id=data['channel_id'],
-            date=datetime.now().isoformat(),
-            changes=data['changes']
-        )
+            channel_id=data['channel_id']
+        ).first()
         
-        db.session.add(edit)
+        if existing_edit:
+            # Обновляем существующую запись
+            existing_edit.date = datetime.now().isoformat()
+            existing_edit.changes = data['changes']
+            edit = existing_edit
+            action = 'updated'
+        else:
+            # Создаем новую запись
+            edit = Edit(
+                telegram_id=data['telegram_id'],
+                channel_id=data['channel_id'],
+                date=datetime.now().isoformat(),
+                changes=data['changes']
+            )
+            db.session.add(edit)
+            action = 'created'
+        
         db.session.commit()
         
         return jsonify({
             'success': True,
             'edit_id': edit.id,
-            'message': 'Edit created successfully'
-        }), 201
+            'action': action,
+            'message': f'Edit {action} successfully'
+        }), 201 if action == 'created' else 200
         
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @edits_bp.route('/api/edits/<int:telegram_id>/<channel_id>', methods=['GET'])
-def get_edits_for_post(telegram_id, channel_id):
-    """Получение всех правок для конкретного поста"""
+def get_edit_for_post(telegram_id, channel_id):
+    """Получение правки для конкретного поста (только одна актуальная запись)"""
     try:
-        edits = Edit.query.filter_by(
+        edit = Edit.query.filter_by(
             telegram_id=telegram_id,
             channel_id=channel_id
-        ).all()
+        ).first()
         
-        edits_data = []
-        for edit in edits:
-            edits_data.append({
+        if edit:
+            edit_data = {
                 'id': edit.id,
                 'telegram_id': edit.telegram_id,
                 'channel_id': edit.channel_id,
                 'date': edit.date,
                 'changes': edit.changes
-            })
-        
-        return jsonify({
-            'success': True,
-            'edits': edits_data
-        }), 200
+            }
+            return jsonify({
+                'success': True,
+                'edit': edit_data
+            }), 200
+        else:
+            return jsonify({
+                'success': True,
+                'edit': None,
+                'message': 'No edits found for this post'
+            }), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
