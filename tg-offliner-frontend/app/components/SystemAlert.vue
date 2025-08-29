@@ -5,7 +5,7 @@
     class="system-alert"
     role="alert"
   >
-  <span v-html="message"></span>
+    <span v-html="message"></span>
     <button type="button" class="close" @click="closeAlert">
       <span aria-hidden="true">&times;</span>
     </button>
@@ -22,7 +22,7 @@ export default {
     },
     type: {
       type: String,
-      default: "info", // Тип сообщения: 'success', 'danger', 'warning', 'info'
+      default: "info",
     },
   },
   data() {
@@ -30,12 +30,10 @@ export default {
       visible: true,
     };
   },
-  mounted() {
-  },
   methods: {
     closeAlert() {
       this.visible = false;
-      this.$emit("closed"); // Генерируем событие закрытия
+      this.$emit("closed");
     },
   },
 };

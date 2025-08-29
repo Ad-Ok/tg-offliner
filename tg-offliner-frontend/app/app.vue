@@ -7,7 +7,7 @@
         :message="alertMessage"
         :type="alertType"
         @closed="clearAlert"
-        class="fixed top-4 right-4 z-50 rounded-lg shadow-md"
+        class="fixed top-16 mt-2 right-4 z-50 rounded-lg shadow-md"
       />
     </ClientOnly>
     <NuxtRouteAnnouncer />
