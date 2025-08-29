@@ -30,6 +30,7 @@
           :channel-id="String(discussionGroupId)"
           :posts="item.discussionComments"
           :loading="false"
+          :sort-order="'asc'"
           :discussion-group-id="null"
         />
       </div>
@@ -49,6 +50,7 @@ export default {
     posts: { type: Array, default: () => [] },
     loading: { type: Boolean, default: false },
     discussionGroupId: { type: String, default: null },
+    sortOrder: { type: String, default: 'desc' }, // 'desc' = новые сверху, 'asc' = старые сверху
   },
   computed: {
     // Основные посты (логика зависит от наличия discussionGroupId)
@@ -143,9 +145,11 @@ export default {
         });
       });
       
-      // Сортируем все по дате (новые сверху)
+      // Сортируем все по дате с учетом sortOrder
       return result.sort((a, b) => {
-        return new Date(b.date) - new Date(a.date);
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return this.sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
       });
     },
     

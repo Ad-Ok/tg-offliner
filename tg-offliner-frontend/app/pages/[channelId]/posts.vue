@@ -8,11 +8,26 @@
       :commentsCount="totalCommentsCount"
     />
     
+    <!-- Кнопка переключения порядка сортировки -->
+    <div v-if="!pending" class="mb-4 flex justify-end">
+      <button 
+        @click="toggleSortOrder"
+        class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300 rounded-lg flex items-center space-x-2 transition-colors"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path v-if="sortOrder === 'desc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/>
+          <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4"/>
+        </svg>
+        <span>{{ sortOrder === 'desc' ? 'Старые сначала' : 'Новые сначала' }}</span>
+      </button>
+    </div>
+    
     <!-- Лента постов -->
     <Wall 
       :channelId="channelId" 
       :posts="posts" 
       :loading="pending"
+      :sort-order="sortOrder"
       :discussion-group-id="channelInfo?.discussion_group_id ? String(channelInfo.discussion_group_id) : null"
     />
   </div>
@@ -27,6 +42,14 @@ import { useEditModeStore } from '~/stores/editMode'
 
 const route = useRoute()
 const channelId = route.params.channelId
+
+// Состояние для сортировки постов
+const sortOrder = ref('desc') // 'desc' = новые сверху, 'asc' = старые сверху
+
+// Метод переключения порядка сортировки
+const toggleSortOrder = () => {
+  sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+}
 
 const editModeStore = useEditModeStore()
 editModeStore.checkAndSetExportMode()
