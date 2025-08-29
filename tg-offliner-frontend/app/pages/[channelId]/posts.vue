@@ -47,8 +47,33 @@ const channelId = route.params.channelId
 const sortOrder = ref('desc') // 'desc' = новые сверху, 'asc' = старые сверху
 
 // Метод переключения порядка сортировки
-const toggleSortOrder = () => {
-  sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+const toggleSortOrder = async () => {
+  const newSortOrder = sortOrder.value === 'desc' ? 'asc' : 'desc'
+  sortOrder.value = newSortOrder
+  
+  // Сохраняем в базу данных
+  try {
+    const currentChanges = channelInfo.value?.changes || {}
+    const updatedChanges = {
+      ...currentChanges,
+      sortOrder: newSortOrder
+    }
+    
+    await api.put(`/api/channels/${channelId}`, {
+      changes: updatedChanges
+    })
+    
+    // Обновляем локальные данные
+    if (channelInfo.value) {
+      channelInfo.value.changes = updatedChanges
+    }
+    
+    console.log(`Порядок сортировки изменен на: ${newSortOrder}`)
+  } catch (error) {
+    console.error('Ошибка при сохранении порядка сортировки:', error)
+    // Откатываем изменение при ошибке
+    sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+  }
 }
 
 const editModeStore = useEditModeStore()
@@ -102,6 +127,13 @@ const { data: channelInfo } = await useAsyncData(
   'channelInfo',
   () => api.get(`/api/channels/${channelId}`).then(res => res.data)
 )
+
+// Инициализируем sortOrder из настроек канала
+watch(channelInfo, (newChannelInfo) => {
+  if (newChannelInfo?.changes?.sortOrder) {
+    sortOrder.value = newChannelInfo.changes.sortOrder
+  }
+}, { immediate: true })
 
 const realPostsCount = computed(() => {
   if (!posts.value) return 0

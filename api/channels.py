@@ -28,7 +28,8 @@ def get_channels():
         "description": channel.description,
         "creation_date": channel.creation_date,
         "subscribers": channel.subscribers,
-        "discussion_group_id": channel.discussion_group_id
+        "discussion_group_id": channel.discussion_group_id,
+        "changes": channel.changes if hasattr(channel, 'changes') else {}
     } for channel in channels])
 
 @channels_bp.route('/channels', methods=['POST'])
@@ -51,7 +52,8 @@ def add_channel_to_db():
         creation_date=data.get('creation_date'),  # <-- должно быть!
         subscribers=data.get('subscribers'),
         description=data.get('description'),
-        discussion_group_id=data.get('discussion_group_id')
+        discussion_group_id=data.get('discussion_group_id'),
+        changes=data.get('changes', {})
     )
     db.session.add(new_channel)
     db.session.commit()
@@ -160,7 +162,8 @@ def get_channel(channel_id):
         "description": channel.description,
         "creation_date": channel.creation_date,
         "subscribers": channel.subscribers,
-        "discussion_group_id": channel.discussion_group_id
+        "discussion_group_id": channel.discussion_group_id,
+        "changes": channel.changes if hasattr(channel, 'changes') else {}
     })
 
 @channels_bp.route('/channels/<channel_id>', methods=['DELETE'])
@@ -215,6 +218,53 @@ def delete_channel(channel_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Ошибка при удалении канала {channel_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@channels_bp.route('/channels/<channel_id>', methods=['PUT'])
+def update_channel(channel_id):
+    """Обновляет информацию о канале, включая поле changes."""
+    try:
+        channel = Channel.query.filter_by(id=channel_id).first()
+        if not channel:
+            return jsonify({"error": "Канал не найден"}), 404
+        
+        data = request.json
+        if not data:
+            return jsonify({"error": "Нет данных для обновления"}), 400
+        
+        # Обновляем поля канала
+        if 'name' in data:
+            channel.name = data['name']
+        if 'avatar' in data:
+            channel.avatar = data['avatar']
+        if 'description' in data:
+            channel.description = data['description']
+        if 'creation_date' in data:
+            channel.creation_date = data['creation_date']
+        if 'subscribers' in data:
+            channel.subscribers = data['subscribers']
+        if 'discussion_group_id' in data:
+            channel.discussion_group_id = data['discussion_group_id']
+        if 'changes' in data:
+            channel.changes = data['changes']
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Канал успешно обновлен",
+            "id": channel.id,
+            "name": channel.name,
+            "avatar": channel.avatar,
+            "description": channel.description,
+            "creation_date": channel.creation_date,
+            "subscribers": channel.subscribers,
+            "discussion_group_id": channel.discussion_group_id,
+            "changes": channel.changes if hasattr(channel, 'changes') else {}
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Ошибка при обновлении канала {channel_id}: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @channels_bp.route('/channel_preview', methods=['GET'])

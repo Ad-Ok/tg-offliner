@@ -72,11 +72,19 @@ export const api = {
       ...config,
     }).then(handleResponse).then(data => ({ data }));
   },
+  put(path, body, config = {}) {
+    return fetch(`${apiBase}${path}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...(config.headers || {}) },
+      body: JSON.stringify(body),
+      ...config,
+    }).then(handleResponse).then(data => ({ data }));
+  },
   delete(path, config = {}) {
     return fetch(`${apiBase}${path}`, {
       method: 'DELETE',
       ...(config || {}),
     }).then(handleResponse).then(data => ({ data }));
   },
-  // Добавь другие методы по необходимости (put, patch и т.д.)
+  // Добавь другие методы по необходимости (patch и т.д.)
 };

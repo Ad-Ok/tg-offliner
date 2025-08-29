@@ -37,6 +37,7 @@ class Channel(db.Model):
     creation_date = db.Column(db.String, nullable=True)  # Дата создания канала
     subscribers = db.Column(db.String, nullable=True)  # Количество подписчиков
     discussion_group_id = db.Column(db.BigInteger, nullable=True)  # ID группы обсуждений канала
+    changes = db.Column(JSON, nullable=False, default='{}')  # JSON с изменениями канала
 
     def __repr__(self):
         return f"<Channel {self.id} - {self.name}>"
