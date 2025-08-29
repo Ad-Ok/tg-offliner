@@ -2,8 +2,8 @@
   <div v-if="originalPost" class="post-quote bg-gray-50 dark:bg-gray-800 border-l-4 border-blue-500 p-3 mb-3 rounded">
     <div class="quote-header flex items-center space-x-2 mb-2">
       <img 
-        v-if="originalPost.author_avatar" 
-        :src="originalPost.author_avatar" 
+        v-if="avatarSrc" 
+        :src="avatarSrc" 
         :alt="originalPost.author_name"
         class="w-6 h-6 rounded-full"
       />
@@ -37,12 +37,19 @@
 </template>
 
 <script>
+import { mediaBase } from '~/services/api';
+
 export default {
   name: "PostQuote",
   props: {
     originalPost: {
       type: Object,
       default: null
+    }
+  },
+  computed: {
+    avatarSrc() {
+      return this.originalPost?.author_avatar ? `${mediaBase}/downloads/${this.originalPost.author_avatar}` : null;
     }
   },
   methods: {
