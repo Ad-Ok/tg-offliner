@@ -204,12 +204,19 @@ import { eventBus } from "~/eventBus";
 import { api, apiBase, mediaBase } from '~/services/api';
 import DownloadStatus from './DownloadStatus.vue';
 import ChannelExports from './ChannelExports.vue';
+import { useConfirmDialog } from '~/composables/useConfirmDialog';
 
 export default {
   name: "ChannelsList",
   components: {
     DownloadStatus,
     ChannelExports,
+  },
+  setup() {
+    const { showConfirmDialog } = useConfirmDialog();
+    return {
+      showConfirmDialog
+    };
   },
   data() {
     return {
@@ -289,8 +296,16 @@ export default {
           }
         });
     },
-    removeChannel(channelId) {
-      if (!confirm("Вы уверены, что хотите удалить этот канал?")) return;
+    async removeChannel(channelId) {
+      const confirmed = await this.showConfirmDialog({
+        title: 'Удаление канала',
+        message: 'Вы уверены, что хотите удалить этот канал?',
+        confirmText: 'Удалить',
+        cancelText: 'Отмена',
+        type: 'error'
+      });
+
+      if (!confirmed) return;
 
       this.deleteChannel(channelId);
     },
@@ -402,7 +417,15 @@ export default {
     
     async cancelDownload(channelId) {
       // Подтверждение действия
-      if (!confirm('Вы уверены, что хотите отменить загрузку и удалить канал? Это действие нельзя отменить.')) {
+      const confirmed = await this.showConfirmDialog({
+        title: 'Отмена загрузки',
+        message: 'Вы уверены, что хотите отменить загрузку и удалить канал? Это действие нельзя отменить.',
+        confirmText: 'Отменить загрузку',
+        cancelText: 'Продолжить загрузку',
+        type: 'warning'
+      });
+
+      if (!confirmed) {
         return;
       }
       
