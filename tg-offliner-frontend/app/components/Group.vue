@@ -21,6 +21,7 @@
           :key="post.id"
           class="media-item relative"
           :class="{ 'hidden': getPostHiddenState(post) && editModeStore.isExportMode }"
+          :data-post-id="post.telegram_id"
         >
           <PostEditor :post="post" @hiddenStateChanged="(state) => onHiddenStateChanged(post, state)"/>
           <PostMedia

@@ -1,6 +1,5 @@
 <template>
   <div class="channels-list max-w-6xl mx-auto">
-    <h1 class="text-4xl mb-4">Список каналов</h1>
     
     <!-- Панель статуса загрузок -->
     <DownloadStatus 

@@ -1,5 +1,5 @@
 <template>
-  <div class="navbar fixed top-0 right-0 left-0 z-10 bg-base-100 shadow-lg print:hidden">
+  <div :class="['navbar', 'fixed', 'top-0', 'right-0', 'left-0', 'z-20', 'bg-base-100', 'shadow-lg', 'print:hidden', { 'hidden': isExportMode }]">
     <div class="navbar-start">
       <!-- Mobile menu -->
       <div class="dropdown">
@@ -96,6 +96,11 @@ const route = useRoute()
 const isChannelPage = computed(() => {
   // Проверяем, что путь соответствует паттерну /[channelId]/posts
   return route.path.includes('/posts') && route.params.channelId
+})
+
+// Определяем, находимся ли мы в режиме экспорта
+const isExportMode = computed(() => {
+  return route.query.export === '1'
 })
 
 // Сбрасываем режим редактирования при переходе на другую страницу
