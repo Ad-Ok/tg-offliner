@@ -4,11 +4,12 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
-    "dev": "concurrently \"nuxt dev --hostname 0.0.0.0 --port 3000\" \"npm run watch:tailwindcss\"",
+    "dev": "concurrently \"nuxt dev --hostname 0.0.0.0 --port 3000\" \"npm run watch:tailwindcss\" \"npm run watch:pdf-css\"",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "watch:tailwindcss": "tailwindcss -i ./assets/tailwind.css -o ./public/styles.css --watch",
+    "watch:pdf-css": "tailwindcss -c ./tailwind.pdf.config.js -i ./assets/tailwind.css -o ./public/styles-pdf.css --watch",
     "build:tailwindcss": "tailwindcss -i ./assets/tailwind.css -o ./public/styles.css --minify",
     "build:pdf-css": "tailwindcss -c ./tailwind.pdf.config.js -i ./assets/tailwind.css -o ./public/styles-pdf.css --minify"
   },
