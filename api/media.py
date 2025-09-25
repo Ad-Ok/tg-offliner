@@ -15,7 +15,7 @@ def serve_media(filename):
     """Раздаёт медиафайлы из папки media."""
     return send_from_directory(MEDIA_DIR, filename)
 
-@media_bp.route('/downloads/<path:filename>')
-def serve_downloads(filename):
-    """Раздаёт файлы из папки downloads."""
+@media_bp.route('/downloads/thumbs/<path:filename>')
+def serve_thumbs(filename):
+    """Раздаёт превью из папки downloads/thumbs."""
     return send_from_directory(DOWNLOADS_DIR, filename)

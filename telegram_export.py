@@ -7,7 +7,7 @@ import requests
 from utils.text_format import parse_entities_to_html
 import os
 from message_processing.polls import process_poll
-from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument, MessageMediaWebPage, DocumentAttributeSticker
+from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument, MessageMediaWebPage, DocumentAttributeSticker, MessageMediaPhoto
 from message_processing.author import process_author, download_avatar
 import shutil
 import os
@@ -407,6 +407,15 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
                 # Сохраняем относительный путь для файлов
                 if media_path:
                     media_path = os.path.relpath(media_path, DOWNLOADS_DIR)  # Относительный путь от папки downloads
+                
+                # Создаем превью для изображений
+                if media_path and isinstance(post.media, MessageMediaPhoto):
+                    full_media_path = os.path.join(DOWNLOADS_DIR, media_path)
+                    thumbs_dir = os.path.join(channel_folder, "thumbs")
+                    os.makedirs(thumbs_dir, exist_ok=True)
+                    thumb_path = os.path.join(thumbs_dir, os.path.basename(full_media_path))
+                    shutil.copy2(full_media_path, thumb_path)
+                    logging.info(f"Created thumbnail: {thumb_path}")
             
             # Устанавливаем mime_type только если это не стикер
             if (isinstance(post.media, MessageMediaDocument) and 
@@ -764,6 +773,15 @@ def main(channel_username=None):
                 # Сохраняем относительный путь для файлов
                 if media_path:
                     media_path = os.path.relpath(media_path, DOWNLOADS_DIR)  # Относительный путь от папки downloads
+                
+                # Создаем превью для изображений
+                if media_path and isinstance(post.media, MessageMediaPhoto):
+                    full_media_path = os.path.join(DOWNLOADS_DIR, media_path)
+                    thumbs_dir = os.path.join(channel_folder, "thumbs")
+                    os.makedirs(thumbs_dir, exist_ok=True)
+                    thumb_path = os.path.join(thumbs_dir, os.path.basename(full_media_path))
+                    shutil.copy2(full_media_path, thumb_path)
+                    logging.info(f"Created thumbnail: {thumb_path}")
             
             if isinstance(post.media, MessageMediaDocument) and isinstance(post.media.document, Document):
                 mime_type = getattr(post.media.document, 'mime_type', None)
