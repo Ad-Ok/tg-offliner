@@ -32,3 +32,4 @@ wxPython==4.2.0
 yt-dlg==1.8.5
 zopfli==0.2.3.post1
 weasyprint==62.1
+photocollage

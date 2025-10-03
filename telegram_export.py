@@ -13,6 +13,7 @@ import shutil
 import os
 import logging
 from message_processing.channel_info import get_channel_info
+from utils.gallery_layout import generate_gallery_layout
 from utils.entity_validation import get_entity_by_username_or_id
 
 # Настройка логирования
@@ -655,6 +656,61 @@ def get_channel_folder(channel_name):
 #     # Ваш код для скачивания
 #     logging.info(f"Канал {channel_name} успешно скачан")
 
+def generate_gallery_layouts_for_channel(channel_username):
+    """Генерирует JSON layouts для галерей в канале."""
+    print(f"Generating gallery layouts for channel: {channel_username}")
+    try:
+        # Работаем напрямую с базой
+        from app import app
+        with app.app_context():
+            from models import Post
+            
+            # Получаем все посты канала
+            posts = Post.query.filter_by(channel_id=channel_username).all()
+            print(f"Found {len(posts)} posts in channel {channel_username}")
+            
+            # Группируем посты по grouped_id
+            galleries = {}
+            for post in posts:
+                grouped_id = post.grouped_id
+                if grouped_id and post.media_type == 'MessageMediaPhoto':
+                    if grouped_id not in galleries:
+                        galleries[grouped_id] = []
+                    galleries[grouped_id].append(post)
+
+            print(f"Found galleries: {list(galleries.keys())}")
+            
+            # Для каждой галереи генерируем layout
+            channel_folder = get_channel_folder(channel_username)
+            layouts_dir = os.path.join(channel_folder, "layouts")
+            os.makedirs(layouts_dir, exist_ok=True)
+
+            for grouped_id, gallery_posts in galleries.items():
+                if len(gallery_posts) < 2:
+                    continue  # Пропускаем галереи с одним изображением
+
+                # Сортируем посты по telegram_id для консистентного порядка
+                gallery_posts.sort(key=lambda p: p.telegram_id)
+
+                # Собираем пути к превью
+                image_paths = []
+                for post in gallery_posts:
+                    media_url = post.media_url
+                    if media_url:
+                        # Путь к превью: downloads/{channel}/thumbs/{filename}
+                        thumb_path = os.path.join(DOWNLOADS_DIR, channel_username, "thumbs", os.path.basename(media_url))
+                        if os.path.exists(thumb_path):
+                            image_paths.append(thumb_path)
+
+                if len(image_paths) >= 2:
+                    # Генерируем layout
+                    layout_json_path = os.path.join(layouts_dir, f"gallery_{grouped_id}.json")
+                    generate_gallery_layout(image_paths, layout_json_path)
+                    print(f"Generated layout for gallery {grouped_id}")
+
+    except Exception as e:
+        print(f"Error generating gallery layouts: {e}")
+
 def main(channel_username=None):
     # Очищаем папку текущего канала
     clear_downloads(channel_username)
@@ -841,6 +897,9 @@ def main(channel_username=None):
 
     elapsed_time = time.time() - start_time
     print(f"Экспорт завершён за {elapsed_time:.2f} секунд.")
+
+    # Генерируем layouts для галерей
+    generate_gallery_layouts_for_channel(channel_username)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Экспорт постов Telegram в базу данных.")

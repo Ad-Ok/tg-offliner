@@ -16,20 +16,38 @@
       />
 
       <div class="media-grid mt-2">
-        <div
-          v-for="post in postsWithMedia"
-          :key="post.id"
-          class="media-item relative"
-          :class="{ 'hidden': getPostHiddenState(post) && editModeStore.isExportMode }"
-          :data-post-id="post.telegram_id"
-        >
-          <PostEditor :post="post" @hiddenStateChanged="(state) => onHiddenStateChanged(post, state)"/>
-          <PostMedia
-            :mediaUrl="post.media_url"
-            :mediaType="post.media_type"
-            :mimeType="post.mime_type"
-            :class="{ 'opacity-25 print:hidden': getPostHiddenState(post) && !editModeStore.isExportMode }"
-          />
+        <!-- Если есть layout, используем его для позиционирования -->
+        <div v-if="galleryLayout" class="gallery-container relative" :style="galleryContainerStyle">
+          <div
+            v-for="(cell, index) in galleryLayout.cells"
+            :key="index"
+            class="gallery-item absolute"
+            :style="getCellStyle(cell)"
+          >
+            <img
+              :src="`${mediaBase}/downloads/${getThumbUrl(cell.image_index)}`"
+              :alt="`Gallery image ${index + 1}`"
+              class="w-full h-full object-cover rounded"
+            />
+          </div>
+        </div>
+        <!-- Fallback: обычная grid -->
+        <div v-else class="grid grid-cols-2 gap-2">
+          <div
+            v-for="post in postsWithMedia"
+            :key="post.id"
+            class="media-item relative"
+            :class="{ 'hidden': getPostHiddenState(post) && editModeStore.isExportMode }"
+            :data-post-id="post.telegram_id"
+          >
+            <PostEditor :post="post" @hiddenStateChanged="(state) => onHiddenStateChanged(post, state)"/>
+            <PostMedia
+              :mediaUrl="post.media_url"
+              :mediaType="post.media_type"
+              :mimeType="post.mime_type"
+              :class="{ 'opacity-25 print:hidden': getPostHiddenState(post) && !editModeStore.isExportMode }"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -49,6 +67,7 @@ import PostFooter from './PostFooter.vue';
 import PostBody from './PostBody.vue';
 import PostEditor from './PostEditor.vue';
 import { useEditModeStore } from '~/stores/editMode'
+import { mediaBase } from '~/services/api'
 
 export default {
   name: "Group",
@@ -81,14 +100,29 @@ export default {
       return this.firstPost.grouped_id;
     },
     postsWithMedia() {
-      return this.posts.filter(post => post.media_url && post.media_type);
+      return this.posts
+        .filter(post => post.media_url && post.media_type)
+        .sort((a, b) => a.telegram_id - b.telegram_id);
     },
+    galleryLayout() {
+      return this.layoutData;
+    },
+    galleryContainerStyle() {
+      if (!this.galleryLayout) return {};
+      return {
+        width: `${this.galleryLayout.total_width}px`,
+        height: `${this.galleryLayout.total_height}px`
+      };
+    }
   },
   setup(props) {
     const editModeStore = useEditModeStore()
     
     // Храним состояние скрытости для каждого поста в группе
     const hiddenStates = ref(new Map())
+    
+    // Layout для галереи
+    const layoutData = ref(null)
     
     // Инициализируем состояния для всех постов с медиа
     const initializeHiddenStates = () => {
@@ -98,6 +132,43 @@ export default {
           hiddenStates.value.set(key, post.isHidden || false)
         }
       })
+    }
+    
+    // Загружаем layout для галереи
+    const loadGalleryLayout = async () => {
+      if (!props.posts.length || !props.posts[0].grouped_id) return
+      
+      const groupedId = props.posts[0].grouped_id
+      const channelId = props.posts[0].channel_id
+      
+      try {
+        const layoutUrl = `${mediaBase}/downloads/layouts/${channelId}/gallery_${groupedId}.json`
+        const response = await fetch(layoutUrl)
+        if (response.ok) {
+          layoutData.value = await response.json()
+        }
+      } catch (error) {
+        console.warn('Failed to load gallery layout:', error)
+      }
+    }
+    
+    // Получаем URL превью для изображения по индексу
+    const getThumbUrl = (imageIndex) => {
+      if (!props.postsWithMedia[imageIndex]) return ''
+      const mediaUrl = props.postsWithMedia[imageIndex].media_url
+      if (!mediaUrl) return ''
+      // Заменяем media на thumbs в пути
+      return mediaUrl.replace('/media/', '/thumbs/')
+    }
+    
+    // Получаем стиль для ячейки layout
+    const getCellStyle = (cell) => {
+      return {
+        left: `${cell.x}px`,
+        top: `${cell.y}px`,
+        width: `${cell.width}px`,
+        height: `${cell.height}px`
+      }
     }
     
     // Инициализируем состояния сразу при создании компонента
@@ -113,14 +184,18 @@ export default {
       hiddenStates.value.set(key, newHiddenState)
     }
     
-    onMounted(() => {
+    onMounted(async () => {
       editModeStore.checkAndSetExportMode()
+      await loadGalleryLayout()
     })
     
     return {
       editModeStore,
+      layoutData,
       getPostHiddenState,
-      onHiddenStateChanged
+      onHiddenStateChanged,
+      getThumbUrl,
+      getCellStyle
     }
   }
 };
