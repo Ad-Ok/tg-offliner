@@ -125,6 +125,164 @@ class TelegramExportTests(unittest.TestCase):
         self.assertTrue(channel_folder.endswith(os.path.join(self.temp_dir, "channel_12345")))
         self.assertTrue(os.path.isdir(os.path.join(channel_folder, "media")))
 
+    def test_import_discussion_comments_success(self):
+        client = mock.Mock()
+        discussion_entity = SimpleNamespace(id=777)
+        comment_message = SimpleNamespace(
+            id=10,
+            sender=SimpleNamespace(),
+            media=None,
+            poll=None,
+            reactions=None,
+            entities=[],
+            grouped_id=None,
+            reply_to=SimpleNamespace(reply_to_msg_id=50),
+        )
+
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch("utils.entity_validation.get_entity_by_username_or_id", return_value=(discussion_entity, None)))
+            stack.enter_context(mock.patch.object(telegram_export, "save_discussion_group_info"))
+            stack.enter_context(mock.patch.object(telegram_export, "EXPORT_SETTINGS", {"comments_forward_search_limit": 5, "comments_search_limit": 5}))
+
+            forward_message = SimpleNamespace(
+                id=50,
+                fwd_from=SimpleNamespace(saved_from_msg_id=123, from_id=SimpleNamespace()),
+            )
+            client.iter_messages.side_effect = [
+                [forward_message],
+                [comment_message],
+            ]
+
+            stack.enter_context(mock.patch.object(telegram_export, "process_message_for_api", return_value={"telegram_id": 10}))
+            post_mock = stack.enter_context(mock.patch("telegram_export.requests.post", return_value=SimpleNamespace(status_code=200)))
+
+            result = telegram_export.import_discussion_comments(client, "channel123", 777, 123)
+
+        self.assertEqual(result, 1)
+        self.assertTrue(post_mock.called)
+
+    def test_import_discussion_comments_no_forward_found(self):
+        client = mock.Mock()
+        discussion_entity = SimpleNamespace(id=777)
+
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch("utils.entity_validation.get_entity_by_username_or_id", return_value=(discussion_entity, None)))
+            stack.enter_context(mock.patch.object(telegram_export, "EXPORT_SETTINGS", {"comments_forward_search_limit": 5, "comments_search_limit": 5}))
+            stack.enter_context(mock.patch.object(telegram_export, "save_discussion_group_info"))
+            client.iter_messages.return_value = []
+
+            result = telegram_export.import_discussion_comments(client, "channel123", 777, 123)
+
+        self.assertEqual(result, 0)
+
+    def test_import_discussion_comments_entity_missing(self):
+        client = mock.Mock()
+
+        with mock.patch("utils.entity_validation.get_entity_by_username_or_id", return_value=(None, "missing")):
+            result = telegram_export.import_discussion_comments(client, "channel123", 777, 123)
+
+        self.assertEqual(result, 0)
+
+    def test_save_discussion_group_info_success(self):
+        client = mock.Mock()
+        discussion_entity = SimpleNamespace(id=777)
+        info = {
+            "name": "Discussion",
+            "discussion_group_id": 1,
+        }
+
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch.object(telegram_export, "get_channel_info", return_value=info))
+            post_mock = stack.enter_context(mock.patch("telegram_export.requests.post", return_value=SimpleNamespace(status_code=200)))
+
+            telegram_export.save_discussion_group_info(client, discussion_entity)
+
+        self.assertTrue(post_mock.called)
+        updated_payload = post_mock.call_args.kwargs["json"]
+        self.assertEqual(updated_payload["id"], str(discussion_entity.id))
+        self.assertIsNone(updated_payload["discussion_group_id"])
+        self.assertTrue(updated_payload["name"].startswith("💬"))
+
+    def test_import_channel_direct_success(self):
+        mock_client = mock.Mock()
+        entity = SimpleNamespace(username="llamatest", id=42, count=2)
+        posts = [
+            SimpleNamespace(id=1, action=None, fwd_from=None, poll=None),
+            SimpleNamespace(id=2, action=None, fwd_from=None, poll=None),
+        ]
+
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch.object(telegram_export, "connect_to_telegram", return_value=mock_client))
+            stack.enter_context(mock.patch("utils.entity_validation.get_entity_by_username_or_id", return_value=(entity, None)))
+            stack.enter_context(mock.patch("utils.entity_validation.validate_entity_for_download", return_value={"valid": True, "error": None}))
+            stack.enter_context(mock.patch.object(telegram_export, "clear_downloads"))
+            stack.enter_context(mock.patch.object(telegram_export, "get_channel_info", return_value={"discussion_group_id": 777}))
+            stack.enter_context(mock.patch.object(telegram_export, "process_message_for_api", side_effect=[{"telegram_id": 1}, {"telegram_id": 2}]))
+            stack.enter_context(mock.patch.object(telegram_export, "import_discussion_comments", return_value=1))
+            stack.enter_context(mock.patch.object(telegram_export, "should_stop_import", return_value=False))
+            stack.enter_context(mock.patch.object(telegram_export, "update_import_progress"))
+            stack.enter_context(mock.patch.object(telegram_export, "generate_gallery_layouts_for_channel"))
+            stack.enter_context(mock.patch("telegram_export.requests.post", return_value=SimpleNamespace(status_code=200)))
+            stack.enter_context(mock.patch("telegram_export.time.sleep"))
+
+            mock_client.iter_messages.return_value = posts
+
+            result = telegram_export.import_channel_direct("llamatest", channel_id="test-channel")
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["processed"], 2)
+        self.assertEqual(result["comments"], 2)
+
+    def test_import_channel_direct_stops_on_request(self):
+        mock_client = mock.Mock()
+        entity = SimpleNamespace(username="llamatest", id=42, count=1)
+        posts = [SimpleNamespace(id=1, action=None, fwd_from=None, poll=None)]
+
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch.object(telegram_export, "connect_to_telegram", return_value=mock_client))
+            stack.enter_context(mock.patch("utils.entity_validation.get_entity_by_username_or_id", return_value=(entity, None)))
+            stack.enter_context(mock.patch("utils.entity_validation.validate_entity_for_download", return_value={"valid": True, "error": None}))
+            stack.enter_context(mock.patch.object(telegram_export, "clear_downloads"))
+            stack.enter_context(mock.patch.object(telegram_export, "get_channel_info", return_value={"discussion_group_id": None}))
+            stack.enter_context(mock.patch.object(telegram_export, "should_stop_import", return_value=True))
+            stack.enter_context(mock.patch.object(telegram_export, "generate_gallery_layouts_for_channel"))
+            stack.enter_context(mock.patch("telegram_export.requests.post", return_value=SimpleNamespace(status_code=200)))
+            stack.enter_context(mock.patch("telegram_export.time.sleep"))
+            update_mock = stack.enter_context(mock.patch.object(telegram_export, "update_import_progress"))
+
+            mock_client.iter_messages.return_value = posts
+
+            result = telegram_export.import_channel_direct("llamatest", channel_id="stop-test")
+
+        self.assertTrue(result["success"])
+        self.assertTrue(result["stopped"])
+        self.assertEqual(result["processed"], 0)
+        update_mock.assert_not_called()
+
+    def test_import_channel_direct_validation_failure(self):
+        mock_client = mock.Mock()
+        entity = SimpleNamespace(username="llamatest", id=42)
+
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch.object(telegram_export, "connect_to_telegram", return_value=mock_client))
+            stack.enter_context(mock.patch("utils.entity_validation.get_entity_by_username_or_id", return_value=(entity, None)))
+            stack.enter_context(mock.patch("utils.entity_validation.validate_entity_for_download", return_value={"valid": False, "error": "Not allowed"}))
+
+            result = telegram_export.import_channel_direct("llamatest")
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"], "Not allowed")
+
+    def test_import_channel_direct_entity_not_found(self):
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch.object(telegram_export, "connect_to_telegram", return_value=mock.Mock()))
+            stack.enter_context(mock.patch("utils.entity_validation.get_entity_by_username_or_id", return_value=(None, "Not found")))
+
+            result = telegram_export.import_channel_direct("missing")
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"], "Not found")
+
 
 @unittest.skipUnless(os.getenv("RUN_TELEGRAM_INTEGRATION") == "1", "Set RUN_TELEGRAM_INTEGRATION=1 to run integration tests")
 class TelegramExportIntegrationTests(unittest.TestCase):
