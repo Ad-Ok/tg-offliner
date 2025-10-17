@@ -3,9 +3,9 @@ import shutil
 import sys
 import tempfile
 import unittest
-from contextlib import ExitStack
+from contextlib import ExitStack, nullcontext
 from datetime import datetime
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest import mock
 
 # Ensure required environment variables exist before importing project modules
@@ -67,7 +67,7 @@ class TelegramExportTests(unittest.TestCase):
     def test_process_message_photo_creates_thumbnail(self):
         folder_name = "test_channel"
 
-        class FakePhoto:  # noqa: D401 - simple test double
+        class FakePhoto:
             """Marker class to mimic MessageMediaPhoto."""
 
         post = self._build_basic_post(
@@ -186,7 +186,6 @@ class TelegramExportTests(unittest.TestCase):
         self.assertEqual(result["reactions"]["total_count"], 5)
         self.assertEqual(result["reactions"]["recent_reactions"], [{"reaction": "👍", "count": 5}])
 
-
     def test_should_stop_import_true(self):
         with mock.patch("telegram_export.requests.get") as mock_get:
             mock_get.return_value.status_code = 200
@@ -213,6 +212,114 @@ class TelegramExportTests(unittest.TestCase):
         channel_folder = telegram_export.get_channel_folder("12345")
         self.assertTrue(channel_folder.endswith(os.path.join(self.temp_dir, "channel_12345")))
         self.assertTrue(os.path.isdir(os.path.join(channel_folder, "media")))
+
+    def test_generate_gallery_layouts_creates_layout(self):
+        image_dir = os.path.join(self.temp_dir, "channel123", "thumbs")
+        os.makedirs(image_dir, exist_ok=True)
+        rel1 = os.path.join("channel123", "thumbs", "img1.jpg")
+        rel2 = os.path.join("channel123", "thumbs", "img2.jpg")
+        open(os.path.join(self.temp_dir, rel1), "wb").close()
+        open(os.path.join(self.temp_dir, rel2), "wb").close()
+
+        fake_posts = [
+            SimpleNamespace(grouped_id=111, media_type="MessageMediaPhoto", thumb_url=rel1, telegram_id=2),
+            SimpleNamespace(grouped_id=111, media_type="MessageMediaPhoto", thumb_url=rel2, telegram_id=1),
+        ]
+
+        created_layouts = []
+        session_mock = mock.Mock()
+
+        class FakePostModel:
+            query = mock.Mock()
+
+        FakePostModel.query.filter_by.return_value.all.return_value = fake_posts
+
+        class FakeLayout:
+            query = mock.Mock()
+
+            def __init__(self, grouped_id, channel_id, json_data):
+                created_layouts.append(
+                    {
+                        "grouped_id": grouped_id,
+                        "channel_id": channel_id,
+                        "json_data": json_data,
+                    }
+                )
+
+        FakeLayout.query.filter_by.return_value.first.return_value = None
+
+        fake_models = ModuleType("models")
+        fake_models.Post = FakePostModel
+        fake_models.Layout = FakeLayout
+        fake_models.db = SimpleNamespace(session=session_mock)
+
+        class FakeApp:
+            def app_context(self):
+                return nullcontext()
+
+        fake_app_module = ModuleType("app")
+        fake_app_module.app = FakeApp()
+
+        layout_data = {"cells": [{"image_index": 0}, {"image_index": 1}]}
+
+        with mock.patch.dict(sys.modules, {"app": fake_app_module, "models": fake_models}):
+            with mock.patch("utils.gallery_layout.generate_gallery_layout", return_value=layout_data):
+                telegram_export.generate_gallery_layouts_for_channel("channel123")
+
+        self.assertEqual(len(created_layouts), 1)
+        self.assertEqual(created_layouts[0]["json_data"], layout_data)
+        session_mock.add.assert_called_once()
+        session_mock.commit.assert_called_once()
+
+    def test_generate_gallery_layouts_skips_existing_layout(self):
+        image_dir = os.path.join(self.temp_dir, "channel123", "thumbs")
+        os.makedirs(image_dir, exist_ok=True)
+        rel1 = os.path.join("channel123", "thumbs", "img1.jpg")
+        rel2 = os.path.join("channel123", "thumbs", "img2.jpg")
+        open(os.path.join(self.temp_dir, rel1), "wb").close()
+        open(os.path.join(self.temp_dir, rel2), "wb").close()
+
+        fake_posts = [
+            SimpleNamespace(grouped_id=111, media_type="MessageMediaPhoto", thumb_url=rel1, telegram_id=1),
+            SimpleNamespace(grouped_id=111, media_type="MessageMediaPhoto", thumb_url=rel2, telegram_id=2),
+        ]
+
+        session_mock = mock.Mock()
+
+        class FakePostModel:
+            query = mock.Mock()
+
+        FakePostModel.query.filter_by.return_value.all.return_value = fake_posts
+
+        existing_layout = SimpleNamespace(json_data={"cells": [{"image_index": 0}, {"image_index": 1}]})
+
+        class FakeLayout:
+            query = mock.Mock()
+
+            def __init__(self, *args, **kwargs):
+                raise AssertionError("Layout should not be created when valid layout exists")
+
+        FakeLayout.query.filter_by.return_value.first.return_value = existing_layout
+
+        fake_models = ModuleType("models")
+        fake_models.Post = FakePostModel
+        fake_models.Layout = FakeLayout
+        fake_models.db = SimpleNamespace(session=session_mock)
+
+        class FakeApp:
+            def app_context(self):
+                return nullcontext()
+
+        fake_app_module = ModuleType("app")
+        fake_app_module.app = FakeApp()
+
+        with mock.patch.dict(sys.modules, {"app": fake_app_module, "models": fake_models}):
+            with mock.patch("utils.gallery_layout.generate_gallery_layout") as layout_mock:
+                telegram_export.generate_gallery_layouts_for_channel("channel123")
+
+        layout_mock.assert_not_called()
+        session_mock.add.assert_not_called()
+        session_mock.commit.assert_not_called()
 
     def test_import_discussion_comments_success(self):
         client = mock.Mock()
@@ -372,6 +479,29 @@ class TelegramExportTests(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result["error"], "Not found")
 
+    def test_main_success(self):
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch("telegram_export.time.time", side_effect=[0.0, 2.5]))
+            import_mock = stack.enter_context(mock.patch.object(telegram_export, "import_channel_direct", return_value={"success": True, "processed": 3, "comments": 1}))
+            print_mock = stack.enter_context(mock.patch("builtins.print"))
+
+            telegram_export.main("channel123")
+
+        import_mock.assert_called_once_with("channel123")
+        print_mock.assert_any_call("✅ Импорт завершён за 2.50 секунд.")
+        print_mock.assert_any_call("   Постов обработано: 3")
+        print_mock.assert_any_call("   Комментариев импортировано: 1")
+
+    def test_main_failure(self):
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch("telegram_export.time.time", side_effect=[0.0, 0.0]))
+            stack.enter_context(mock.patch.object(telegram_export, "import_channel_direct", return_value={"success": False, "error": "boom"}))
+            print_mock = stack.enter_context(mock.patch("builtins.print"))
+
+            telegram_export.main("channel123")
+
+        print_mock.assert_any_call("❌ Ошибка при импорте: boom")
+
 
 @unittest.skipUnless(os.getenv("RUN_TELEGRAM_INTEGRATION") == "1", "Set RUN_TELEGRAM_INTEGRATION=1 to run integration tests")
 class TelegramExportIntegrationTests(unittest.TestCase):
@@ -420,6 +550,7 @@ class TelegramExportIntegrationTests(unittest.TestCase):
 
         channel_dir = os.path.join(self.temp_dir, "llamatest")
         self.assertTrue(os.path.isdir(channel_dir), msg="Expected downloads folder for llamatest")
+
 
 if __name__ == "__main__":
     unittest.main()
