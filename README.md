@@ -185,3 +185,25 @@ The script supports the following flags to control its behavior:
 **Note:**  
 You no longer need to run the frontend separately with `npm run serve`.  
 All services are managed via Docker Compose and work together out of the box.
+
+---
+
+## **Testing**
+
+- **Базовый прогон в Docker**
+  ```bash
+  docker compose run --rm app python tests/run_tests.py
+  ```
+  Запускает все unit-тесты и выводит краткое резюме прямо в консоль.
+
+- **HTML-отчёт**
+  ```bash
+  docker compose run --rm app python tests/run_tests.py --html
+  ```
+  Генератор создаёт файл в `test_reports/` с подробной таблицей по каждому тесту.
+
+- **Интеграционные проверки**
+  ```bash
+  docker compose run --rm -e RUN_TELEGRAM_INTEGRATION=1 app python tests/run_tests.py --html
+  ```
+  Дополнительно выполняет импорт тестового канала `@llamatest`. По умолчанию тест помечен как `skipped`, чтобы не обращаться к Telegram без необходимости.
