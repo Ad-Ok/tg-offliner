@@ -199,13 +199,15 @@ def delete_channel(channel_id):
             current_app.logger.info(f"Удалено {discussion_posts_deleted} постов из дискуссионной группы {discussion_group_id}.")
             
             # Удаляем папку дискуссионной группы
-            discussion_folder = os.path.join(DOWNLOADS_DIR, f"discussion_{discussion_group_id}")
+            discussion_folder_name = f"channel_{discussion_group_id}" if str(discussion_group_id).isdigit() else str(discussion_group_id)
+            discussion_folder = os.path.join(DOWNLOADS_DIR, discussion_folder_name)
             if os.path.exists(discussion_folder):
                 shutil.rmtree(discussion_folder)
                 current_app.logger.info(f"Папка дискуссионной группы {discussion_folder} удалена.")
 
         # Удаляем папку из /downloads
-        channel_folder = os.path.join(DOWNLOADS_DIR, channel_id)
+        channel_folder_name = f"channel_{channel_id}" if channel_id.isdigit() else channel_id
+        channel_folder = os.path.join(DOWNLOADS_DIR, channel_folder_name)
         if os.path.exists(channel_folder):
             shutil.rmtree(channel_folder)
             current_app.logger.info(f"Папка {channel_folder} удалена.")
