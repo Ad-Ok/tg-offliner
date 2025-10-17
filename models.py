@@ -54,3 +54,14 @@ class Edit(db.Model):
 
     def __repr__(self):
         return f"<Edit {self.id} for message {self.telegram_id} in channel {self.channel_id}>"
+
+class Layout(db.Model):
+    __tablename__ = 'layouts'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    grouped_id = db.Column(db.BigInteger, nullable=False, unique=True)  # ID медиа-группы
+    channel_id = db.Column(db.String, nullable=False)  # ID канала
+    json_data = db.Column(JSON, nullable=False)  # JSON с данными layout
+
+    def __repr__(self):
+        return f"<Layout for grouped_id {self.grouped_id} in channel {self.channel_id}>"

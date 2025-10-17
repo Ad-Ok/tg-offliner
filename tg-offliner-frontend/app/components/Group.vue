@@ -127,24 +127,16 @@ export default {
       })
     }
     
-    // Загружаем layout для галереи
-    const layoutUrl = computed(() => {
+    const { data: layoutData } = useFetch(() => {
       if (!props.posts.length || !props.posts[0]?.grouped_id) return null
       const groupedId = props.posts[0].grouped_id
-      let channelId = props.posts[0].channel_id
-      // Определяем правильное имя папки
-      if (channelId.match(/^\d+$/)) {
-        channelId = `channel_${channelId}`
-      }
-      const url = `http://localhost:5000/downloads/${channelId}/layouts/gallery_${groupedId}.json`
-      return url
-    })
-    
-    const { data: layoutData } = useFetch(layoutUrl, {
+      const channelId = props.posts[0].channel_id
+      return `http://localhost:5000/api/layouts/${groupedId}?channel_id=${encodeURIComponent(channelId)}`
+    }, {
       default: () => null,
       server: false, // Загружать только на клиенте
       onResponseError: ({ response }) => {
-        console.warn('Failed to load gallery layout:', response?.status, 'URL:', layoutUrl.value)
+        console.warn('Failed to load gallery layout:', response?.status)
       }
     })
     

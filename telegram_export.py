@@ -148,10 +148,13 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
         # Получаем ID группы обсуждений для импорта комментариев
         discussion_group_id = channel_info.get('discussion_group_id')
         
-        # Инициализируем прогресс
-        update_import_progress(channel_id, 0, 0, total_posts)
+        logging.info(f"Всего постов в канале {channel_username}: {total_posts}")
+        logging.info(f"Начинаем обработку постов из канала {channel_username}")
         
+        post_iteration = 0
         for post in all_posts:
+            post_iteration += 1
+            logging.info(f"Итерация {post_iteration}: обрабатываем пост {post.id}")
             try:
                 # Проверяем, нужно ли остановить импорт
                 if should_stop_import(channel_id):
@@ -174,13 +177,20 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
                     continue
                 
                 # Обрабатываем сообщение так же, как в main()
-                post_data = process_message_for_api(post, real_id, client, folder_name)
+                logging.info(f"Обрабатываем пост {post.id} из канала {channel_username}")
+                try:
+                    post_data = process_message_for_api(post, real_id, client, folder_name)
+                except Exception as e:
+                    logging.error(f"Ошибка в process_message_for_api для поста {post.id}: {str(e)}")
+                    post_data = None
                 if post_data:
+                    logging.info(f"Пост {post.id} обработан успешно, добавляем в базу")
                     # Добавляем пост через API
                     api_url = "http://localhost:5000/api/posts"
                     response = requests.post(api_url, json=post_data)
                     if response.status_code in [200, 201]:
                         processed_count += 1
+                        logging.info(f"Пост {post.id} добавлен в базу, всего обработано: {processed_count}")
                         
                         # Если у канала есть группа обсуждений и включен импорт комментариев
                         if discussion_group_id and include_discussion_comments:
@@ -193,16 +203,21 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
                             comments_count += post_comments
                     else:
                         logging.error(f"Ошибка добавления поста {post.id}: {response.text}")
+                else:
+                    logging.warning(f"process_message_for_api вернул None для поста {post.id}")
                 
                 # Обновляем прогресс каждые 5 постов или на каждом посте, если постов мало
                 if processed_count % 5 == 0 or total_posts < 50:
                     update_import_progress(channel_id, processed_count, comments_count, total_posts)
-                        
+                    
+                # Небольшая задержка между постами, чтобы избежать rate limits
+                time.sleep(0.1)
             except Exception as e:
                 logging.error(f"Ошибка при обработке сообщения: {str(e)}")
         
         logging.info(f"Обработано сообщений: {processed_count}")
         logging.info(f"Импортировано комментариев: {comments_count}")
+        logging.info(f"Всего итераций цикла: {post_iteration}")
         logging.info(f"Канал {channel_username} импортирован: {processed_count} сообщений, {comments_count} комментариев")
         
         # Финальное обновление прогресса
@@ -684,17 +699,17 @@ def get_channel_folder(channel_name):
 #     logging.info(f"Канал {channel_name} успешно скачан")
 
 def generate_gallery_layouts_for_channel(channel_username):
-    """Генерирует JSON layouts для галерей в канале."""
-    print(f"Generating gallery layouts for channel: {channel_username}")
+    """Генерирует JSON layouts для галерей в канале и сохраняет в базу данных."""
+    logging.info(f"Generating gallery layouts for channel: {channel_username}")
     try:
         # Работаем напрямую с базой
         from app import app
         with app.app_context():
-            from models import Post
+            from models import Post, Layout, db, Layout
             
             # Получаем все посты канала
             posts = Post.query.filter_by(channel_id=channel_username).all()
-            print(f"Found {len(posts)} posts in channel {channel_username}")
+            logging.info(f"Found {len(posts)} posts in channel {channel_username}")
             
             # Группируем посты по grouped_id
             galleries = {}
@@ -705,16 +720,19 @@ def generate_gallery_layouts_for_channel(channel_username):
                         galleries[grouped_id] = []
                     galleries[grouped_id].append(post)
 
-            print(f"Found galleries: {list(galleries.keys())}")
+            logging.info(f"Found galleries: {list(galleries.keys())}")
             
-            # Для каждой галереи генерируем layout
-            channel_folder = get_channel_folder(channel_username)
-            layouts_dir = os.path.join(channel_folder, "layouts")
-            os.makedirs(layouts_dir, exist_ok=True)
-
             for grouped_id, gallery_posts in galleries.items():
+                logging.info(f"Processing gallery {grouped_id} with {len(gallery_posts)} posts")
                 if len(gallery_posts) < 2:
+                    logging.info(f"Skipping gallery {grouped_id} - only {len(gallery_posts)} images")
                     continue  # Пропускаем галереи с одним изображением
+
+                # Проверяем, существует ли уже layout
+                existing_layout = Layout.query.filter_by(grouped_id=grouped_id).first()
+                if existing_layout:
+                    logging.info(f"Layout for gallery {grouped_id} already exists, skipping")
+                    continue
 
                 # Сортируем посты по telegram_id для консистентного порядка
                 gallery_posts.sort(key=lambda p: p.telegram_id)
@@ -738,9 +756,15 @@ def generate_gallery_layouts_for_channel(channel_username):
 
                 if len(image_paths) >= 2:
                     # Генерируем layout
-                    layout_json_path = os.path.join(layouts_dir, f"gallery_{grouped_id}.json")
-                    generate_gallery_layout(image_paths, layout_json_path)
-                    print(f"Generated layout for gallery {grouped_id}")
+                    from utils.gallery_layout import generate_gallery_layout
+                    layout_data = generate_gallery_layout(image_paths)
+                    
+                    if layout_data:
+                        # Сохраняем в базу данных
+                        new_layout = Layout(grouped_id=grouped_id, channel_id=channel_username, json_data=layout_data)
+                        db.session.add(new_layout)
+                        db.session.commit()
+                        print(f"Generated and saved layout for gallery {grouped_id}")
 
     except Exception as e:
         print(f"Error generating gallery layouts: {e}")

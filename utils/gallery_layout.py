@@ -3,15 +3,14 @@ import os
 from photocollage import collage
 from PIL import Image
 
-def generate_gallery_layout(image_paths, output_json_path, width=100, border=10):
+def generate_gallery_layout(image_paths, width=100, border=10):
     """
-    Генерирует layout для галереи изображений и сохраняет в JSON.
+    Генерирует layout для галереи изображений.
 
     :param image_paths: Список путей к изображениям
-    :param output_json_path: Путь для сохранения JSON
     :param width: Ширина контейнера (пиксели)
     :param border: Отступы между изображениями (пиксели)
-    :return: Путь к JSON файлу или None при ошибке
+    :return: Словарь с данными layout или None при ошибке
     """
     if len(image_paths) < 2:
         return None  # Не генерируем layout для одного изображения
@@ -67,27 +66,9 @@ def generate_gallery_layout(image_paths, output_json_path, width=100, border=10)
             }
             layout_data['cells'].append(cell_data)
 
-        # Сохраняем JSON
-        with open(output_json_path, 'w', encoding='utf-8') as f:
-            json.dump(layout_data, f, indent=2, ensure_ascii=False)
-
-        print(f"Gallery layout saved to: {output_json_path}")
-        return output_json_path
+        print(f"Gallery layout generated for {len(photos)} images")
+        return layout_data
 
     except Exception as e:
         print(f"Error generating gallery layout: {e}")
-        return None
-
-def load_gallery_layout(json_path):
-    """
-    Загружает layout из JSON файла.
-
-    :param json_path: Путь к JSON файлу
-    :return: Словарь с данными layout или None
-    """
-    try:
-        with open(json_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error loading gallery layout: {e}")
         return None
