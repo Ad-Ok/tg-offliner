@@ -98,6 +98,95 @@ class TelegramExportTests(unittest.TestCase):
         thumb_full_path = os.path.join(self.temp_dir, result["thumb_url"])
         self.assertTrue(os.path.exists(thumb_full_path))
 
+    def test_process_message_web_page(self):
+        post = self._build_basic_post(
+            media=SimpleNamespace(
+                webpage=SimpleNamespace(url="https://example.com"),
+            )
+        )
+
+        mock_client = mock.Mock()
+
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch.object(telegram_export, "MessageMediaWebPage", SimpleNamespace))
+            stack.enter_context(mock.patch.object(telegram_export, "process_author", return_value=("Bob", None, None)))
+            stack.enter_context(mock.patch.object(telegram_export, "process_poll", return_value=""))
+            stack.enter_context(mock.patch.object(telegram_export, "parse_entities_to_html", side_effect=lambda text, entities: text))
+            result = telegram_export.process_message_for_api(post, "channel123", mock_client)
+
+        self.assertEqual(result["media_url"], "https://example.com")
+        self.assertIsNone(result["thumb_url"])
+
+    def test_process_message_sticker_adds_emoji(self):
+        class FakeStickerAttr:
+            def __init__(self, alt):
+                self.alt = alt
+
+        sticker_attr = FakeStickerAttr("🔥")
+
+        class FakeDocument:
+            def __init__(self):
+                self.mime_type = "application/x-tgsticker"
+                self.attributes = [sticker_attr]
+
+        class FakeMediaDocument:
+            def __init__(self):
+                self.document = FakeDocument()
+
+        media = FakeMediaDocument()
+
+        post = self._build_basic_post(message="Text", media=media)
+
+        mock_client = mock.Mock()
+
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch.object(telegram_export, "MessageMediaDocument", FakeMediaDocument))
+            stack.enter_context(mock.patch.object(telegram_export, "Document", FakeDocument))
+            stack.enter_context(mock.patch.object(telegram_export, "DocumentAttributeSticker", FakeStickerAttr))
+            stack.enter_context(mock.patch.object(telegram_export, "process_author", return_value=("Bob", None, None)))
+            stack.enter_context(mock.patch.object(telegram_export, "process_poll", return_value=""))
+            stack.enter_context(mock.patch.object(telegram_export, "parse_entities_to_html", side_effect=lambda text, entities: text))
+            stack.enter_context(mock.patch.object(telegram_export, "MessageMediaPhoto", SimpleNamespace))
+            result = telegram_export.process_message_for_api(post, "channel123", mock_client)
+
+        self.assertEqual(result["message"], "Text 🔥")
+        self.assertIsNone(result["media_url"])
+
+    def test_process_message_system_action(self):
+        class MessageActionChatEditTitle:
+            def __init__(self, title):
+                self.title = title
+
+        action = MessageActionChatEditTitle("New Title")
+        post = self._build_basic_post(action=action, message="")
+
+        mock_client = mock.Mock()
+
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch.object(telegram_export, "process_author", return_value=("Bob", None, None)))
+            stack.enter_context(mock.patch.object(telegram_export, "process_poll", return_value=""))
+            stack.enter_context(mock.patch.object(telegram_export, "parse_entities_to_html", side_effect=lambda text, entities: text))
+            result = telegram_export.process_message_for_api(post, "channel123", mock_client)
+
+        self.assertEqual(result["message"], "✏️ Название изменено на: New Title")
+
+    def test_process_message_reactions(self):
+        reaction = SimpleNamespace(reaction="👍", count=5)
+        reactions = SimpleNamespace(results=[reaction])
+        post = self._build_basic_post(reactions=reactions)
+
+        mock_client = mock.Mock()
+
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch.object(telegram_export, "process_author", return_value=("Bob", None, None)))
+            stack.enter_context(mock.patch.object(telegram_export, "process_poll", return_value=""))
+            stack.enter_context(mock.patch.object(telegram_export, "parse_entities_to_html", side_effect=lambda text, entities: text))
+            result = telegram_export.process_message_for_api(post, "channel123", mock_client)
+
+        self.assertEqual(result["reactions"]["total_count"], 5)
+        self.assertEqual(result["reactions"]["recent_reactions"], [{"reaction": "👍", "count": 5}])
+
+
     def test_should_stop_import_true(self):
         with mock.patch("telegram_export.requests.get") as mock_get:
             mock_get.return_value.status_code = 200
