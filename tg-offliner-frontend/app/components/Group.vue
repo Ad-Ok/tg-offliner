@@ -138,7 +138,7 @@ export default {
         if (!props.posts.length || !props.posts[0].grouped_id) return null
         const groupedId = props.posts[0].grouped_id
         const channelId = props.posts[0].channel_id
-        return `/downloads/layouts/${channelId}/gallery_${groupedId}.json`
+        return `/downloads/${channelId}/layouts/gallery_${groupedId}.json`
       }),
       {
         default: () => null,

@@ -208,6 +208,9 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
         # Финальное обновление прогресса
         update_import_progress(channel_id, processed_count, comments_count, total_posts)
         
+        # Генерируем layouts для галерей
+        generate_gallery_layouts_for_channel(channel_username)
+        
         return {"success": True, "processed": processed_count, "comments": comments_count}
         
     except Exception as e:
@@ -241,7 +244,7 @@ def import_discussion_comments(client, channel_id, discussion_group_id, original
             logging.error(f"Ошибка сохранения дискуссионной группы {discussion_group_id}: {e}")
         
         # Создаем папку для комментариев (используем тот же формат, что и для канала)
-        folder_name = f"discussion_{discussion_group_id}"
+        folder_name = f"channel_{discussion_group_id}"
         
         # Сначала ищем форвардированный пост в группе обсуждений
         forwarded_post_id = None
@@ -337,7 +340,7 @@ def save_discussion_group_info(client, discussion_entity):
     :param discussion_entity: Entity дискуссионной группы
     """
     try:
-        discussion_info = get_channel_info(client, discussion_entity, output_dir="downloads")
+        discussion_info = get_channel_info(client, discussion_entity, output_dir="downloads", folder_name=f"channel_{discussion_entity.id}")
         discussion_info["id"] = str(discussion_entity.id)
         
         # Добавляем метку, что это дискуссионная группа
