@@ -735,6 +735,28 @@ def generate_gallery_layouts_for_channel(channel_username):
                 # Проверяем, существует ли уже layout
                 existing_layout = Layout.query.filter_by(grouped_id=grouped_id).first()
                 if existing_layout:
+                    # Проверяем, корректен ли существующий layout (нет дубликатов image_index)
+                    try:
+                        layout_data = existing_layout.json_data
+                        if layout_data and 'cells' in layout_data:
+                            indices = [cell.get('image_index', -1) for cell in layout_data['cells']]
+                            unique_indices = set(indices)
+                            if len(unique_indices) != len(indices) or len(indices) != len(gallery_posts):
+                                logging.info(f"Layout for gallery {grouped_id} has duplicates or wrong count ({len(indices)} cells, {len(gallery_posts)} posts), regenerating")
+                                # Удаляем старый layout
+                                db.session.delete(existing_layout)
+                                db.session.commit()
+                                existing_layout = None
+                            else:
+                                logging.info(f"Layout for gallery {grouped_id} already exists and is valid, skipping")
+                                continue
+                    except Exception as e:
+                        logging.warning(f"Error checking existing layout for {grouped_id}: {e}, regenerating")
+                        db.session.delete(existing_layout)
+                        db.session.commit()
+                        existing_layout = None
+                
+                if existing_layout:
                     logging.info(f"Layout for gallery {grouped_id} already exists, skipping")
                     continue
 
@@ -758,12 +780,15 @@ def generate_gallery_layouts_for_channel(channel_username):
                             if os.path.exists(thumb_path):
                                 image_paths.append(thumb_path)
 
+                logging.info(f"Gallery {grouped_id}: collected {len(image_paths)} image paths from {len(gallery_posts)} posts")
+
                 if len(image_paths) >= 2:
                     # Генерируем layout
                     from utils.gallery_layout import generate_gallery_layout
                     layout_data = generate_gallery_layout(image_paths)
                     
                     if layout_data:
+                        logging.info(f"Generated layout for gallery {grouped_id}: {len(layout_data.get('cells', []))} cells")
                         # Сохраняем в базу данных
                         new_layout = Layout(grouped_id=grouped_id, channel_id=channel_username, json_data=layout_data)
                         db.session.add(new_layout)

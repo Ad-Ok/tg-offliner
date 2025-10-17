@@ -39,10 +39,19 @@ def generate_gallery_layout(image_paths, width=100, border=10):
         for photo in photos:
             page.add_cell(photo)
 
-        # Собираем все cells из всех колонок
+        # Собираем все cells из всех колонок, но гарантируем уникальность photos
         all_cells = []
+        used_photos = set()
         for col in page.cols:
-            all_cells.extend(col.cells)
+            for cell in col.cells:
+                if cell.photo not in used_photos:
+                    all_cells.append(cell)
+                    used_photos.add(cell.photo)
+                    # Ограничиваем количество изображений до исходного количества
+                    if len(all_cells) >= len(photos):
+                        break
+            if len(all_cells) >= len(photos):
+                break
 
         # Создаем mapping photo -> index
         photo_to_index = {photo: idx for idx, photo in enumerate(photos)}
@@ -66,6 +75,7 @@ def generate_gallery_layout(image_paths, width=100, border=10):
             }
             layout_data['cells'].append(cell_data)
 
+        print(f"Generated layout with {len(layout_data['cells'])} cells")
         print(f"Gallery layout generated for {len(photos)} images")
         return layout_data
 
