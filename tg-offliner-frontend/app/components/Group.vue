@@ -138,7 +138,11 @@ export default {
     const layoutUrl = computed(() => {
       if (!props.posts.length || !props.posts[0]?.grouped_id) return null
       const groupedId = props.posts[0].grouped_id
-      const channelId = props.posts[0].channel_id
+      let channelId = props.posts[0].channel_id
+      // Определяем правильное имя папки
+      if (channelId.match(/^\d+$/)) {
+        channelId = `channel_${channelId}`
+      }
       const url = `http://localhost:5000/downloads/${channelId}/layouts/gallery_${groupedId}.json`
       return url
     })

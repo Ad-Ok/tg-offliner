@@ -641,7 +641,15 @@ def get_channel_folder(channel_name):
     """
     Возвращает путь к папке для конкретного канала.
     """
-    channel_folder = os.path.join(DOWNLOADS_DIR, channel_name)
+    # Определяем правильное имя папки
+    if channel_name.isdigit():
+        # Для числовых ID (discussion группы) добавляем префикс channel_
+        folder_name = f"channel_{channel_name}"
+    else:
+        # Для username используем как есть
+        folder_name = channel_name
+
+    channel_folder = os.path.join(DOWNLOADS_DIR, folder_name)
     os.makedirs(channel_folder, exist_ok=True)  # Создаём папку канала, если её нет
 
     # Создаём папку media внутри папки канала
