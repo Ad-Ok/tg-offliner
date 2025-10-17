@@ -17,23 +17,25 @@
 
       <div class="media-grid mt-2">
         <!-- Если есть layout, используем его для позиционирования -->
-        <div v-if="galleryLayout" class="gallery-container relative" :style="galleryContainerStyle">
+        <div v-show="galleryLayout" class="gallery-container relative" :style="galleryContainerStyle">
           <div
-            v-for="(cell, index) in galleryLayout.cells"
+            v-for="(cell, index) in galleryLayout?.cells || []"
             :key="index"
             class="gallery-item absolute"
             :style="getCellStyle(cell)"
+            v-show="cell.image_index < postsWithMedia.length && postsWithMedia[cell.image_index]"
           >
+            <PostEditor :post="postsWithMedia[cell.image_index]" @hiddenStateChanged="(state) => onHiddenStateChanged(postsWithMedia[cell.image_index], state)"/>
             <PostMedia
-              :mediaUrl="post.thumb_url"
-              :mediaType="post.media_type"
-              :mimeType="post.mime_type"
-              :class="{ 'opacity-25 print:hidden': getPostHiddenState(post) && !editModeStore.isExportMode }"
+              :mediaUrl="postsWithMedia[cell.image_index]?.thumb_url"
+              :mediaType="postsWithMedia[cell.image_index]?.media_type"
+              :mimeType="postsWithMedia[cell.image_index]?.mime_type"
+              :class="{ 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode }"
             />
           </div>
         </div>
         <!-- Fallback: обычная grid -->
-        <div v-else class="grid grid-cols-2 gap-2">
+        <div v-show="!galleryLayout" class="grid grid-cols-2 gap-2">
           <div
             v-for="post in postsWithMedia"
             :key="post.id"
@@ -133,20 +135,21 @@ export default {
     }
     
     // Загружаем layout для галереи
-    const { data: layoutData } = useFetch(
-      computed(() => {
-        if (!props.posts.length || !props.posts[0].grouped_id) return null
-        const groupedId = props.posts[0].grouped_id
-        const channelId = props.posts[0].channel_id
-        return `/downloads/${channelId}/layouts/gallery_${groupedId}.json`
-      }),
-      {
-        default: () => null,
-        server: false // Загружать только на клиенте
-      }
-    )
+    const layoutUrl = computed(() => {
+      if (!props.posts.length || !props.posts[0]?.grouped_id) return null
+      const groupedId = props.posts[0].grouped_id
+      const channelId = props.posts[0].channel_id
+      const url = `http://localhost:5000/downloads/${channelId}/layouts/gallery_${groupedId}.json`
+      return url
+    })
     
-    // Получаем стиль для ячейки layout
+    const { data: layoutData } = useFetch(layoutUrl, {
+      default: () => null,
+      server: false, // Загружать только на клиенте
+      onResponseError: ({ response }) => {
+        console.warn('Failed to load gallery layout:', response?.status, 'URL:', layoutUrl.value)
+      }
+    })
     const getCellStyle = (cell) => {
       return {
         left: `${cell.x}px`,
