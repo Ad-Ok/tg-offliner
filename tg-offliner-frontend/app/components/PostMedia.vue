@@ -29,6 +29,7 @@
       <img
         :src="mediaSrc"
         alt="Медиа"
+        class="w-full"
       />
     </div>
     <div v-else-if="mediaType === 'MessageMediaWebPage'">

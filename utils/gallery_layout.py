@@ -3,7 +3,7 @@ import os
 from photocollage import collage
 from PIL import Image
 
-def generate_gallery_layout(image_paths, output_json_path, width=1000, border=10):
+def generate_gallery_layout(image_paths, output_json_path, width=100, border=10):
     """
     Генерирует layout для галереи изображений и сохраняет в JSON.
 

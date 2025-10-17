@@ -17,9 +17,9 @@
 
       <div class="media-grid mt-2">
         <!-- Если есть layout, используем его для позиционирования -->
-        <div v-show="galleryLayout" class="gallery-container relative" :style="galleryContainerStyle">
+        <div v-show="layoutData" class="gallery-container relative" :style="galleryContainerStyle">
           <div
-            v-for="(cell, index) in galleryLayout?.cells || []"
+            v-for="(cell, index) in layoutData?.cells || []"
             :key="index"
             class="gallery-item absolute"
             :style="getCellStyle(cell)"
@@ -109,13 +109,6 @@ export default {
     },
     galleryLayout() {
       return this.layoutData;
-    },
-    galleryContainerStyle() {
-      if (!this.galleryLayout) return {};
-      return {
-        width: `${this.galleryLayout.total_width}px`,
-        height: `${this.galleryLayout.total_height}px`
-      };
     }
   },
   setup(props) {
@@ -154,12 +147,23 @@ export default {
         console.warn('Failed to load gallery layout:', response?.status, 'URL:', layoutUrl.value)
       }
     })
-    const getCellStyle = (cell) => {
+    
+    const galleryContainerStyle = computed(() => {
+      if (!layoutData.value) return {};
       return {
-        left: `${cell.x}px`,
-        top: `${cell.y}px`,
-        width: `${cell.width}px`,
-        height: `${cell.height}px`
+        width: `${layoutData.value.total_width}%`,
+        paddingBottom: `${layoutData.value.total_height}%`
+      };
+    })
+    const getCellStyle = (cell) => {
+      if (!layoutData.value) return {}
+      const totalWidth = layoutData.value.total_width
+      const totalHeight = layoutData.value.total_height
+      return {
+        left: `${(cell.x / totalWidth * 100)}%`,
+        top: `${(cell.y / totalHeight * 100)}%`,
+        width: `${(cell.width / totalWidth * 100)}%`,
+        height: `${(cell.height / totalHeight * 100)}%`
       }
     }
     
@@ -183,6 +187,7 @@ export default {
     return {
       editModeStore,
       layoutData,
+      galleryContainerStyle,
       getPostHiddenState,
       onHiddenStateChanged,
       getCellStyle
