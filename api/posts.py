@@ -30,6 +30,7 @@ def get_posts():
         "date": post.date,
         "message": post.message,
         "media_url": post.media_url,
+        "thumb_url": post.thumb_url,
         "media_type": post.media_type,
         "mime_type": post.mime_type,
         "author_name": post.author_name,
@@ -64,6 +65,7 @@ def add_post():
         date=data['date'],
         message=data.get('message', ''),  # Текст сообщения (по умолчанию пустая строка)
         media_url=data.get('media_url'),  # Сохраняем ссылку на медиа
+        thumb_url=data.get('thumb_url'),  # Сохраняем ссылку на миниатюру
         media_type=data.get('media_type'),  # Сохраняем тип медиа
         mime_type=data.get('mime_type'),  # Сохраняем MIME-тип
         author_name=data.get('author_name'),  # Имя автора

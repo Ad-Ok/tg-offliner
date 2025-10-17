@@ -24,10 +24,11 @@
             class="gallery-item absolute"
             :style="getCellStyle(cell)"
           >
-            <img
-              :src="`${mediaBase}/downloads/${getThumbUrl(cell.image_index)}`"
-              :alt="`Gallery image ${index + 1}`"
-              class="w-full h-full object-cover rounded"
+            <PostMedia
+              :mediaUrl="post.thumb_url"
+              :mediaType="post.media_type"
+              :mimeType="post.mime_type"
+              :class="{ 'opacity-25 print:hidden': getPostHiddenState(post) && !editModeStore.isExportMode }"
             />
           </div>
         </div>
@@ -42,7 +43,7 @@
           >
             <PostEditor :post="post" @hiddenStateChanged="(state) => onHiddenStateChanged(post, state)"/>
             <PostMedia
-              :mediaUrl="post.media_url"
+              :mediaUrl="post.thumb_url"
               :mediaType="post.media_type"
               :mimeType="post.mime_type"
               :class="{ 'opacity-25 print:hidden': getPostHiddenState(post) && !editModeStore.isExportMode }"
@@ -121,9 +122,6 @@ export default {
     // Храним состояние скрытости для каждого поста в группе
     const hiddenStates = ref(new Map())
     
-    // Layout для галереи
-    const layoutData = ref(null)
-    
     // Инициализируем состояния для всех постов с медиа
     const initializeHiddenStates = () => {
       props.posts.forEach(post => {
@@ -135,31 +133,18 @@ export default {
     }
     
     // Загружаем layout для галереи
-    const loadGalleryLayout = async () => {
-      if (!props.posts.length || !props.posts[0].grouped_id) return
-      
-      const groupedId = props.posts[0].grouped_id
-      const channelId = props.posts[0].channel_id
-      
-      try {
-        const layoutUrl = `${mediaBase}/downloads/layouts/${channelId}/gallery_${groupedId}.json`
-        const response = await fetch(layoutUrl)
-        if (response.ok) {
-          layoutData.value = await response.json()
-        }
-      } catch (error) {
-        console.warn('Failed to load gallery layout:', error)
+    const { data: layoutData } = useFetch(
+      computed(() => {
+        if (!props.posts.length || !props.posts[0].grouped_id) return null
+        const groupedId = props.posts[0].grouped_id
+        const channelId = props.posts[0].channel_id
+        return `/downloads/layouts/${channelId}/gallery_${groupedId}.json`
+      }),
+      {
+        default: () => null,
+        server: false // Загружать только на клиенте
       }
-    }
-    
-    // Получаем URL превью для изображения по индексу
-    const getThumbUrl = (imageIndex) => {
-      if (!props.postsWithMedia[imageIndex]) return ''
-      const mediaUrl = props.postsWithMedia[imageIndex].media_url
-      if (!mediaUrl) return ''
-      // Заменяем media на thumbs в пути
-      return mediaUrl.replace('/media/', '/thumbs/')
-    }
+    )
     
     // Получаем стиль для ячейки layout
     const getCellStyle = (cell) => {
@@ -186,7 +171,6 @@ export default {
     
     onMounted(async () => {
       editModeStore.checkAndSetExportMode()
-      await loadGalleryLayout()
     })
     
     return {
@@ -194,7 +178,6 @@ export default {
       layoutData,
       getPostHiddenState,
       onHiddenStateChanged,
-      getThumbUrl,
       getCellStyle
     }
   }

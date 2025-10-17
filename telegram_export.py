@@ -368,6 +368,7 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
         
         # Скачиваем медиа
         media_path = None
+        thumb_path_rel = None  # Относительный путь к миниатюре
         media_type = None
         mime_type = None
         sticker_emoji = None  # Для хранения эмодзи стикера
@@ -415,8 +416,22 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
                     thumbs_dir = os.path.join(channel_folder, "thumbs")
                     os.makedirs(thumbs_dir, exist_ok=True)
                     thumb_path = os.path.join(thumbs_dir, os.path.basename(full_media_path))
-                    shutil.copy2(full_media_path, thumb_path)
-                    logging.info(f"Created thumbnail: {thumb_path}")
+                    
+                    # Генерируем настоящее превью вместо копирования
+                    try:
+                        from PIL import Image
+                        with Image.open(full_media_path) as img:
+                            # Создаем превью размером 300x300, сохраняя пропорции
+                            img.thumbnail((300, 300), Image.Resampling.LANCZOS)
+                            img.save(thumb_path, quality=85, optimize=True)
+                            logging.info(f"Created thumbnail: {thumb_path} ({img.size})")
+                    except Exception as e:
+                        # Fallback: копируем оригинал если не удалось создать превью
+                        shutil.copy2(full_media_path, thumb_path)
+                        logging.warning(f"Failed to create thumbnail, copied original: {e}")
+                    
+                    # Сохраняем относительный путь к миниатюре
+                    thumb_path_rel = os.path.relpath(thumb_path, DOWNLOADS_DIR)
             
             # Устанавливаем mime_type только если это не стикер
             if (isinstance(post.media, MessageMediaDocument) and 
@@ -592,6 +607,7 @@ def process_message_for_api(post, channel_id, client, folder_name=None):
             "date": post.date.isoformat() if post.date else None,
             "message": message_text,
             "media_url": media_path,
+            "thumb_url": thumb_path_rel,
             "media_type": media_type,
             "mime_type": mime_type,
             "author_name": sender_name,
@@ -695,12 +711,19 @@ def generate_gallery_layouts_for_channel(channel_username):
                 # Собираем пути к превью
                 image_paths = []
                 for post in gallery_posts:
-                    media_url = post.media_url
-                    if media_url:
-                        # Путь к превью: downloads/{channel}/thumbs/{filename}
-                        thumb_path = os.path.join(DOWNLOADS_DIR, channel_username, "thumbs", os.path.basename(media_url))
+                    # Используем thumb_url из базы данных, если он есть
+                    thumb_url = post.thumb_url
+                    if thumb_url:
+                        thumb_path = os.path.join(DOWNLOADS_DIR, thumb_url)
                         if os.path.exists(thumb_path):
                             image_paths.append(thumb_path)
+                    else:
+                        # Fallback: старый способ для совместимости
+                        media_url = post.media_url
+                        if media_url:
+                            thumb_path = os.path.join(DOWNLOADS_DIR, media_url.replace('/media/', '/thumbs/'))
+                            if os.path.exists(thumb_path):
+                                image_paths.append(thumb_path)
 
                 if len(image_paths) >= 2:
                     # Генерируем layout
@@ -808,6 +831,7 @@ def main(channel_username=None):
 
         # Скачиваем медиа
         media_path = None
+        thumb_path_rel = None  # Относительный путь к миниатюре
         media_type = None
         mime_type = None
 
@@ -836,8 +860,22 @@ def main(channel_username=None):
                     thumbs_dir = os.path.join(channel_folder, "thumbs")
                     os.makedirs(thumbs_dir, exist_ok=True)
                     thumb_path = os.path.join(thumbs_dir, os.path.basename(full_media_path))
-                    shutil.copy2(full_media_path, thumb_path)
-                    logging.info(f"Created thumbnail: {thumb_path}")
+                    
+                    # Генерируем настоящее превью вместо копирования
+                    try:
+                        from PIL import Image
+                        with Image.open(full_media_path) as img:
+                            # Создаем превью размером 300x300, сохраняя пропорции
+                            img.thumbnail((300, 300), Image.Resampling.LANCZOS)
+                            img.save(thumb_path, quality=85, optimize=True)
+                            logging.info(f"Created thumbnail: {thumb_path} ({img.size})")
+                    except Exception as e:
+                        # Fallback: копируем оригинал если не удалось создать превью
+                        shutil.copy2(full_media_path, thumb_path)
+                        logging.warning(f"Failed to create thumbnail, copied original: {e}")
+                    
+                    # Сохраняем относительный путь к миниатюре
+                    thumb_path_rel = os.path.relpath(thumb_path, DOWNLOADS_DIR)
             
             if isinstance(post.media, MessageMediaDocument) and isinstance(post.media.document, Document):
                 mime_type = getattr(post.media.document, 'mime_type', None)
@@ -871,6 +909,7 @@ def main(channel_username=None):
             "date": post.date.strftime('%Y-%m-%dT%H:%M:%S'),
             "message": formatted_message,
             "media_url": media_path,
+            "thumb_url": thumb_path_rel,
             "media_type": media_type,
             "mime_type": mime_type,
             "author_name": sender_name,

@@ -12,6 +12,7 @@ class Post(db.Model):
     date = db.Column(db.String, nullable=False)
     message = db.Column(db.Text, nullable=True)
     media_url = db.Column(db.String, nullable=True)
+    thumb_url = db.Column(db.String, nullable=True)  # Путь к миниатюре
     media_type = db.Column(db.String, nullable=True)
     mime_type = db.Column(db.String, nullable=True)
     author_name = db.Column(db.String, nullable=True)  # Имя автора

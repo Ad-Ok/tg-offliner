@@ -19,4 +19,12 @@ export default defineNuxtConfig({
   css: [
     '/app/assets/tailwind.css'
   ],
+  nitro: {
+    devProxy: {
+      '/downloads': {
+        target: 'http://localhost:5000/downloads',
+        changeOrigin: true
+      }
+    }
+  }
 })
