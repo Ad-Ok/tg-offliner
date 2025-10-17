@@ -226,6 +226,10 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
         # Генерируем layouts для галерей
         generate_gallery_layouts_for_channel(channel_username)
         
+        # Если есть дискуссионная группа, генерируем layouts и для неё
+        if discussion_group_id:
+            generate_gallery_layouts_for_channel(str(discussion_group_id))
+        
         return {"success": True, "processed": processed_count, "comments": comments_count}
         
     except Exception as e:
@@ -779,6 +783,10 @@ def main(channel_username=None):
     client = connect_to_telegram()
     entity = client.get_entity(channel_username)
 
+    # Получаем информацию о канале для discussion_group_id
+    channel_info = get_channel_info(client, entity, output_dir="downloads", folder_name=channel_username)
+    discussion_group_id = channel_info.get('discussion_group_id')
+
     # Сохраняем информацию о канале
     # save_channel_info(client, channel_username)  # временно отключено
 
@@ -974,6 +982,10 @@ def main(channel_username=None):
 
     # Генерируем layouts для галерей
     generate_gallery_layouts_for_channel(channel_username)
+    
+    # Если есть дискуссионная группа, генерируем layouts и для неё
+    if discussion_group_id:
+        generate_gallery_layouts_for_channel(str(discussion_group_id))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Экспорт постов Telegram в базу данных.")
