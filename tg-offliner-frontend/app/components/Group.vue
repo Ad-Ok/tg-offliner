@@ -136,30 +136,39 @@ export default {
       })
     }
     
-    const { data: layoutData, refresh: refreshLayout } = useFetch(() => {
-      if (!props.posts.length || !props.posts[0]?.grouped_id) return null
-      const groupedId = props.posts[0].grouped_id
-      const channelId = props.posts[0].channel_id
-      return `http://localhost:5000/api/layouts/${groupedId}?channel_id=${encodeURIComponent(channelId)}`
-    }, {
-      default: () => null,
-      server: false, // Загружать только на клиенте
-      onResponseError: ({ response }) => {
-        console.warn('Failed to load gallery layout:', response?.status)
+    const layoutData = ref(null)
+    const groupedIdRef = computed(() => props.posts[0]?.grouped_id ?? null)
+    const channelIdRef = computed(() => props.posts[0]?.channel_id ?? null)
+
+    const syncLayoutFromProps = () => {
+      const firstPost = props.posts[0]
+      layoutData.value = firstPost?.layout || null
+    }
+
+    syncLayoutFromProps()
+
+    watch(
+      () => props.posts,
+      () => {
+        syncLayoutFromProps()
+      },
+      { deep: true }
+    )
+
+    const galleryContainerStyle = computed(() => {
+      const layout = layoutData.value
+      if (!layout) return {}
+      return {
+        width: `${layout.total_width}%`,
+        paddingBottom: `${layout.total_height}%`
       }
     })
-    
-    const galleryContainerStyle = computed(() => {
-      if (!layoutData.value) return {};
-      return {
-        width: `${layoutData.value.total_width}%`,
-        paddingBottom: `${layoutData.value.total_height}%`
-      };
-    })
+
     const getCellStyle = (cell) => {
-      if (!layoutData.value) return {}
-      const totalWidth = layoutData.value.total_width
-      const totalHeight = layoutData.value.total_height
+      const layout = layoutData.value
+      if (!layout) return {}
+      const totalWidth = layout.total_width
+      const totalHeight = layout.total_height
       return {
         left: `${(cell.x / totalWidth * 100)}%`,
         top: `${(cell.y / totalHeight * 100)}%`,
@@ -181,15 +190,23 @@ export default {
       hiddenStates.value.set(key, newHiddenState)
     }
 
-    const handleLayoutReloaded = async (newLayout) => {
+  const handleLayoutReloaded = (newLayout) => {
       if (newLayout) {
         layoutData.value = newLayout
+        props.posts.forEach(post => {
+          if (post.grouped_id === groupedIdRef.value && post.channel_id === channelIdRef.value) {
+            post.layout = newLayout
+          }
+        })
         return
       }
 
-      if (typeof refreshLayout === 'function') {
-        await refreshLayout()
-      }
+      layoutData.value = null
+      props.posts.forEach(post => {
+        if (post.grouped_id === groupedIdRef.value && post.channel_id === channelIdRef.value) {
+          post.layout = null
+        }
+      })
     }
     
     onMounted(async () => {

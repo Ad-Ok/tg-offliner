@@ -118,6 +118,40 @@ const { data: posts, pending } = await useAsyncData(
     } catch (error) {
       console.error('Error loading hidden states:', error);
     }
+
+    try {
+      const uniqueGroupKeys = new Map()
+
+      allPosts.forEach(post => {
+        if (!post.grouped_id || post.media_type !== 'MessageMediaPhoto') {
+          return
+        }
+        const key = `${post.channel_id}:${post.grouped_id}`
+        if (!uniqueGroupKeys.has(key)) {
+          uniqueGroupKeys.set(key, { channelId: post.channel_id, groupedId: post.grouped_id })
+        }
+      })
+
+      if (uniqueGroupKeys.size) {
+        await Promise.all(Array.from(uniqueGroupKeys.values()).map(async ({ channelId: groupChannelId, groupedId }) => {
+          try {
+            const response = await api.get(`/api/layouts/${groupedId}?channel_id=${encodeURIComponent(groupChannelId)}`)
+            const layout = response.data
+            if (layout) {
+              allPosts.forEach(post => {
+                if (post.channel_id === groupChannelId && post.grouped_id === groupedId) {
+                  post.layout = layout
+                }
+              })
+            }
+          } catch (error) {
+            console.warn('Failed to preload layout for group', groupedId, 'channel', groupChannelId, error?.response?.data || error)
+          }
+        }))
+      }
+    } catch (error) {
+      console.error('Error preloading gallery layouts:', error)
+    }
     
     return allPosts;
   }
