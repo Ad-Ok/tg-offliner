@@ -23,9 +23,33 @@ class TelegramExportTests(unittest.TestCase):
         self.temp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.temp_dir, ignore_errors=True)
 
-        patcher = mock.patch.object(telegram_export, "DOWNLOADS_DIR", self.temp_dir)
-        self.addCleanup(patcher.stop)
-        patcher.start()
+        downloads_patcher = mock.patch.object(telegram_export, "DOWNLOADS_DIR", self.temp_dir)
+        self.addCleanup(downloads_patcher.stop)
+        downloads_patcher.start()
+
+        self.process_author_patcher = mock.patch.object(
+            telegram_export,
+            "process_author",
+            return_value=("Bob", None, None),
+        )
+        self.mock_process_author = self.process_author_patcher.start()
+        self.addCleanup(self.process_author_patcher.stop)
+
+        self.process_poll_patcher = mock.patch.object(
+            telegram_export,
+            "process_poll",
+            return_value="",
+        )
+        self.mock_process_poll = self.process_poll_patcher.start()
+        self.addCleanup(self.process_poll_patcher.stop)
+
+        self.parse_entities_patcher = mock.patch.object(
+            telegram_export,
+            "parse_entities_to_html",
+            side_effect=lambda text, entities: text,
+        )
+        self.mock_parse_entities = self.parse_entities_patcher.start()
+        self.addCleanup(self.parse_entities_patcher.stop)
 
     def _build_basic_post(self, **overrides):
         base = {
@@ -51,12 +75,9 @@ class TelegramExportTests(unittest.TestCase):
         folder_name = "test_channel"
         mock_client = mock.Mock()
 
-        with ExitStack() as stack:
-            stack.enter_context(mock.patch.object(telegram_export, "process_author", return_value=("Alice", "avatars/alice.jpg", "https://t.me/alice")))
-            stack.enter_context(mock.patch.object(telegram_export, "process_poll", return_value=""))
-            stack.enter_context(mock.patch.object(telegram_export, "parse_entities_to_html", side_effect=lambda text, entities: text))
-            post = self._build_basic_post()
-            result = telegram_export.process_message_for_api(post, "channel123", mock_client, folder_name=folder_name)
+        self.mock_process_author.return_value = ("Alice", "avatars/alice.jpg", "https://t.me/alice")
+        post = self._build_basic_post()
+        result = telegram_export.process_message_for_api(post, "channel123", mock_client, folder_name=folder_name)
 
         self.assertIsNotNone(result)
         self.assertEqual(result["message"], "Hello")
@@ -84,11 +105,7 @@ class TelegramExportTests(unittest.TestCase):
 
         mock_client.download_media.side_effect = fake_download
 
-        with ExitStack() as stack:
-            stack.enter_context(mock.patch.object(telegram_export, "MessageMediaPhoto", FakePhoto))
-            stack.enter_context(mock.patch.object(telegram_export, "process_author", return_value=("Bob", None, None)))
-            stack.enter_context(mock.patch.object(telegram_export, "process_poll", return_value=""))
-            stack.enter_context(mock.patch.object(telegram_export, "parse_entities_to_html", side_effect=lambda text, entities: text))
+        with mock.patch.object(telegram_export, "MessageMediaPhoto", FakePhoto):
             result = telegram_export.process_message_for_api(post, "channel123", mock_client, folder_name=folder_name)
 
         self.assertIsNotNone(result)
@@ -107,11 +124,7 @@ class TelegramExportTests(unittest.TestCase):
 
         mock_client = mock.Mock()
 
-        with ExitStack() as stack:
-            stack.enter_context(mock.patch.object(telegram_export, "MessageMediaWebPage", SimpleNamespace))
-            stack.enter_context(mock.patch.object(telegram_export, "process_author", return_value=("Bob", None, None)))
-            stack.enter_context(mock.patch.object(telegram_export, "process_poll", return_value=""))
-            stack.enter_context(mock.patch.object(telegram_export, "parse_entities_to_html", side_effect=lambda text, entities: text))
+        with mock.patch.object(telegram_export, "MessageMediaWebPage", SimpleNamespace):
             result = telegram_export.process_message_for_api(post, "channel123", mock_client)
 
         self.assertEqual(result["media_url"], "https://example.com")
@@ -143,9 +156,6 @@ class TelegramExportTests(unittest.TestCase):
             stack.enter_context(mock.patch.object(telegram_export, "MessageMediaDocument", FakeMediaDocument))
             stack.enter_context(mock.patch.object(telegram_export, "Document", FakeDocument))
             stack.enter_context(mock.patch.object(telegram_export, "DocumentAttributeSticker", FakeStickerAttr))
-            stack.enter_context(mock.patch.object(telegram_export, "process_author", return_value=("Bob", None, None)))
-            stack.enter_context(mock.patch.object(telegram_export, "process_poll", return_value=""))
-            stack.enter_context(mock.patch.object(telegram_export, "parse_entities_to_html", side_effect=lambda text, entities: text))
             stack.enter_context(mock.patch.object(telegram_export, "MessageMediaPhoto", SimpleNamespace))
             result = telegram_export.process_message_for_api(post, "channel123", mock_client)
 
@@ -162,11 +172,7 @@ class TelegramExportTests(unittest.TestCase):
 
         mock_client = mock.Mock()
 
-        with ExitStack() as stack:
-            stack.enter_context(mock.patch.object(telegram_export, "process_author", return_value=("Bob", None, None)))
-            stack.enter_context(mock.patch.object(telegram_export, "process_poll", return_value=""))
-            stack.enter_context(mock.patch.object(telegram_export, "parse_entities_to_html", side_effect=lambda text, entities: text))
-            result = telegram_export.process_message_for_api(post, "channel123", mock_client)
+        result = telegram_export.process_message_for_api(post, "channel123", mock_client)
 
         self.assertEqual(result["message"], "✏️ Название изменено на: New Title")
 
@@ -177,11 +183,7 @@ class TelegramExportTests(unittest.TestCase):
 
         mock_client = mock.Mock()
 
-        with ExitStack() as stack:
-            stack.enter_context(mock.patch.object(telegram_export, "process_author", return_value=("Bob", None, None)))
-            stack.enter_context(mock.patch.object(telegram_export, "process_poll", return_value=""))
-            stack.enter_context(mock.patch.object(telegram_export, "parse_entities_to_html", side_effect=lambda text, entities: text))
-            result = telegram_export.process_message_for_api(post, "channel123", mock_client)
+        result = telegram_export.process_message_for_api(post, "channel123", mock_client)
 
         self.assertEqual(result["reactions"]["total_count"], 5)
         self.assertEqual(result["reactions"]["recent_reactions"], [{"reaction": "👍", "count": 5}])
