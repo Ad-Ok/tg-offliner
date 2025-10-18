@@ -30,6 +30,7 @@
             :mediaUrl="post.media_url"
             :mediaType="post.media_type"
             :mimeType="post.mime_type"
+            :caption="mediaCaption"
           />
         </div>
       </div>
@@ -82,6 +83,18 @@ export default {
       isHidden.value = newHiddenState
     }
     
+    // Caption для Fancybox
+    const mediaCaption = computed(() => {
+      const parts = []
+      if (props.post.author_name) {
+        parts.push(props.post.author_name)
+      }
+      if (props.post.message) {
+        parts.push(props.post.message)
+      }
+      return parts.join(' - ')
+    })
+    
     onMounted(() => {
       editModeStore.checkAndSetExportMode()
     })
@@ -89,7 +102,8 @@ export default {
     return {
       editModeStore,
       isHidden,
-      onHiddenStateChanged
+      onHiddenStateChanged,
+      mediaCaption
     }
   }
 };

@@ -1,17 +1,31 @@
 <template>
   <div class="post-media" :data-media-type="mediaType" :data-mime-type="mimeType">
     <div v-if="mediaType === 'MessageMediaDocument'">
-      <img
+      <!-- Изображения -->
+      <a
         v-if="mimeType && mimeType.startsWith('image/')"
-        :src="mediaSrc"
-        alt="Медиа"
-      />
-      <video
-        v-else-if="mimeType && mimeType.startsWith('video/')"
-        controls
+        :href="fullMediaSrc"
+        data-fancybox="channel-gallery"
+        :data-caption="caption"
       >
-        <source :src="mediaSrc" />
-      </video>
+        <img
+          :src="mediaSrc"
+          alt="Медиа"
+        />
+      </a>
+      <!-- Видео -->
+      <a
+        v-else-if="mimeType && mimeType.startsWith('video/')"
+        :href="fullMediaSrc"
+        data-fancybox="channel-gallery"
+        :data-caption="caption"
+      >
+        <video
+          controls
+        >
+          <source :src="mediaSrc" />
+        </video>
+      </a>
       <audio
         v-else-if="mimeType && mimeType.startsWith('audio/')"
         controls
@@ -26,11 +40,17 @@
       <a v-else :href="mediaSrc" target="_blank">Скачать файл</a>
     </div>
     <div v-else-if="mediaType === 'MessageMediaPhoto'" class="w-full h-full">
-      <img
-        :src="mediaSrc"
-        alt="Медиа"
-        :class="imgClass"
-      />
+      <a
+        :href="fullMediaSrc"
+        data-fancybox="channel-gallery"
+        :data-caption="caption"
+      >
+        <img
+          :src="mediaSrc"
+          alt="Медиа"
+          :class="imgClass"
+        />
+      </a>
     </div>
     <div v-else-if="mediaType === 'MessageMediaWebPage'">
       <div class="webpage-preview mt-2 border border-gray-200 bg-gray-100 rounded-lg px-4 py-2">
@@ -60,7 +80,9 @@ export default {
     mediaUrl: { type: String, required: true },
     mediaType: { type: String, required: true },
     mimeType: { type: String, required: false },
-    imgClass: { type: String, required: false, default: 'w-full' }
+    imgClass: { type: String, required: false, default: 'w-full' },
+    caption: { type: String, required: false, default: '' },
+    fullMediaUrl: { type: String, required: false, default: '' }
   },
   computed: {
     mediaSrc() {
@@ -70,6 +92,14 @@ export default {
       }
       // Для файлов используем базовый путь API
       return `${mediaBase}/downloads/${this.mediaUrl}`;
+    },
+    fullMediaSrc() {
+      // Для fancybox используем полный размер если он есть
+      if (this.fullMediaUrl) {
+        return `${mediaBase}/downloads/${this.fullMediaUrl}`;
+      }
+      // Иначе используем обычный медиа URL
+      return this.mediaSrc;
     }
   }
 };

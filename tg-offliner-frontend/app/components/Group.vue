@@ -35,10 +35,12 @@
             <PostEditor :post="postsWithMedia[cell.image_index]" @hiddenStateChanged="(state) => onHiddenStateChanged(postsWithMedia[cell.image_index], state)"/>
             <PostMedia
               :mediaUrl="postsWithMedia[cell.image_index]?.thumb_url"
+              :fullMediaUrl="postsWithMedia[cell.image_index]?.media_url"
               :mediaType="postsWithMedia[cell.image_index]?.media_type"
               :mimeType="postsWithMedia[cell.image_index]?.mime_type"
               :class="[{ 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode }, 'w-full h-full border']"
               :imgClass="'object-cover w-full h-full'"
+              :caption="getMediaCaption(postsWithMedia[cell.image_index])"
             />
           </div>
         </div>
@@ -54,9 +56,11 @@
             <PostEditor :post="post" @hiddenStateChanged="(state) => onHiddenStateChanged(post, state)"/>
             <PostMedia
               :mediaUrl="post.thumb_url"
+              :fullMediaUrl="post.media_url"
               :mediaType="post.media_type"
               :mimeType="post.mime_type"
               :class="{ 'opacity-25 print:hidden': getPostHiddenState(post) && !editModeStore.isExportMode }"
+              :caption="getMediaCaption(post)"
             />
           </div>
         </div>
@@ -189,6 +193,18 @@ export default {
       const key = `${post.channel_id}:${post.telegram_id}`
       hiddenStates.value.set(key, newHiddenState)
     }
+    
+    const getMediaCaption = (post) => {
+      if (!post) return ''
+      const parts = []
+      if (post.author_name) {
+        parts.push(post.author_name)
+      }
+      if (post.message) {
+        parts.push(post.message)
+      }
+      return parts.join(' - ')
+    }
 
   const handleLayoutReloaded = (newLayout) => {
       if (newLayout) {
@@ -220,7 +236,8 @@ export default {
       getPostHiddenState,
       onHiddenStateChanged,
       getCellStyle,
-      handleLayoutReloaded
+      handleLayoutReloaded,
+      getMediaCaption
     }
   }
 };
