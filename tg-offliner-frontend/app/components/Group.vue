@@ -37,7 +37,8 @@
               :mediaUrl="postsWithMedia[cell.image_index]?.thumb_url"
               :mediaType="postsWithMedia[cell.image_index]?.media_type"
               :mimeType="postsWithMedia[cell.image_index]?.mime_type"
-              :class="{ 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode }"
+              :class="[{ 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode }, 'w-full h-full border']"
+              :imgClass="'object-cover w-full h-full'"
             />
           </div>
         </div>

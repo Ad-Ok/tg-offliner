@@ -25,11 +25,11 @@
       </audio>
       <a v-else :href="mediaSrc" target="_blank">Скачать файл</a>
     </div>
-    <div v-else-if="mediaType === 'MessageMediaPhoto'">
+    <div v-else-if="mediaType === 'MessageMediaPhoto'" class="w-full h-full">
       <img
         :src="mediaSrc"
         alt="Медиа"
-        class="w-full"
+        :class="imgClass"
       />
     </div>
     <div v-else-if="mediaType === 'MessageMediaWebPage'">
@@ -60,6 +60,7 @@ export default {
     mediaUrl: { type: String, required: true },
     mediaType: { type: String, required: true },
     mimeType: { type: String, required: false },
+    imgClass: { type: String, required: false, default: 'w-full' }
   },
   computed: {
     mediaSrc() {

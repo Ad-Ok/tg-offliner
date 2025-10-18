@@ -39,11 +39,17 @@ def generate_gallery_layout(image_paths, width=100, border=10):
         for photo in photos:
             page.add_cell(photo)
 
+        # Финальные корректировки: приводим колонки к общей высоте и подгоняем размеры
+        page.adjust()
+        page.scale_to_fit(width)
+
         # Собираем все cells из всех колонок, но гарантируем уникальность photos
         all_cells = []
         used_photos = set()
         for col in page.cols:
             for cell in col.cells:
+                if getattr(cell, "is_extension", lambda: False)():
+                    continue
                 if cell.photo not in used_photos:
                     all_cells.append(cell)
                     used_photos.add(cell.photo)
@@ -75,6 +81,8 @@ def generate_gallery_layout(image_paths, width=100, border=10):
             }
             layout_data['cells'].append(cell_data)
 
+        _normalize_layout(layout_data)
+
         print(f"Generated layout with {len(layout_data['cells'])} cells")
         print(f"Gallery layout generated for {len(photos)} images")
         return layout_data
@@ -82,3 +90,50 @@ def generate_gallery_layout(image_paths, width=100, border=10):
     except Exception as e:
         print(f"Error generating gallery layout: {e}")
         return None
+
+
+def _normalize_layout(layout_data, precision=6):
+    """Snap coordinates to a fixed grid so neighbouring cells touch exactly."""
+
+    cells = layout_data.get('cells', [])
+    if not cells:
+        return
+
+    precision = max(0, precision)
+    scale = 10 ** precision
+
+    def _normalize_axis(start_key: str, size_key: str, total_key: str) -> None:
+        total = float(layout_data.get(total_key, 0.0) or 0.0)
+        total_int = int(round(total * scale))
+        if total_int <= 0:
+            return
+
+        edges = set()
+        for cell in cells:
+            start_int = int(round(cell[start_key] * scale))
+            end_int = int(round((cell[start_key] + cell[size_key]) * scale))
+            edges.add(start_int)
+            edges.add(end_int)
+
+        edges.add(0)
+        edges.add(total_int)
+        sorted_edges = sorted(edges)
+
+        def snap_int(value: float) -> int:
+            raw = int(round(value * scale))
+            return min(sorted_edges, key=lambda edge: abs(edge - raw))
+
+        for cell in cells:
+            start_int = snap_int(cell[start_key])
+            end_int = snap_int(cell[start_key] + cell[size_key])
+            if end_int < start_int:
+                start_int, end_int = end_int, start_int
+            cell[start_key] = round(start_int / scale, precision)
+            cell[size_key] = round(max((end_int - start_int) / scale, 0.0), precision)
+
+    _normalize_axis('x', 'width', 'total_width')
+    _normalize_axis('y', 'height', 'total_height')
+
+    layout_data['total_width'] = round(int(round((layout_data.get('total_width') or 0.0) * scale)) / scale, precision)
+    layout_data['total_height'] = round(int(round((layout_data.get('total_height') or 0.0) * scale)) / scale, precision)
+
