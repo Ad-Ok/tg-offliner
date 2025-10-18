@@ -29,8 +29,8 @@
 
 <script setup>
 import { eventBus } from '~/eventBus'
-import SystemAlert from '~/components/SystemAlert.vue'
-import ConfirmDialog from '~/components/ConfirmDialog.vue'
+import SystemAlert from '~/components/system/SystemAlert.vue'
+import ConfirmDialog from '~/components/system/ConfirmDialog.vue'
 import { useConfirmDialog } from '~/composables/useConfirmDialog'
 import { ClientOnly } from '#components'
 

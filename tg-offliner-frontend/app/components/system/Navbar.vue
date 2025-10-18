@@ -86,7 +86,7 @@
 
 <script setup>
 import { useEditModeStore } from '~/stores/editMode'
-import ChannelExports from '~/components/ChannelExports.vue'
+import ChannelExports from '~/components/system/ChannelExports.vue'
 
 // Используем store для режима редактирования
 const editModeStore = useEditModeStore()

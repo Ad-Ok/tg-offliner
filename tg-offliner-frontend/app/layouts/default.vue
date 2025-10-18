@@ -8,5 +8,5 @@
 </template>
 
 <script setup>
-// Автоматический импорт компонентов в Nuxt 4
+import Navbar from '~/components/system/Navbar.vue'
 </script>

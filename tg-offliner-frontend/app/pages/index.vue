@@ -5,7 +5,7 @@
 </template>
 
 <script setup>
-import ChannelsList from '~/components/ChannelsList.vue'
+import ChannelsList from '~/components/system/ChannelsList.vue'
 
 // Явно указываем использование default layout
 definePageMeta({

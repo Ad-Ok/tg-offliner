@@ -1,21 +1,10 @@
 /** @type {import('tailwindcss').Config} */
+const baseConfig = require('./tailwind.config.js')
+
 module.exports = {
   content: [
-    // Указываем только компоненты, которые нужны для PDF
-    "./app/components/ChannelCover.vue",
-    "./app/components/Group.vue", 
-    "./app/components/Post.vue",
-    "./app/components/PostAuthor.vue",
-    "./app/components/PostBody.vue",
-    "./app/components/PostFooter.vue",
-    "./app/components/PostHeader.vue",
-    "./app/components/PostMedia.vue",
-    "./app/components/PostFooter.vue",
-    "./app/components/PostReactions.vue",
-    "./app/components/PrintUtilities.vue", // Файл с print-классами
-    "./app/layouts/default.vue", // Layout для применения print:hidden к Navbar
-    // Добавляем страницы постов для SSR
-    "./app/pages/**/posts.vue"
+    ...baseConfig.content,
+    '!./app/components/system/**/*.{vue,js,ts}'
   ],
   theme: {
     extend: {

@@ -47,7 +47,7 @@ import PostHeader from './PostHeader.vue';
 import PostMedia from './PostMedia.vue';
 import PostFooter from './PostFooter.vue';
 import PostBody from './PostBody.vue';
-import PostEditor from './PostEditor.vue';
+import PostEditor from './system/PostEditor.vue';
 import { useEditModeStore } from '~/stores/editMode'
 
 export default {
