@@ -9,7 +9,7 @@
     />
     
     <!-- Кнопка переключения порядка сортировки -->
-    <div v-if="!pending" class="mb-4 flex justify-end">
+    <div v-if="!pending" class="mb-4 flex justify-end print:hidden">
       <button 
         @click="toggleSortOrder"
         class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300 rounded-lg flex items-center space-x-2 transition-colors"

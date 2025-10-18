@@ -4,7 +4,6 @@ API endpoints для работы с каналами
 import os
 import re
 import time
-import logging
 import shutil
 import requests
 from flask import Blueprint, jsonify, request, current_app
@@ -576,9 +575,7 @@ def print_channel_to_pdf(channel_id):
         }), 200
         
     except Exception as e:
-        current_app.logger.error(f"ОШИБКА при генерации PDF для канала {channel_id}: {str(e)}")
-        import traceback
-        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
+        current_app.logger.exception(f"ОШИБКА при генерации PDF для канала {channel_id}")
         return jsonify({"error": f"Ошибка при генерации PDF: {str(e)}"}), 500
         
     finally:
