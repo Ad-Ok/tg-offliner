@@ -75,9 +75,16 @@ export default {
     // Группы постов
     groupedPosts() {
       const groups = {};
+      const discussionGroupIdStr = this.discussionGroupId ? String(this.discussionGroupId) : null;
+      
       this.posts.forEach(post => {
         if (post.grouped_id) {
-          // Группированные посты всегда включаем, независимо от discussion группы
+          // Если это группа из дискуссионной группы (комментарий), пропускаем её
+          // Она будет показана как комментарий к родительскому посту
+          if (discussionGroupIdStr && post.channel_id === discussionGroupIdStr && post.reply_to) {
+            return;
+          }
+          
           if (!groups[post.grouped_id]) {
             groups[post.grouped_id] = [];
           }
