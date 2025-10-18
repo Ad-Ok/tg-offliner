@@ -15,6 +15,13 @@
         :repost-author-link="firstPost.repost_author_link"
       />
 
+      <GroupEditor
+        v-if="groupedId && firstPost.channel_id"
+        :grouped-id="groupedId"
+        :channel-id="firstPost.channel_id"
+        @layoutReloaded="handleLayoutReloaded"
+      />
+
       <div class="media-grid mt-2">
         <!-- Если есть layout, используем его для позиционирования -->
         <div v-show="layoutData" class="gallery-container relative" :style="galleryContainerStyle">
@@ -69,8 +76,8 @@ import PostMedia from './PostMedia.vue';
 import PostFooter from './PostFooter.vue';
 import PostBody from './PostBody.vue';
 import PostEditor from './PostEditor.vue';
+import GroupEditor from './GroupEditor.vue';
 import { useEditModeStore } from '~/stores/editMode'
-import { mediaBase } from '~/services/api'
 
 export default {
   name: "Group",
@@ -94,6 +101,7 @@ export default {
     PostFooter,
     PostBody,
     PostEditor,
+    GroupEditor,
   },
   computed: {
     firstPost() {
@@ -127,7 +135,7 @@ export default {
       })
     }
     
-    const { data: layoutData } = useFetch(() => {
+    const { data: layoutData, refresh: refreshLayout } = useFetch(() => {
       if (!props.posts.length || !props.posts[0]?.grouped_id) return null
       const groupedId = props.posts[0].grouped_id
       const channelId = props.posts[0].channel_id
@@ -171,6 +179,17 @@ export default {
       const key = `${post.channel_id}:${post.telegram_id}`
       hiddenStates.value.set(key, newHiddenState)
     }
+
+    const handleLayoutReloaded = async (newLayout) => {
+      if (newLayout) {
+        layoutData.value = newLayout
+        return
+      }
+
+      if (typeof refreshLayout === 'function') {
+        await refreshLayout()
+      }
+    }
     
     onMounted(async () => {
       editModeStore.checkAndSetExportMode()
@@ -182,7 +201,8 @@ export default {
       galleryContainerStyle,
       getPostHiddenState,
       onHiddenStateChanged,
-      getCellStyle
+      getCellStyle,
+      handleLayoutReloaded
     }
   }
 };
