@@ -31,6 +31,7 @@
             :mediaType="post.media_type"
             :mimeType="post.mime_type"
             :caption="mediaCaption"
+            :useFancybox="!isCommentThread"
           />
         </div>
       </div>
@@ -66,6 +67,10 @@ export default {
     originalPost: {
       type: Object,
       default: null,
+    },
+    isCommentThread: {
+      type: Boolean,
+      default: false,
     },
   },
   components: {

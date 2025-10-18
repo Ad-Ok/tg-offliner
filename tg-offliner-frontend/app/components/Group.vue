@@ -30,7 +30,7 @@
             :key="index"
             class="gallery-item absolute"
             :style="getCellStyle(cell)"
-            v-show="cell.image_index < postsWithMedia.length && postsWithMedia[cell.image_index]"
+            v-show="cell && cell.image_index !== undefined && cell.image_index < postsWithMedia.length && postsWithMedia[cell.image_index]"
           >
             <PostEditor :post="postsWithMedia[cell.image_index]" @hiddenStateChanged="(state) => onHiddenStateChanged(postsWithMedia[cell.image_index], state)"/>
             <PostMedia
@@ -41,6 +41,7 @@
               :class="[{ 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode }, 'w-full h-full border']"
               :imgClass="'object-cover w-full h-full'"
               :caption="getMediaCaption(postsWithMedia[cell.image_index])"
+              :useFancybox="!isCommentThread && !!layoutData"
             />
           </div>
         </div>
@@ -61,6 +62,7 @@
               :mimeType="post.mime_type"
               :class="{ 'opacity-25 print:hidden': getPostHiddenState(post) && !editModeStore.isExportMode }"
               :caption="getMediaCaption(post)"
+              :useFancybox="!isCommentThread && !layoutData"
             />
           </div>
         </div>
@@ -98,6 +100,10 @@ export default {
     commentsCount: {
       type: Number,
       default: 0,
+    },
+    isCommentThread: {
+      type: Boolean,
+      default: false,
     },
   },
   components: {

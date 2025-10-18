@@ -5,7 +5,7 @@
       <a
         v-if="mimeType && mimeType.startsWith('image/')"
         :href="fullMediaSrc"
-        data-fancybox="channel-gallery"
+        :data-fancybox="useFancybox ? 'channel-gallery' : null"
         :data-caption="caption"
       >
         <img
@@ -17,7 +17,7 @@
       <a
         v-else-if="mimeType && mimeType.startsWith('video/')"
         :href="fullMediaSrc"
-        data-fancybox="channel-gallery"
+        :data-fancybox="useFancybox ? 'channel-gallery' : null"
         :data-caption="caption"
       >
         <video
@@ -42,7 +42,7 @@
     <div v-else-if="mediaType === 'MessageMediaPhoto'" class="w-full h-full">
       <a
         :href="fullMediaSrc"
-        data-fancybox="channel-gallery"
+        :data-fancybox="useFancybox ? 'channel-gallery' : null"
         :data-caption="caption"
       >
         <img
@@ -82,7 +82,8 @@ export default {
     mimeType: { type: String, required: false },
     imgClass: { type: String, required: false, default: 'w-full' },
     caption: { type: String, required: false, default: '' },
-    fullMediaUrl: { type: String, required: false, default: '' }
+    fullMediaUrl: { type: String, required: false, default: '' },
+    useFancybox: { type: Boolean, required: false, default: true }
   },
   computed: {
     mediaSrc() {

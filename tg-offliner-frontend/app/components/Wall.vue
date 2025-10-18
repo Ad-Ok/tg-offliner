@@ -10,6 +10,7 @@
           :posts="item.posts" 
           :original-post="item.originalPost"
           :comments-count="item.discussionComments ? item.discussionComments.length : 0"
+          :is-comment-thread="isCommentThread"
         />
       </template>
       
@@ -21,6 +22,7 @@
           :data-post-id="item.post.telegram_id"
           :data-channel-id="item.post.channel_id"
           :comments-count="item.discussionComments ? item.discussionComments.length : 0"
+          :is-comment-thread="isCommentThread"
         />
       </template>
       
@@ -32,6 +34,7 @@
           :loading="false"
           :sort-order="'asc'"
           :discussion-group-id="null"
+          :is-comment-thread="true"
         />
       </div>
     </div>
@@ -51,6 +54,7 @@ export default {
     loading: { type: Boolean, default: false },
     discussionGroupId: { type: String, default: null },
     sortOrder: { type: String, default: 'desc' }, // 'desc' = новые сверху, 'asc' = старые сверху
+    isCommentThread: { type: Boolean, default: false }, // Является ли это потоком комментариев
   },
   computed: {
     // Основные посты (логика зависит от наличия discussionGroupId)
