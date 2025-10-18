@@ -18,6 +18,8 @@ os.environ.setdefault("PHONE", "+10000000000")
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import telegram_export  # noqa: E402
+from message_processing import author as author_module  # noqa: E402
+from message_processing import message_transform  # noqa: E402
 
 
 class TelegramExportUnitTestCase(unittest.TestCase):
@@ -31,16 +33,27 @@ class TelegramExportUnitTestCase(unittest.TestCase):
         downloads_patcher.start()
         self.addCleanup(downloads_patcher.stop)
 
+        transform_downloads = mock.patch.object(message_transform, "DOWNLOADS_DIR", self.temp_dir)
+        transform_downloads.start()
+        self.addCleanup(transform_downloads.stop)
+
         self.process_author_patcher = mock.patch.object(
-            telegram_export,
+            author_module,
             "process_author",
-            return_value=("Bob", None, None),
+            return_value={
+                "author_name": "Bob",
+                "author_avatar": None,
+                "author_link": None,
+                "repost_author_name": None,
+                "repost_author_avatar": None,
+                "repost_author_link": None,
+            },
         )
         self.mock_process_author = self.process_author_patcher.start()
         self.addCleanup(self.process_author_patcher.stop)
 
         self.process_poll_patcher = mock.patch.object(
-            telegram_export,
+            message_transform,
             "process_poll",
             return_value="",
         )
@@ -48,7 +61,7 @@ class TelegramExportUnitTestCase(unittest.TestCase):
         self.addCleanup(self.process_poll_patcher.stop)
 
         self.parse_entities_patcher = mock.patch.object(
-            telegram_export,
+            message_transform,
             "parse_entities_to_html",
             side_effect=lambda text, entities: text,
         )

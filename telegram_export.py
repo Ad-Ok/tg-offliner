@@ -4,15 +4,15 @@ from telegram_client import connect_to_telegram
 import time
 import argparse
 import requests
-from utils.text_format import parse_entities_to_html
 import os
-from message_processing.polls import process_poll
-from telethon.tl.types import DocumentAttributeFilename, Document, MessageMediaDocument, MessageMediaWebPage, DocumentAttributeSticker, MessageMediaPhoto
-from message_processing.author import process_author, download_avatar
 import shutil
-import os
 import logging
 from message_processing.channel_info import get_channel_info
+from message_processing.message_transform import (
+    DOWNLOADS_DIR as TRANSFORM_DOWNLOADS_DIR,
+    process_message_for_api,
+    get_channel_folder,
+)
 from utils.gallery_layout import generate_gallery_layout
 from utils.entity_validation import get_entity_by_username_or_id
 
@@ -23,7 +23,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), 'downloads')
+DOWNLOADS_DIR = TRANSFORM_DOWNLOADS_DIR
 
 def should_stop_import(channel_id):
     """Проверяет, нужно ли остановить импорт"""
@@ -375,273 +375,6 @@ def save_discussion_group_info(client, discussion_entity):
             logging.warning(f"Не удалось сохранить информацию о дискуссионной группе {discussion_entity.id}: {response.text}")
     except Exception as e:
         logging.error(f"Ошибка сохранения информации о дискуссионной группе {discussion_entity.id}: {e}")
-
-
-def process_message_for_api(post, channel_id, client, folder_name=None):
-    """Обрабатывает сообщение для API"""
-    try:
-        # Получаем папку для канала
-        if folder_name:
-            channel_folder = get_channel_folder(folder_name)
-        else:
-            channel_folder = get_channel_folder(channel_id)
-        
-        # Скачиваем медиа
-        media_path = None
-        thumb_path_rel = None  # Относительный путь к миниатюре
-        media_type = None
-        mime_type = None
-        sticker_emoji = None  # Для хранения эмодзи стикера
-
-        if post.media and not post.poll:  # Пропускаем скачивание медиа для опросов
-            media_type = type(post.media).__name__  # Тип медиа (например, MessageMediaPhoto)
-            
-            # Проверяем, является ли это TGS стикером
-            if (isinstance(post.media, MessageMediaDocument) and 
-                isinstance(post.media.document, Document) and 
-                getattr(post.media.document, 'mime_type', None) == 'application/x-tgsticker'):
-                
-                # Для TGS стикеров ищем эмодзи в атрибутах
-                for attr in post.media.document.attributes:
-                    if isinstance(attr, DocumentAttributeSticker) and attr.alt:
-                        sticker_emoji = attr.alt
-                        logging.info(f"TGS sticker detected: will add emoji {attr.alt} to message text")
-                        break
-                
-                # TGS стикеры не сохраняем как медиа - только эмодзи в тексте
-                if sticker_emoji:
-                    media_type = None  # Не сохраняем как медиа
-                    mime_type = None
-                    media_path = None
-            
-            # Обрабатываем MessageMediaWebPage
-            elif isinstance(post.media, MessageMediaWebPage):
-                # Для веб-страниц сохраняем URL страницы в media_url
-                if hasattr(post.media, 'webpage') and post.media.webpage and hasattr(post.media.webpage, 'url'):
-                    media_path = post.media.webpage.url
-                    logging.info(f"MessageMediaWebPage detected: saving URL {media_path}")
-            else:
-                # Для остальных типов медиа скачиваем файлы
-                media_path = client.download_media(
-                    post.media,
-                    file=os.path.join(channel_folder, "media", f"{post.id}_media")
-                )
-                # Сохраняем относительный путь для файлов
-                if media_path:
-                    media_path = os.path.relpath(media_path, DOWNLOADS_DIR)  # Относительный путь от папки downloads
-                
-                # Создаем превью для изображений
-                if media_path and isinstance(post.media, MessageMediaPhoto):
-                    full_media_path = os.path.join(DOWNLOADS_DIR, media_path)
-                    thumbs_dir = os.path.join(channel_folder, "thumbs")
-                    os.makedirs(thumbs_dir, exist_ok=True)
-                    thumb_path = os.path.join(thumbs_dir, os.path.basename(full_media_path))
-                    
-                    # Генерируем настоящее превью вместо копирования
-                    try:
-                        from PIL import Image
-                        with Image.open(full_media_path) as img:
-                            # Создаем превью размером 300x300, сохраняя пропорции
-                            img.thumbnail((300, 300), Image.Resampling.LANCZOS)
-                            img.save(thumb_path, quality=85, optimize=True)
-                            logging.info(f"Created thumbnail: {thumb_path} ({img.size})")
-                    except Exception as e:
-                        # Fallback: копируем оригинал если не удалось создать превью
-                        shutil.copy2(full_media_path, thumb_path)
-                        logging.warning(f"Failed to create thumbnail, copied original: {e}")
-                    
-                    # Сохраняем относительный путь к миниатюре
-                    thumb_path_rel = os.path.relpath(thumb_path, DOWNLOADS_DIR)
-            
-            # Устанавливаем mime_type только если это не стикер
-            if (isinstance(post.media, MessageMediaDocument) and 
-                isinstance(post.media.document, Document) and 
-                not sticker_emoji):  # Не устанавливаем mime_type для стикеров
-                mime_type = getattr(post.media.document, 'mime_type', None)
-
-        # Обрабатываем автора сообщения
-        sender_name, sender_avatar, sender_link = process_author(post.sender, client, channel_folder, peer_id=post.peer_id, from_id=post.from_id)
-        
-        # Дополнительная обработка для анонимных комментариев из дискуссионных групп
-        if not sender_name and hasattr(post, 'peer_id') and hasattr(post, 'reply_to'):
-            # Если автор пустой и есть peer_id и reply_to, это может быть анонимный комментарий
-            try:
-                # Получаем информацию о группе/канале, где находится сообщение
-                peer_entity = client.get_entity(post.peer_id)
-                if hasattr(peer_entity, 'title'):  # Это группа или канал
-                    sender_name = peer_entity.title
-                    if hasattr(peer_entity, 'username') and peer_entity.username:
-                        sender_link = f"https://t.me/{peer_entity.username}"
-                    elif hasattr(peer_entity, 'id'):
-                        sender_link = f"https://t.me/c/{peer_entity.id}"
-                    
-                    # Попытаемся скачать аватар группы/канала
-                    sender_avatar = download_avatar(peer_entity, client, channel_folder)
-                    logging.info(f"Использована информация о группе {sender_name} для анонимного комментария")
-            except Exception as e:
-                logging.warning(f"Ошибка при получении информации о peer для анонимного комментария: {e}")
-
-        # Обрабатываем автора репоста, если это репост
-        repost_name, repost_avatar, repost_link = None, None, None
-        if post.fwd_from:
-            # Случай 1: есть from_id (можем получить полную информацию)
-            if post.fwd_from.from_id:
-                try:
-                    repost_entity = client.get_entity(post.fwd_from.from_id)  # Получаем полную информацию об авторе репоста
-                    repost_name, repost_avatar, repost_link = process_author(repost_entity, client, channel_folder)
-                except Exception as e:
-                    logging.warning(f"Ошибка при обработке автора репоста: {e}")
-            # Случай 2: есть только from_name (используем имя как есть)
-            elif post.fwd_from.from_name:
-                repost_name = post.fwd_from.from_name
-                logging.info(f"Репост от пользователя: {repost_name} (только имя)")
-            # Случай 3: есть channel_post (репост из канала)
-            elif hasattr(post.fwd_from, 'saved_from_peer') and post.fwd_from.saved_from_peer:
-                try:
-                    channel_entity = client.get_entity(post.fwd_from.saved_from_peer)
-                    repost_name = getattr(channel_entity, 'title', getattr(channel_entity, 'username', 'Unknown Channel'))
-                    logging.info(f"Репост из канала: {repost_name}")
-                except Exception as e:
-                    logging.warning(f"Ошибка при обработке канала репоста: {e}")
-
-        # Обрабатываем реакции
-        reactions = None
-        if post.reactions and post.reactions.results:
-            reactions = {
-                "total_count": sum(r.count for r in post.reactions.results),  # Суммируем количество всех реакций
-                "recent_reactions": [
-                    {"reaction": str(r.reaction), "count": r.count} for r in post.reactions.results
-                ]
-            }
-
-        grouped_id = getattr(post, "grouped_id", None)
-
-        # Обрабатываем информацию о том, является ли это ответом на другое сообщение
-        reply_to = None
-        if hasattr(post, 'reply_to') and post.reply_to and hasattr(post.reply_to, 'reply_to_msg_id'):
-            reply_to = post.reply_to.reply_to_msg_id
-
-        # Формируем текст сообщения
-        message_text = post.message or ""
-        
-        # Обрабатываем голосования
-        poll_html = process_poll(post)
-        if poll_html:
-            # Если есть текст сообщения, добавляем голосование к нему
-            if message_text:
-                message_text = f"{message_text}<br><br>{poll_html}"
-            else:
-                message_text = poll_html
-            logging.info(f"Добавлено голосование к сообщению {post.id}")
-        
-        # Обрабатываем системные сообщения
-        if hasattr(post, 'action') and post.action:
-            action_type = type(post.action).__name__
-            
-            if action_type == 'MessageActionChannelCreate':
-                message_text = f"🎉 Канал создан: {post.action.title}"
-            elif action_type == 'MessageActionChatEditPhoto':
-                message_text = "🖼️ Фото канала изменено"
-            elif action_type == 'MessageActionChatEditTitle':
-                message_text = f"✏️ Название изменено на: {post.action.title}"
-            elif action_type == 'MessageActionChatDeletePhoto':
-                message_text = "🗑️ Фото канала удалено"
-            elif action_type == 'MessageActionChatAddUser':
-                message_text = "👥 Пользователь добавлен в группу"
-            elif action_type == 'MessageActionChatDeleteUser':
-                message_text = "👤❌ Пользователь покинул группу"
-            elif action_type == 'MessageActionChatJoinedByLink':
-                message_text = "🔗 Пользователь присоединился по ссылке"
-            elif action_type == 'MessageActionPinMessage':
-                message_text = "📌 Сообщение закреплено"
-            elif action_type == 'MessageActionHistoryClear':
-                message_text = "🧹 История сообщений очищена"
-            elif 'PhoneCall' in action_type:
-                # Обрабатываем звонки (оставляем существующую логику)
-                call_action = post.action
-                
-                # Определяем направление звонка по from_id
-                direction = "📤 Исходящий" if (hasattr(post, 'from_id') and post.from_id) else "📥 Входящий"
-                
-                # Определяем тип звонка
-                video_type = "🎥 Видеозвонок" if getattr(call_action, 'video', False) else "📞 Голосовой звонок"
-                
-                # Определяем статус звонка
-                reason = getattr(call_action, 'reason', None)
-                if reason:
-                    reason_type = type(reason).__name__
-                    if 'Missed' in reason_type:
-                        status = "🔴 Пропущен"
-                    elif 'Busy' in reason_type:
-                        status = "📵 Занято"
-                    elif 'Hangup' in reason_type:
-                        status = "✅ Завершен"
-                    elif 'Disconnect' in reason_type:
-                        status = "🔌 Разорвано"
-                    else:
-                        status = f"❓ {reason_type}"
-                else:
-                    status = "❓ Неизвестно"
-                
-                # Длительность
-                duration = getattr(call_action, 'duration', None)
-                if duration:
-                    minutes = duration // 60
-                    seconds = duration % 60
-                    duration_str = f"⏰ {minutes}м {seconds}с"
-                else:
-                    duration_str = "⏰ Не состоялся"
-                
-                # Формируем текст звонка
-                message_text = f"{direction} {video_type} - {status} {duration_str}"
-                logging.info(f"Phone call detected: {message_text}")
-            else:
-                # Для неизвестных типов системных сообщений
-                message_text = f"ℹ️ Системное сообщение: {action_type}"
-                logging.info(f"Unknown system message type: {action_type}")
-        
-        # Если есть эмодзи стикера, добавляем его к тексту
-        elif sticker_emoji:
-            if message_text:
-                message_text = f"{message_text} {sticker_emoji}"
-            else:
-                message_text = sticker_emoji
-
-        # Применяем форматирование к тексту, если есть entities
-        if message_text and hasattr(post, 'entities') and post.entities:
-            try:
-                formatted_message = parse_entities_to_html(message_text, post.entities)
-                # Если форматирование применилось успешно, используем отформатированный текст
-                if formatted_message != message_text:
-                    message_text = formatted_message
-                    logging.info(f"Применено форматирование к сообщению {post.id}")
-            except Exception as e:
-                logging.warning(f"Ошибка применения форматирования к сообщению {post.id}: {e}")
-                # В случае ошибки оставляем исходный текст
-
-        return {
-            "telegram_id": post.id,
-            "channel_id": channel_id,
-            "date": post.date.isoformat() if post.date else None,
-            "message": message_text,
-            "media_url": media_path,
-            "thumb_url": thumb_path_rel,
-            "media_type": media_type,
-            "mime_type": mime_type,
-            "author_name": sender_name,
-            "author_avatar": sender_avatar,
-            "author_link": sender_link,
-            "repost_author_name": repost_name,
-            "repost_author_avatar": repost_avatar,
-            "repost_author_link": repost_link,
-            "reactions": reactions,
-            "grouped_id": grouped_id,
-            "reply_to": reply_to
-        }
-    except Exception as e:
-        logging.error(f"Ошибка обработки сообщения {post.id}: {str(e)}")
-        return None
-
 def clear_downloads(channel_name):
     """
     Очищает папку текущего канала в downloads, но не удаляет саму папку downloads.
@@ -651,27 +384,6 @@ def clear_downloads(channel_name):
         shutil.rmtree(channel_folder)  # Удаляем папку канала со всем содержимым
         print(f"Папка {channel_folder} очищена.")
     os.makedirs(channel_folder, exist_ok=True)  # Создаём пустую папку
-
-def get_channel_folder(channel_name):
-    """
-    Возвращает путь к папке для конкретного канала.
-    """
-    # Определяем правильное имя папки
-    if channel_name.isdigit():
-        # Для числовых ID (discussion группы) добавляем префикс channel_
-        folder_name = f"channel_{channel_name}"
-    else:
-        # Для username используем как есть
-        folder_name = channel_name
-
-    channel_folder = os.path.join(DOWNLOADS_DIR, folder_name)
-    os.makedirs(channel_folder, exist_ok=True)  # Создаём папку канала, если её нет
-
-    # Создаём папку media внутри папки канала
-    media_folder = os.path.join(channel_folder, "media")
-    os.makedirs(media_folder, exist_ok=True)
-
-    return channel_folder
 
 def generate_gallery_layouts_for_channel(channel_username):
     """Генерирует JSON layouts для галерей в канале и сохраняет в базу данных."""
