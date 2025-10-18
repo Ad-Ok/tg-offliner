@@ -415,32 +415,14 @@ def generate_gallery_layouts_for_channel(channel_username):
                     logging.info(f"Skipping gallery {grouped_id} - only {len(gallery_posts)} images")
                     continue  # Пропускаем галереи с одним изображением
 
-                # Проверяем, существует ли уже layout
-                existing_layout = Layout.query.filter_by(grouped_id=grouped_id).first()
+                # Сохраняем пользовательские правки: если layout уже есть, не пересоздаём его
+                existing_layout = Layout.query.filter_by(grouped_id=grouped_id, channel_id=channel_username).first()
                 if existing_layout:
-                    # Проверяем, корректен ли существующий layout (нет дубликатов image_index)
-                    try:
-                        layout_data = existing_layout.json_data
-                        if layout_data and 'cells' in layout_data:
-                            indices = [cell.get('image_index', -1) for cell in layout_data['cells']]
-                            unique_indices = set(indices)
-                            if len(unique_indices) != len(indices) or len(indices) != len(gallery_posts):
-                                logging.info(f"Layout for gallery {grouped_id} has duplicates or wrong count ({len(indices)} cells, {len(gallery_posts)} posts), regenerating")
-                                # Удаляем старый layout
-                                db.session.delete(existing_layout)
-                                db.session.commit()
-                                existing_layout = None
-                            else:
-                                logging.info(f"Layout for gallery {grouped_id} already exists and is valid, skipping")
-                                continue
-                    except Exception as e:
-                        logging.warning(f"Error checking existing layout for {grouped_id}: {e}, regenerating")
-                        db.session.delete(existing_layout)
-                        db.session.commit()
-                        existing_layout = None
-                
-                if existing_layout:
-                    logging.info(f"Layout for gallery {grouped_id} already exists, skipping")
+                    logging.info(
+                        "Layout for gallery %s already exists for channel %s, skipping auto generation",
+                        grouped_id,
+                        channel_username,
+                    )
                     continue
 
                 # Сортируем посты по telegram_id для консистентного порядка
@@ -452,14 +434,18 @@ def generate_gallery_layouts_for_channel(channel_username):
                     # Используем thumb_url из базы данных, если он есть
                     thumb_url = post.thumb_url
                     if thumb_url:
-                        thumb_path = os.path.join(DOWNLOADS_DIR, thumb_url)
+                        thumb_path = os.path.join(DOWNLOADS_DIR, thumb_url.lstrip('/'))
                         if os.path.exists(thumb_path):
                             image_paths.append(thumb_path)
                     else:
                         # Fallback: старый способ для совместимости
                         media_url = post.media_url
                         if media_url:
-                            thumb_path = os.path.join(DOWNLOADS_DIR, media_url.replace('/media/', '/thumbs/'))
+                            media_relative = media_url.lstrip('/')
+                            thumb_path = os.path.join(
+                                DOWNLOADS_DIR,
+                                media_relative.replace('/media/', '/thumbs/')
+                            )
                             if os.path.exists(thumb_path):
                                 image_paths.append(thumb_path)
 
