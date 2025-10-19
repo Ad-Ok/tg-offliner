@@ -41,7 +41,7 @@
               :class="[{ 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode }, 'w-full h-full border']"
               :imgClass="'object-cover w-full h-full'"
               :caption="getMediaCaption(postsWithMedia[cell.image_index])"
-              :useFancybox="!isCommentThread && !!layoutData"
+              :useFancybox="!!layoutData"
             />
           </div>
         </div>
@@ -62,7 +62,7 @@
               :mimeType="post.mime_type"
               :class="{ 'opacity-25 print:hidden': getPostHiddenState(post) && !editModeStore.isExportMode }"
               :caption="getMediaCaption(post)"
-              :useFancybox="!isCommentThread && !layoutData"
+              :useFancybox="!layoutData"
             />
           </div>
         </div>
@@ -100,10 +100,6 @@ export default {
     commentsCount: {
       type: Number,
       default: 0,
-    },
-    isCommentThread: {
-      type: Boolean,
-      default: false,
     },
   },
   components: {
