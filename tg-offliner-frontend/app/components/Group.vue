@@ -19,7 +19,9 @@
         v-if="groupedId && firstPost.channel_id"
         :grouped-id="groupedId"
         :channel-id="firstPost.channel_id"
+        :current-layout="layoutData"
         @layoutReloaded="handleLayoutReloaded"
+        @borderUpdated="handleBorderUpdated"
       />
 
       <div class="media-grid mt-2">
@@ -38,7 +40,11 @@
               :fullMediaUrl="postsWithMedia[cell.image_index]?.media_url"
               :mediaType="postsWithMedia[cell.image_index]?.media_type"
               :mimeType="postsWithMedia[cell.image_index]?.mime_type"
-              :class="[{ 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode }, 'w-full h-full border']"
+              :class="[
+                { 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode }, 
+                'w-full h-full border-transparent',
+                borderClass
+              ]"
               :imgClass="'object-cover w-full h-full'"
               :caption="getMediaCaption(postsWithMedia[cell.image_index])"
               :useFancybox="!!layoutData"
@@ -170,6 +176,15 @@ export default {
       }
     })
 
+    const borderClass = computed(() => {
+      const layout = layoutData.value
+      if (!layout || !layout.border_width) return 'border-0'
+      const borderWidth = layout.border_width
+      // border-1 в Tailwind не существует, используем просто 'border'
+      if (borderWidth === '1') return 'border'
+      return `border-${borderWidth}`
+    })
+
     const getCellStyle = (cell) => {
       const layout = layoutData.value
       if (!layout) return {}
@@ -226,6 +241,17 @@ export default {
         }
       })
     }
+
+    const handleBorderUpdated = (newLayout) => {
+      if (newLayout) {
+        layoutData.value = newLayout
+        props.posts.forEach(post => {
+          if (post.grouped_id === groupedIdRef.value && post.channel_id === channelIdRef.value) {
+            post.layout = newLayout
+          }
+        })
+      }
+    }
     
     onMounted(async () => {
       editModeStore.checkAndSetExportMode()
@@ -235,10 +261,12 @@ export default {
       editModeStore,
       layoutData,
       galleryContainerStyle,
+      borderClass,
       getPostHiddenState,
       onHiddenStateChanged,
       getCellStyle,
       handleLayoutReloaded,
+      handleBorderUpdated,
       getMediaCaption
     }
   }

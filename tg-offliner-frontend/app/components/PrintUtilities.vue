@@ -40,5 +40,8 @@
     <!-- Screen utilities -->
     <div class="screen:block"></div>
     <div class="screen:hidden"></div>
+
+    <!-- Borders -->
+    <div class="border border-2 border-4 border-8"></div>
   </div>
 </template>

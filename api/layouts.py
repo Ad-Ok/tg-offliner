@@ -59,6 +59,7 @@ def reload_layout(grouped_id):
     channel_id = payload.get('channel_id') or request.args.get('channel_id')
     columns = payload.get('columns')
     no_crop = payload.get('no_crop', False)
+    border_width = payload.get('border_width', '0')
 
     if not channel_id:
         return jsonify({"error": "channel_id parameter is required"}), 400
@@ -88,6 +89,12 @@ def reload_layout(grouped_id):
         if not layout_data:
             return jsonify({"error": "Layout generation failed"}), 500
 
+        # Добавляем border_width в layout_data
+        layout_data['border_width'] = str(border_width)
+
+        if not layout_data:
+            return jsonify({"error": "Layout generation failed"}), 500
+
         existing_layout = Layout.query.filter_by(grouped_id=grouped_id, channel_id=channel_id).first()
         if existing_layout:
             existing_layout.channel_id = channel_id
@@ -104,3 +111,38 @@ def reload_layout(grouped_id):
         current_app.logger.exception('Failed to regenerate layout for %s: %s', grouped_id, exc)
         db.session.rollback()
         return jsonify({"error": "Failed to regenerate layout"}), 500
+
+@layouts_bp.route('/layouts/<grouped_id>/border', methods=['PATCH'])
+def update_border(grouped_id):
+    """Обновляет только border_width для существующего layout."""
+
+    payload = request.get_json(silent=True) or {}
+    channel_id = payload.get('channel_id') or request.args.get('channel_id')
+    border_width = payload.get('border_width', '0')
+
+    if not channel_id:
+        return jsonify({"error": "channel_id parameter is required"}), 400
+
+    try:
+        existing_layout = Layout.query.filter_by(grouped_id=grouped_id, channel_id=channel_id).first()
+        
+        if not existing_layout:
+            return jsonify({"error": "Layout not found"}), 404
+
+        # Обновляем только border_width в json_data
+        layout_data = existing_layout.json_data
+        layout_data['border_width'] = str(border_width)
+        existing_layout.json_data = layout_data
+        
+        # Помечаем как измененный для SQLAlchemy (для JSON полей)
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(existing_layout, "json_data")
+        
+        db.session.commit()
+
+        return jsonify({"layout": layout_data})
+
+    except Exception as exc:
+        current_app.logger.exception('Failed to update border for %s: %s', grouped_id, exc)
+        db.session.rollback()
+        return jsonify({"error": "Failed to update border"}), 500

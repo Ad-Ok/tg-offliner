@@ -80,6 +80,14 @@ export const api = {
       ...config,
     }).then(handleResponse).then(data => ({ data }));
   },
+  patch(path, body, config = {}) {
+    return fetch(`${apiBase}${path}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(config.headers || {}) },
+      body: JSON.stringify(body),
+      ...config,
+    }).then(handleResponse).then(data => ({ data }));
+  },
   delete(path, config = {}) {
     return fetch(`${apiBase}${path}`, {
       method: 'DELETE',
