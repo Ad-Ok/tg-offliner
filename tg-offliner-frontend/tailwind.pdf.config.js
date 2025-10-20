@@ -12,6 +12,8 @@ module.exports = {
         print: { raw: 'print' },    // Стили для печати
         screen: { raw: 'screen' },  // Стили для экрана
       },
+      // Наследуем шрифты из основного конфига
+      fontFamily: baseConfig.theme.extend.fontFamily,
     },
   },
   // Отключаем DaisyUI для PDF - оно добавляет много ненужных стилей

@@ -9,7 +9,7 @@
               v-if="avatarSrc" 
               :src="avatarSrc" 
               :alt="channel.name"
-              class="w-full h-full object-cover"
+              class="w-full h-full rounded-full object-cover"
             />
             <div 
               v-else 
