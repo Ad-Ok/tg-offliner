@@ -52,6 +52,19 @@
     
     <!-- Actions -->
     <div class="navbar-end">
+      <!-- View Mode Toggle Button - только на странице канала -->
+      <button 
+        v-if="isChannelPage"
+        @click="toggleViewMode"
+        class="btn btn-outline btn-sm mr-3"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path v-if="!isGridMode" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+          <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+        </svg>
+        {{ isGridMode ? 'Режим ленты' : 'Режим сетки' }}
+      </button>
+      
       <!-- Edit Mode Toggle Button - только на странице канала -->
       <button 
         v-if="isChannelPage"
@@ -94,9 +107,26 @@ const editModeStore = useEditModeStore()
 // Определяем, находимся ли мы на странице канала
 const route = useRoute()
 const isChannelPage = computed(() => {
-  // Проверяем, что путь соответствует паттерну /[channelId]/posts
-  return route.path.includes('/posts') && route.params.channelId
+  // Проверяем, что путь соответствует паттерну /[channelId]/posts или /[channelId]/pages
+  return (route.path.includes('/posts') || route.path.includes('/pages')) && route.params.channelId
 })
+
+// Определяем, в каком режиме мы находимся
+const isGridMode = computed(() => {
+  return route.path.includes('/pages')
+})
+
+// Функция переключения режима просмотра
+const toggleViewMode = () => {
+  const channelId = route.params.channelId
+  if (isGridMode.value) {
+    // Переход на режим ленты (posts)
+    navigateTo(`/${channelId}/posts`)
+  } else {
+    // Переход на режим сетки (pages)
+    navigateTo(`/${channelId}/pages`)
+  }
+}
 
 // Определяем, находимся ли мы в режиме экспорта
 const isExportMode = computed(() => {
@@ -105,7 +135,7 @@ const isExportMode = computed(() => {
 
 // Сбрасываем режим редактирования при переходе на другую страницу
 watch(() => route.path, (newPath) => {
-  if (!newPath.includes('/posts')) {
+  if (!newPath.includes('/posts') && !newPath.includes('/pages')) {
     editModeStore.disableEditMode()
   }
 })
