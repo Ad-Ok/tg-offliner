@@ -53,34 +53,63 @@
       </div>
     </div>
 
-    <!-- GridStack контейнер -->
+    <!-- Vue Grid Layout контейнер -->
     <ClientOnly>
-      <div v-if="currentPage" class="grid-stack" ref="gridStackRef">
-        <!-- Блоки будут добавляться динамически -->
-        <div 
-          v-for="block in currentPage.json_data.blocks" 
-          :key="block.id"
-          class="grid-stack-item"
-          :gs-id="block.id"
-          :gs-x="block.x"
-          :gs-y="block.y"
-          :gs-w="block.w"
-          :gs-h="block.h"
-          :style="getBlockStyle(block)"
+      <div v-if="gridLoaded && layout && layout.length > 0" class="relative bg-gray-50 rounded-lg p-4">
+        <component
+          :is="GridLayout"
+          v-model:layout="layout"
+          :col-num="12"
+          :row-height="100"
+          :is-draggable="isEditMode"
+          :is-resizable="isEditMode"
+          :is-mirrored="false"
+          :vertical-compact="true"
+          :margin="[10, 10]"
+          :use-css-transforms="true"
+          @layout-updated="handleLayoutUpdated"
         >
-          <div class="grid-stack-item-content">
-            <PageBlock
-              :block-id="block.id"
-              :content="block.content"
-              :is-edit-mode="isEditMode"
-              @edit="handleEditBlock"
-              @delete="handleDeleteBlock"
-            />
-          </div>
-        </div>
+          <component
+            :is="GridItem"
+            v-for="item in layout"
+            :key="item.i"
+            :x="item.x"
+            :y="item.y"
+            :w="item.w"
+            :h="item.h"
+            :i="item.i"
+            :static="!isEditMode"
+            class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+          >
+            <div class="h-full flex flex-col">
+              <!-- Заголовок блока с кнопкой удаления -->
+              <div v-if="isEditMode" class="flex justify-between items-center p-2 bg-gray-100 border-b border-gray-200">
+                <span class="text-xs text-gray-600 font-medium">{{ item.i }}</span>
+                <button
+                  @click="handleDeleteBlock(item.i)"
+                  class="text-red-500 hover:text-red-700 text-sm font-bold"
+                  title="Удалить блок"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <!-- Контент блока -->
+              <div class="flex-1 overflow-auto">
+                <PageBlock
+                  :block-id="item.i"
+                  :content="item.content"
+                  :is-edit-mode="isEditMode"
+                  @edit="handleEditBlock"
+                  @delete="handleDeleteBlock"
+                />
+              </div>
+            </div>
+          </component>
+        </component>
       </div>
 
-      <!-- Заглушка если нет страницы -->
+      <!-- Заглушка загрузки -->
       <div v-else class="text-center p-8 bg-gray-100 rounded-lg">
         <p class="text-gray-600">Загрузка страницы...</p>
       </div>
@@ -90,22 +119,26 @@
 
 <script setup>
 import { useRoute } from 'vue-router'
+import { shallowRef } from 'vue'
 import ChannelCover from '~/components/ChannelCover.vue'
 import PageBlock from '~/components/PageBlock.vue'
 import { api } from '~/services/api'
-import { useGridStack } from '~/composables/useGridStack'
-import { GridStack } from 'gridstack'
-import 'gridstack/dist/gridstack.min.css'
+import { usePages } from '~/composables/usePages'
 
 const route = useRoute()
 const channelId = route.params.channelId
-const gridStackRef = ref(null)
-const gridInstance = ref(null)
 const isEditMode = ref(false)
 const saveStatus = ref(null) // 'saving', 'saved', 'error'
 const currentPage = ref(null)
+const layout = ref([])
+const saveTimeout = ref(null)
 
-const { createPage, loadChannelPages, saveLayout, serializeGridItems } = useGridStack()
+// Компоненты Vue Grid Layout (загружаются на клиенте)
+const GridLayout = shallowRef(null)
+const GridItem = shallowRef(null)
+const gridLoaded = ref(false)
+
+const { createPage, loadChannelPages, saveLayout, blocksToLayout, layoutToBlocks } = usePages()
 
 // Загрузка информации о канале
 const { data: channelInfo } = await useAsyncData(
@@ -121,12 +154,68 @@ const initializePage = async () => {
     if (pages && pages.length > 0) {
       // Используем первую страницу
       currentPage.value = pages[0]
+      
+      // Если нет блоков, создаем демо-блоки
+      if (!currentPage.value.json_data.blocks || currentPage.value.json_data.blocks.length === 0) {
+        const demoBlocks = [
+          {
+            id: 'block-1',
+            x: 0,
+            y: 0,
+            w: 4,
+            h: 2,
+            content: {
+              title: 'Элемент 1',
+              description: 'Демо-контент страницы'
+            }
+          },
+          {
+            id: 'block-2',
+            x: 4,
+            y: 0,
+            w: 4,
+            h: 2,
+            content: {
+              title: 'Элемент 2',
+              description: 'Еще один демо-элемент'
+            }
+          },
+          {
+            id: 'block-3',
+            x: 0,
+            y: 2,
+            w: 6,
+            h: 2,
+            content: {
+              title: 'Элемент 3',
+              description: 'Третий элемент сетки'
+            }
+          },
+          {
+            id: 'block-4',
+            x: 6,
+            y: 0,
+            w: 2,
+            h: 4,
+            content: {
+              title: 'Элемент 4',
+              description: 'Боковой элемент'
+            }
+          }
+        ]
+        
+        currentPage.value.json_data.blocks = demoBlocks
+        await saveLayout(currentPage.value.id, demoBlocks, currentPage.value.json_data)
+      }
+      
+      // Преобразуем блоки в layout для Vue Grid Layout
+      layout.value = blocksToLayout(currentPage.value.json_data.blocks || [])
     } else {
       // Создаем новую страницу с демо-блоками
       const newPage = await createPage(channelId)
       
       // Добавляем демо-блоки
-      newPage.json_data.blocks = [
+      const demoBlocks = [
         {
           id: 'block-1',
           x: 0,
@@ -173,9 +262,12 @@ const initializePage = async () => {
         }
       ]
       
+      newPage.json_data.blocks = demoBlocks
+      
       // Сохраняем страницу с демо-блоками
-      await saveLayout(newPage.id, newPage.json_data.blocks, newPage.json_data)
+      await saveLayout(newPage.id, demoBlocks, newPage.json_data)
       currentPage.value = newPage
+      layout.value = blocksToLayout(demoBlocks)
     }
   } catch (error) {
     console.error('Error initializing page:', error)
@@ -184,6 +276,20 @@ const initializePage = async () => {
 
 // Инициализация при загрузке
 await initializePage()
+
+// Загрузка компонентов Vue Grid Layout на клиенте
+onMounted(async () => {
+  if (process.client) {
+    try {
+      const vueGridLayout = await import('vue-grid-layout-v3')
+      GridLayout.value = vueGridLayout.GridLayout
+      GridItem.value = vueGridLayout.GridItem
+      gridLoaded.value = true
+    } catch (error) {
+      console.error('Error loading vue-grid-layout-v3:', error)
+    }
+  }
+})
 
 const pagesCount = computed(() => {
   return currentPage.value ? 1 : 0
@@ -198,40 +304,21 @@ const saveStatusText = computed(() => {
   }
 })
 
-// Вычисление стилей для блока (позиционирование на сетке)
-const getBlockStyle = (block) => {
-  const columns = 12
-  const cellHeight = 100 // px
-  const columnWidth = 100 / columns // %
-  
-  return {
-    left: `${block.x * columnWidth}%`,
-    top: `${block.y * cellHeight}px`,
-    width: `${block.w * columnWidth}%`,
-    height: `${block.h * cellHeight}px`
-  }
-}
-
-// Автосохранение при изменении
+// Автосохранение при изменении layout
 const autoSave = async () => {
-  if (!gridInstance.value || !currentPage.value) return
+  if (!currentPage.value) return
   
   try {
     saveStatus.value = 'saving'
     
-    const items = gridInstance.value.save(false)
-    const blocks = serializeGridItems(items)
+    // Преобразуем layout обратно в блоки с сохранением content
+    const blocks = layoutToBlocks(layout.value, currentPage.value.json_data.blocks)
     
-    // Сохраняем с сохранением content из текущей страницы
-    const blocksWithContent = blocks.map(block => {
-      const existingBlock = currentPage.value.json_data.blocks.find(b => b.id === block.id)
-      return {
-        ...block,
-        content: existingBlock?.content || {}
-      }
-    })
+    // Обновляем текущую страницу
+    currentPage.value.json_data.blocks = blocks
     
-    await saveLayout(currentPage.value.id, blocksWithContent, currentPage.value.json_data)
+    // Сохраняем в базу
+    await saveLayout(currentPage.value.id, blocks, currentPage.value.json_data)
     
     saveStatus.value = 'saved'
     setTimeout(() => {
@@ -246,17 +333,24 @@ const autoSave = async () => {
   }
 }
 
+// Обработчик изменения layout (с debounce)
+const handleLayoutUpdated = (newLayout) => {
+  if (!isEditMode.value) return
+  
+  // Очищаем предыдущий таймаут
+  if (saveTimeout.value) {
+    clearTimeout(saveTimeout.value)
+  }
+  
+  // Устанавливаем новый таймаут для сохранения
+  saveTimeout.value = setTimeout(() => {
+    autoSave()
+  }, 500) // Сохраняем через 500мс после последнего изменения
+}
+
 // Переключение режима редактирования
 const toggleEditMode = () => {
   isEditMode.value = !isEditMode.value
-  
-  if (gridInstance.value) {
-    if (isEditMode.value) {
-      gridInstance.value.enable()
-    } else {
-      gridInstance.value.disable()
-    }
-  }
 }
 
 // Обработчик редактирования блока
@@ -271,63 +365,17 @@ const handleDeleteBlock = async (blockId) => {
   if (!confirm(`Удалить блок ${blockId}?`)) return
   
   try {
-    // Удаляем блок из массива
-    const blockIndex = currentPage.value.json_data.blocks.findIndex(b => b.id === blockId)
-    if (blockIndex !== -1) {
-      currentPage.value.json_data.blocks.splice(blockIndex, 1)
-      
-      // Удаляем из GridStack
-      const element = document.querySelector(`[gs-id="${blockId}"]`)
-      if (element && gridInstance.value) {
-        gridInstance.value.removeWidget(element)
-      }
+    // Удаляем блок из layout
+    const index = layout.value.findIndex(item => item.i === blockId)
+    if (index !== -1) {
+      layout.value.splice(index, 1)
       
       // Сохраняем изменения
-      await saveLayout(
-        currentPage.value.id, 
-        currentPage.value.json_data.blocks, 
-        currentPage.value.json_data
-      )
+      await autoSave()
     }
   } catch (error) {
     console.error('Error deleting block:', error)
     alert('Ошибка при удалении блока')
   }
 }
-
-// Инициализация GridStack
-onMounted(() => {
-  if (gridStackRef.value && currentPage.value) {
-    gridInstance.value = GridStack.init({
-      cellHeight: 100,
-      column: 12,
-      acceptWidgets: true,
-      float: true,
-      disableOneColumnMode: true,
-      staticGrid: true // Начинаем в режиме просмотра
-    }, gridStackRef.value)
-
-    // GridStack автоматически обработает существующие элементы с атрибутами gs-x, gs-y, gs-w, gs-h
-    // Убедимся, что layout применился
-    nextTick(() => {
-      if (gridInstance.value) {
-        console.log('GridStack initialized with', gridInstance.value.getGridItems().length, 'items')
-      }
-    })
-
-    // Подписываемся на события изменения
-    gridInstance.value.on('change', (event, items) => {
-      if (isEditMode.value) {
-        autoSave()
-      }
-    })
-  }
-})
-
-// Очистка при размонтировании
-onBeforeUnmount(() => {
-  if (gridInstance.value) {
-    gridInstance.value.destroy(false)
-  }
-})
 </script>

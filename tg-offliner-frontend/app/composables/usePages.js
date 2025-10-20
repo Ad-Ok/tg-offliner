@@ -1,9 +1,9 @@
 /**
- * Композабл для работы с GridStack и API страниц
+ * Композабл для работы с API страниц
  */
 import { api } from '~/services/api'
 
-export const useGridStack = () => {
+export const usePages = () => {
   /**
    * Создает новую страницу для канала
    * @param {string} channelId - ID канала
@@ -19,7 +19,8 @@ export const useGridStack = () => {
           updated_at: new Date().toISOString(),
           grid: {
             cellHeight: 100,
-            columns: 12
+            columns: 12,
+            rowHeight: 100
           },
           blocks: []
         }
@@ -74,7 +75,7 @@ export const useGridStack = () => {
         ...existingData,
         updated_at: new Date().toISOString(),
         blocks: blocks.map(block => ({
-          id: block.id || `block-${Date.now()}-${Math.random()}`,
+          id: block.i || block.id || `block-${Date.now()}-${Math.random()}`,
           x: block.x,
           y: block.y,
           w: block.w,
@@ -109,19 +110,39 @@ export const useGridStack = () => {
   }
 
   /**
-   * Преобразует элементы GridStack в формат для сохранения
-   * @param {Array} gridItems - Элементы из GridStack
+   * Преобразует блоки из формата базы данных в формат Vue Grid Layout
+   * @param {Array} blocks - Блоки из базы данных
+   * @returns {Array} - Массив блоков для Vue Grid Layout
+   */
+  const blocksToLayout = (blocks) => {
+    return blocks.map(block => ({
+      i: block.id,
+      x: block.x,
+      y: block.y,
+      w: block.w,
+      h: block.h,
+      content: block.content || {}
+    }))
+  }
+
+  /**
+   * Преобразует layout из Vue Grid Layout в формат для сохранения в базу
+   * @param {Array} layout - Layout из Vue Grid Layout
+   * @param {Array} originalBlocks - Оригинальные блоки с content
    * @returns {Array} - Массив блоков для сохранения
    */
-  const serializeGridItems = (gridItems) => {
-    return gridItems.map(item => ({
-      id: item.id || item.el?.getAttribute('gs-id'),
-      x: item.x,
-      y: item.y,
-      w: item.w,
-      h: item.h,
-      content: item.content || {}
-    }))
+  const layoutToBlocks = (layout, originalBlocks = []) => {
+    return layout.map(item => {
+      const originalBlock = originalBlocks.find(b => b.id === item.i || b.i === item.i)
+      return {
+        id: item.i,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+        content: originalBlock?.content || {}
+      }
+    })
   }
 
   return {
@@ -130,6 +151,7 @@ export const useGridStack = () => {
     loadChannelPages,
     saveLayout,
     deletePage,
-    serializeGridItems
+    blocksToLayout,
+    layoutToBlocks
   }
 }
