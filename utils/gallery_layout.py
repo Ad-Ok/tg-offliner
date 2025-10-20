@@ -22,12 +22,12 @@ def generate_gallery_layout(image_paths, width=100, border=10, columns=None, no_
         images_info = []
         for path in image_paths:
             if os.path.exists(path):
-                img = Image.open(path)
-                images_info.append({
-                    'path': path,
-                    'width': img.width,
-                    'height': img.height
-                })
+                with Image.open(path) as img:
+                    images_info.append({
+                        'path': path,
+                        'width': img.width,
+                        'height': img.height
+                    })
             else:
                 print(f"Warning: Image not found: {path}")
                 return None
