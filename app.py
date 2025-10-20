@@ -9,7 +9,7 @@ import requests
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from weasyprint import HTML
-from models import db, Post, Channel
+from models import db, Post, Channel, Page
 from database import create_app, init_db
 from message_processing.channel_info import get_channel_info
 from telegram_client import connect_to_telegram

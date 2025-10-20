@@ -65,3 +65,13 @@ class Layout(db.Model):
 
     def __repr__(self):
         return f"<Layout for grouped_id {self.grouped_id} in channel {self.channel_id}>"
+
+class Page(db.Model):
+    __tablename__ = 'pages'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    channel_id = db.Column(db.String, nullable=False)  # ID канала
+    json_data = db.Column(JSON, nullable=False)  # JSON с данными сетки и содержимого
+
+    def __repr__(self):
+        return f"<Page {self.id} for channel {self.channel_id}>"
