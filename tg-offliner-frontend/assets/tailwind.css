@@ -2,3 +2,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@page {
+  size: A4;
+  margin-top: 10pt;
+  margin-bottom: 10pt;
+  margin-left: 20pt;
+  margin-right: 20pt;
+}

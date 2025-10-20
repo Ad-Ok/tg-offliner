@@ -1,5 +1,5 @@
 <template>
-  <div class="wall max-w-xl mx-auto">
+  <div class="max-w-xl mx-auto print:max-w-none">
     <!-- Информация о канале -->
     <ChannelCover 
       v-if="channelInfo" 
@@ -12,7 +12,7 @@
     <div v-if="!pending" class="mb-4 flex justify-end print:hidden">
       <button 
         @click="toggleSortOrder"
-        class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300 rounded-lg flex items-center space-x-2 transition-colors"
+        class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300 rounded-lg flex items-center gap-2 transition-colors"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path v-if="sortOrder === 'desc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/>

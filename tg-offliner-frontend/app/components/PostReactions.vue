@@ -1,6 +1,6 @@
 
 <template>
-  <div class="reactions flex space-x-4" v-if="reactions && reactions.recent_reactions.length">
+  <div class="reactions flex gap-4" v-if="reactions && reactions.recent_reactions.length">
     <div
       v-for="reaction in parsedReactions(reactions.recent_reactions)"
       :key="reaction.reaction"

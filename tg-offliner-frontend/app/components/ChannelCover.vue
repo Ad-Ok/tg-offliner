@@ -44,7 +44,7 @@
                 </div>
                 <div v-if="channel.creation_date" class="flex items-center gap-1">
                     <span class="font-semibold">Создан: </span>
-                    <span class="font-mono text-primary">{{ formatDate(channel.creation_date) }}</span>
+                    <span class="font-mono text-primary whitespace-nowrap">{{ formatDate(channel.creation_date) }}</span>
                 </div>
             </div>
             <div class="flex flex-wrap gap-6 py-1 text-sm opacity-90">

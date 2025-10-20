@@ -1,5 +1,5 @@
 <template>
-  <div class="flex space-x-2">
+  <div class="flex gap-2">
     <button 
       @click="handlePrintPdf" 
       :disabled="isLoading"

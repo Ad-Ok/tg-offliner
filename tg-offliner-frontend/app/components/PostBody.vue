@@ -7,7 +7,7 @@
     />
     
     <!-- Информация о репосте -->
-    <div v-if="repostAuthorName" class="repost-author flex items-center space-x-4">
+    <div v-if="repostAuthorName" class="repost-author flex items-center gap-4">
       <span class="text-sm text-gray-600 dark:text-gray-400">Репост от:</span>
       <PostAuthor
         :name="repostAuthorName"

@@ -61,7 +61,7 @@
             </span>
           </div>
 
-          <div class="flex space-x-2">
+          <div class="flex gap-2">
             <ChannelExports :channelId="channel.id" />
             <button @click="removeChannel(channel.id)" class="btn btn-xs btn-outline btn-error">Удалить канал</button>
           </div>
@@ -104,8 +104,8 @@
               <div class="flex items-end">
                 <div>
 
-                  <div class="flex space-x-2 text-sm mb-3">
-                    <label class="flex items-center space-x-2 cursor-pointer">
+                  <div class="flex gap-2 text-sm mb-3">
+                    <label class="flex items-center gap-2 cursor-pointer">
                       <input 
                         type="checkbox" 
                         v-model="exportSettings.include_system_messages"
@@ -113,7 +113,7 @@
                       />
                       <span>Системные сообщения</span>
                     </label>
-                    <label class="flex items-center space-x-2 cursor-pointer">
+                    <label class="flex items-center gap-2 cursor-pointer">
                       <input 
                         type="checkbox" 
                         v-model="exportSettings.include_reposts"
@@ -121,7 +121,7 @@
                       />
                       <span>Репосты</span>
                     </label>
-                    <label class="flex items-center space-x-2 cursor-pointer">
+                    <label class="flex items-center gap-2 cursor-pointer">
                       <input 
                         type="checkbox" 
                         v-model="exportSettings.include_polls"
@@ -129,7 +129,7 @@
                       />
                       <span>Опросы</span>
                     </label>
-                    <label class="flex items-center space-x-2 cursor-pointer" v-if="preview.discussion_group_id">
+                    <label class="flex items-center gap-2 cursor-pointer" v-if="preview.discussion_group_id">
                       <input 
                         type="checkbox" 
                         v-model="exportSettings.include_discussion_comments"
@@ -138,7 +138,7 @@
                       <span>Комментарии</span>
                     </label>
                   </div>
-                  <div class="flex items-center space-x-2 text-sm">
+                  <div class="flex items-center gap-2 text-sm">
                     <span>Лимит сообщений:</span>
                     <input 
                       type="number" 
@@ -151,7 +151,7 @@
                   </div>
                 </div>
 
-                <div class="flex space-x-4 ml-auto">
+                <div class="flex gap-4 ml-auto">
                   <button @click="removePreview(index)" class="btn btn-soft btn-error">Отменить</button>
                   <button @click="loadChannel(preview, index)" class="btn btn-primary">Загрузить канал</button>
                 </div>

@@ -1,5 +1,5 @@
 <template>
-  <div class="post-header flex items-center justify-between space-x-1 mb-2">
+  <div class="post-header flex items-center justify-between gap-1 mb-2">
     <PostAuthor
       :name="authorName"
       :avatar="authorAvatar"
