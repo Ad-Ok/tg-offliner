@@ -13,6 +13,15 @@
         <option value="3">3 columns</option>
         <option value="4">4 columns</option>
       </select>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          v-model="noCrop"
+          class="checkbox checkbox-sm checkbox-primary"
+          :disabled="isProcessing"
+        />
+        <span class="text-sm">Не вписывать в прямоугольник</span>
+      </label>
       <button
         class="btn btn-sm btn-outline btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
         :disabled="isProcessing"
@@ -51,6 +60,7 @@ const isProcessing = ref(false)
 const feedbackMessage = ref('')
 const isError = ref(false)
 const selectedColumns = ref('auto')
+const noCrop = ref(false)
 
 const buttonTitle = computed(() => {
   if (isProcessing.value) {
@@ -71,7 +81,7 @@ const reloadLayout = async () => {
   try {
     const { layoutsService } = await import('~/services/layoutsService.js')
     const columns = selectedColumns.value === 'auto' ? null : parseInt(selectedColumns.value)
-    const response = await layoutsService.reloadLayout(props.groupedId, props.channelId, columns)
+    const response = await layoutsService.reloadLayout(props.groupedId, props.channelId, columns, noCrop.value)
 
     emit('layoutReloaded', response?.layout ?? null)
     feedbackMessage.value = 'Layout regenerated'

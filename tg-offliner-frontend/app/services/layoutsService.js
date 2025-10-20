@@ -1,7 +1,7 @@
 import { api } from './api.js'
 
 export const layoutsService = {
-  async reloadLayout(groupedId, channelId, columns = null) {
+  async reloadLayout(groupedId, channelId, columns = null, noCrop = false) {
     if (!groupedId) {
       throw new Error('groupedId is required to reload layout')
     }
@@ -16,6 +16,10 @@ export const layoutsService = {
 
     if (columns !== null) {
       payload.columns = columns
+    }
+
+    if (noCrop) {
+      payload.no_crop = true
     }
 
     const response = await api.post(`/api/layouts/${groupedId}/reload`, payload)

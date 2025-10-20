@@ -3,7 +3,7 @@ import os
 from photocollage import collage
 from PIL import Image
 
-def generate_gallery_layout(image_paths, width=100, border=10, columns=None):
+def generate_gallery_layout(image_paths, width=100, border=10, columns=None, no_crop=False):
     """
     Генерирует layout для галереи изображений.
 
@@ -11,6 +11,7 @@ def generate_gallery_layout(image_paths, width=100, border=10, columns=None):
     :param width: Ширина контейнера (пиксели)
     :param border: Отступы между изображениями (пиксели)
     :param columns: Количество колонок (1-4) или None для авто-режима
+    :param no_crop: Если True, не кропить изображения и использовать masonry-style layout
     :return: Словарь с данными layout или None при ошибке
     """
     if len(image_paths) < 2:
@@ -88,8 +89,10 @@ def generate_gallery_layout(image_paths, width=100, border=10, columns=None):
             page.add_cell(photo)
 
         # Финальные корректировки: приводим колонки к общей высоте и подгоняем размеры
-        page.adjust()
-        page.scale_to_fit(width)
+        # В режиме no_crop пропускаем adjust и scale_to_fit, чтобы избежать кропирования
+        if not no_crop:
+            page.adjust()
+            page.scale_to_fit(width)
 
         # Собираем все cells из всех колонок, но гарантируем уникальность photos
         all_cells = []
