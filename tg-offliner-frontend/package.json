@@ -18,6 +18,7 @@
     "@fancyapps/ui": "^6.0.34",
     "@pinia/nuxt": "^0.11.2",
     "daisyui": "^5.0.50",
+    "gridstack": "^12.3.3",
     "nuxt": "^4.0.0",
     "pinia": "^3.0.3",
     "vue": "^3.5.17",

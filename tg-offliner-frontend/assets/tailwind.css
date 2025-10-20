@@ -10,3 +10,154 @@
   margin-left: 20pt;
   margin-right: 20pt;
 }
+
+/* GridStack Layout Styles */
+@layer components {
+  .grid-stack {
+    --gs-columns: 12;
+    --gs-rows: 12;
+    --gs-column-width: calc(100% / var(--gs-columns));
+    --gs-cell-height: 100px;
+  }
+
+  .grid-stack-item {
+    position: absolute;
+  }
+
+  .grid-stack-item-content {
+    @apply h-full w-full;
+  }
+
+  /* PageBlock Styles */
+  .page-block {
+    @apply h-full flex flex-col rounded-xl p-4 text-white overflow-hidden transition-all duration-300 shadow-lg;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-size: 200% 200%;
+  }
+
+  .page-block:hover {
+    @apply shadow-xl;
+    transform: translateY(-2px);
+  }
+
+  .page-block.edit-mode {
+    @apply cursor-move;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .page-block.view-mode {
+    @apply cursor-default;
+  }
+
+  /* Градиенты для разнообразия */
+  .grid-stack-item:nth-child(2n) .page-block {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  }
+
+  .grid-stack-item:nth-child(3n) .page-block {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  }
+
+  .grid-stack-item:nth-child(4n) .page-block {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  }
+
+  .grid-stack-item:nth-child(5n) .page-block {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  }
+
+  /* Block Header */
+  .block-header {
+    @apply flex justify-between items-start mb-3 pb-3 border-b border-white/20;
+  }
+
+  .block-title {
+    @apply text-xl font-bold flex-1 text-white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .block-controls {
+    @apply flex gap-1 opacity-0 transition-opacity duration-200;
+  }
+
+  .page-block:hover .block-controls {
+    @apply opacity-100;
+  }
+
+  .block-controls .btn {
+    @apply bg-white/20 border-none text-white;
+  }
+
+  .block-controls .btn:hover {
+    @apply bg-white/30;
+  }
+
+  /* Block Content */
+  .block-content {
+    @apply flex-1 overflow-auto flex flex-col gap-3;
+  }
+
+  .block-description {
+    @apply text-base leading-relaxed text-white/95 m-0;
+  }
+
+  .block-text {
+    @apply text-sm leading-normal text-white/90;
+  }
+
+  /* Media */
+  .block-media {
+    @apply mt-auto;
+  }
+
+  .block-image,
+  .block-video {
+    @apply w-full h-auto rounded-lg shadow-md;
+  }
+
+  .block-link {
+    @apply inline-block px-3 py-2 bg-white/20 rounded-md text-white no-underline text-sm transition-colors duration-200;
+  }
+
+  .block-link:hover {
+    @apply bg-white/30;
+  }
+
+  /* Metadata */
+  .block-meta {
+    @apply flex flex-wrap gap-1.5 mt-auto pt-2 border-t border-white/10;
+  }
+
+  .meta-badge {
+    @apply inline-block px-2 py-0.5 bg-black/20 rounded-xl text-xs text-white/80 font-mono;
+  }
+
+  /* Scrollbar */
+  .block-content::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+
+  .block-content::-webkit-scrollbar-track {
+    @apply bg-white/10 rounded;
+  }
+
+  .block-content::-webkit-scrollbar-thumb {
+    @apply bg-white/30 rounded;
+  }
+
+  .block-content::-webkit-scrollbar-thumb:hover {
+    @apply bg-white/50;
+  }
+
+  /* GridStack Animation */
+  .grid-stack.grid-stack-animate .grid-stack-item {
+    transition: left 0.3s, top 0.3s;
+  }
+
+  /* Dragging State */
+  .grid-stack-item.ui-draggable-dragging {
+    cursor: grabbing !important;
+    opacity: 0.8;
+    z-index: 100;
+  }
+}
