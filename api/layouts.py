@@ -57,6 +57,7 @@ def reload_layout(grouped_id):
 
     payload = request.get_json(silent=True) or {}
     channel_id = payload.get('channel_id') or request.args.get('channel_id')
+    columns = payload.get('columns')
 
     if not channel_id:
         return jsonify({"error": "channel_id parameter is required"}), 400
@@ -81,7 +82,7 @@ def reload_layout(grouped_id):
         if len(image_paths) < 2:
             return jsonify({"error": "At least two images are required to generate layout"}), 400
 
-        layout_data = generate_gallery_layout(image_paths)
+        layout_data = generate_gallery_layout(image_paths, columns=columns)
 
         if not layout_data:
             return jsonify({"error": "Layout generation failed"}), 500

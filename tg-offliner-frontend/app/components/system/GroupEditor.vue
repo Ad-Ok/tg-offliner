@@ -1,16 +1,29 @@
 <template>
   <div class="group-editor relative">
-    <button
-      v-if="editModeStore.showDeleteButtons"
-      class="btn btn-sm btn-outline btn-primary print:hidden disabled:opacity-50 disabled:cursor-not-allowed"
-      :disabled="isProcessing"
-      :title="buttonTitle"
-      @click="reloadLayout"
-    >
-      <span v-if="isProcessing">⏳</span>
-      <span v-else>Reload Layout</span>
-    </button>
-  <p v-if="feedbackMessage" :class="['mt-2', 'text-xs', feedbackClass]">
+    <div v-if="editModeStore.showDeleteButtons" class="flex items-center gap-2 pt-2 print:hidden">
+      <select
+        v-model="selectedColumns"
+        class="select select-sm select-bordered w-52"
+        :disabled="isProcessing"
+        title="Number of layout columns"
+      >
+        <option value="auto">Auto</option>
+        <option value="1">1 column</option>
+        <option value="2">2 columns</option>
+        <option value="3">3 columns</option>
+        <option value="4">4 columns</option>
+      </select>
+      <button
+        class="btn btn-sm btn-outline btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+        :disabled="isProcessing"
+        :title="buttonTitle"
+        @click="reloadLayout"
+      >
+        <span v-if="isProcessing">⏳</span>
+        <span v-else>Reload Layout</span>
+      </button>
+    </div>
+    <p v-if="feedbackMessage" :class="['mt-2', 'text-xs', feedbackClass]">
       {{ feedbackMessage }}
     </p>
   </div>
@@ -37,6 +50,7 @@ const editModeStore = useEditModeStore()
 const isProcessing = ref(false)
 const feedbackMessage = ref('')
 const isError = ref(false)
+const selectedColumns = ref('auto')
 
 const buttonTitle = computed(() => {
   if (isProcessing.value) {
@@ -56,7 +70,8 @@ const reloadLayout = async () => {
 
   try {
     const { layoutsService } = await import('~/services/layoutsService.js')
-    const response = await layoutsService.reloadLayout(props.groupedId, props.channelId)
+    const columns = selectedColumns.value === 'auto' ? null : parseInt(selectedColumns.value)
+    const response = await layoutsService.reloadLayout(props.groupedId, props.channelId, columns)
 
     emit('layoutReloaded', response?.layout ?? null)
     feedbackMessage.value = 'Layout regenerated'

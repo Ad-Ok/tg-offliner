@@ -3,37 +3,85 @@ import os
 from photocollage import collage
 from PIL import Image
 
-def generate_gallery_layout(image_paths, width=100, border=10):
+def generate_gallery_layout(image_paths, width=100, border=10, columns=None):
     """
     Генерирует layout для галереи изображений.
 
     :param image_paths: Список путей к изображениям
     :param width: Ширина контейнера (пиксели)
     :param border: Отступы между изображениями (пиксели)
+    :param columns: Количество колонок (1-4) или None для авто-режима
     :return: Словарь с данными layout или None при ошибке
     """
     if len(image_paths) < 2:
         return None  # Не генерируем layout для одного изображения
 
     try:
-        # Загружаем изображения и создаем Photo объекты
-        photos = []
+        # Загружаем изображения
+        images_info = []
         for path in image_paths:
             if os.path.exists(path):
                 img = Image.open(path)
-                photo = collage.Photo(path, img.width, img.height)
-                photos.append(photo)
+                images_info.append({
+                    'path': path,
+                    'width': img.width,
+                    'height': img.height
+                })
             else:
                 print(f"Warning: Image not found: {path}")
                 return None
 
-        if len(photos) < 2:
+        if len(images_info) < 2:
             return None
 
+        # Если выбрана 1 колонка - просто выстраиваем картинки одна под другой без кадрирования
+        if columns == 1:
+            layout_data = {
+                'total_width': width,
+                'total_height': 0,
+                'image_count': len(images_info),
+                'cells': []
+            }
+            
+            current_y = 0
+            for idx, img_info in enumerate(images_info):
+                # Масштабируем изображение по ширине, сохраняя пропорции
+                scale = width / img_info['width']
+                scaled_height = img_info['height'] * scale
+                
+                cell_data = {
+                    'image_index': idx,
+                    'x': 0,
+                    'y': current_y,
+                    'width': width,
+                    'height': scaled_height
+                }
+                layout_data['cells'].append(cell_data)
+                current_y += scaled_height
+            
+            layout_data['total_height'] = current_y
+            print(f"Generated single-column layout for {len(images_info)} images without cropping")
+            return layout_data
+
+        # Для остальных случаев используем photocollage
+        photos = []
+        for img_info in images_info:
+            photo = collage.Photo(img_info['path'], img_info['width'], img_info['height'])
+            photos.append(photo)
+
         # Создаем Page (коллажем)
-        # target_ratio = 1.0 (квадрат), no_cols = min(3, len(photos))
-        no_cols = min(3, len(photos))
-        page = collage.Page(width, 1.0, no_cols)
+        # Используем свободное соотношение сторон (вместо квадрата 1.0)
+        # Вычисляем среднее соотношение сторон всех фото
+        avg_ratio = sum(photo.w / photo.h for photo in photos) / len(photos)
+        # Ограничиваем от 0.5 (вертикальный) до 3.0 (очень горизонтальный)
+        target_ratio = max(0.5, min(3.0, avg_ratio))
+        
+        # no_cols определяется параметром columns или авто
+        if columns is not None and 2 <= columns <= 4:
+            no_cols = min(columns, len(photos))
+        else:
+            no_cols = min(3, len(photos))
+        page = collage.Page(width, target_ratio, no_cols)
 
         # Добавляем фото в page
         for photo in photos:
