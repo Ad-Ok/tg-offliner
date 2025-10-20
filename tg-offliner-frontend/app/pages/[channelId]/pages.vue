@@ -66,6 +66,7 @@
           :gs-y="block.y"
           :gs-w="block.w"
           :gs-h="block.h"
+          :style="getBlockStyle(block)"
         >
           <div class="grid-stack-item-content">
             <PageBlock
@@ -197,6 +198,20 @@ const saveStatusText = computed(() => {
   }
 })
 
+// Вычисление стилей для блока (позиционирование на сетке)
+const getBlockStyle = (block) => {
+  const columns = 12
+  const cellHeight = 100 // px
+  const columnWidth = 100 / columns // %
+  
+  return {
+    left: `${block.x * columnWidth}%`,
+    top: `${block.y * cellHeight}px`,
+    width: `${block.w * columnWidth}%`,
+    height: `${block.h * cellHeight}px`
+  }
+}
+
 // Автосохранение при изменении
 const autoSave = async () => {
   if (!gridInstance.value || !currentPage.value) return
@@ -291,6 +306,14 @@ onMounted(() => {
       disableOneColumnMode: true,
       staticGrid: true // Начинаем в режиме просмотра
     }, gridStackRef.value)
+
+    // GridStack автоматически обработает существующие элементы с атрибутами gs-x, gs-y, gs-w, gs-h
+    // Убедимся, что layout применился
+    nextTick(() => {
+      if (gridInstance.value) {
+        console.log('GridStack initialized with', gridInstance.value.getGridItems().length, 'items')
+      }
+    })
 
     // Подписываемся на события изменения
     gridInstance.value.on('change', (event, items) => {
