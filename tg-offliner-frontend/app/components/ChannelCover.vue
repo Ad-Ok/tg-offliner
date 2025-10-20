@@ -1,5 +1,5 @@
 <template>
-  <div class="channel-cover">
+  <div class="channel-cover font-sans">
     <div class="cover-header mb-8">
       <div class="flex items-center gap-8 mb-4">
         <!-- Аватар канала -->

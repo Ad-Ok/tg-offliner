@@ -13,6 +13,7 @@ module.exports = {
       fontFamily: {
         // Синхронизируем шрифты с PDF конфигом для консистентности
         'sans': [
+          'Roboto',
           'Arial',
           'Helvetica',
           'sans-serif'
