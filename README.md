@@ -190,20 +190,54 @@ All services are managed via Docker Compose and work together out of the box.
 
 ## **Testing**
 
-- **Базовый прогон в Docker**
+Проект имеет **98 тестов** с полным покрытием основных функций.
+
+### **Backend тесты (Python)**
+
+- **Запуск всех тестов локально:**
+  ```bash
+  cd tg-offliner
+  python -m unittest discover tests/ -v
+  ```
+
+- **Запуск конкретного тестового файла:**
+  ```bash
+  python -m unittest tests.test_api_layouts -v
+  ```
+
+- **Базовый прогон в Docker:**
   ```bash
   docker compose run --rm app python tests/run_tests.py
   ```
   Запускает все unit-тесты и выводит краткое резюме прямо в консоль.
 
-- **HTML-отчёт**
+- **HTML-отчёт:**
   ```bash
   docker compose run --rm app python tests/run_tests.py --html
   ```
-  Генератор создаёт файл в `test_reports/` с подробной таблицей по каждому тесту.
+  Генерирует файл в `test_reports/` с подробной таблицей по каждому тесту.
 
-- **Интеграционные проверки**
+- **Интеграционные проверки:**
   ```bash
   docker compose run --rm -e RUN_TELEGRAM_INTEGRATION=1 app python tests/run_tests.py --html
   ```
   Дополнительно выполняет импорт тестового канала `@llamatest`. По умолчанию тест помечен как `skipped`, чтобы не обращаться к Telegram без необходимости.
+
+### **Frontend тесты (JavaScript)**
+
+- **Запуск всех тестов локально:**
+  ```bash
+  cd tg-offliner-frontend
+  npm test
+  ```
+
+- **Запуск тестов в watch режиме:**
+  ```bash
+  npm test -- --watch
+  ```
+
+### **Покрытие тестами**
+
+- **Backend:** 90 unit-тестов (unittest)
+- **Frontend:** 8 тестов (Vitest)
+- **Новые функции:** Полностью покрыты тесты для layout generation, API endpoints и frontend service
