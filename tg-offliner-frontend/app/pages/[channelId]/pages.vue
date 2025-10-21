@@ -55,7 +55,7 @@
 
     <!-- Vue Grid Layout контейнер -->
     <ClientOnly>
-      <div v-if="gridLoaded && layout && layout.length > 0" class="relative bg-gray-50 rounded-lg p-4">
+      <div v-if="gridLoaded && layout && layout.length > 0" class="relative bg-gray-50 rounded-lg p-4 border">
         <component
           :is="GridLayout"
           v-model:layout="layout"
@@ -100,6 +100,7 @@
                   :block-id="item.i"
                   :content="item.content"
                   :is-edit-mode="isEditMode"
+                  :channel-posts="channelPosts"
                   @edit="handleEditBlock"
                   @delete="handleDeleteBlock"
                 />
@@ -132,6 +133,7 @@ const saveStatus = ref(null) // 'saving', 'saved', 'error'
 const currentPage = ref(null)
 const layout = ref([])
 const saveTimeout = ref(null)
+const channelPosts = ref([]) // Посты канала для передачи в блоки
 
 // Компоненты Vue Grid Layout (загружаются на клиенте)
 const GridLayout = shallowRef(null)
@@ -145,6 +147,19 @@ const { data: channelInfo } = await useAsyncData(
   'channelInfo',
   () => api.get(`/api/channels/${channelId}`).then(res => res.data)
 )
+
+// Загрузка постов канала
+const loadChannelPosts = async () => {
+  try {
+    const response = await api.get(`/api/posts?channel_id=${channelId}`)
+    channelPosts.value = response.data
+  } catch (error) {
+    console.error('Error loading channel posts:', error)
+  }
+}
+
+// Загружаем посты при инициализации
+await loadChannelPosts()
 
 // Загрузка или создание страницы
 const initializePage = async () => {
