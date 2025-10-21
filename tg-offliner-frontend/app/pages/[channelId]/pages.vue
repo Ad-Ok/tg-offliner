@@ -60,7 +60,7 @@
 
     <!-- Список всех страниц -->
     <div v-if="pages && pages.length > 0" class="space-y-6">
-      <PageGrid
+      <Page
         v-for="(page, index) in pages"
         :key="page.id"
         :page="page"
@@ -84,7 +84,7 @@
 import { useRoute } from 'vue-router'
 import { ref, computed } from 'vue'
 import ChannelCover from '~/components/ChannelCover.vue'
-import PageGrid from '~/components/PageGrid.vue'
+import Page from '~/components/system/Page.vue'
 import { api } from '~/services/api'
 import { usePages } from '~/composables/usePages'
 

@@ -50,7 +50,7 @@
                   ✕
                 </button>
               </div>
-              
+
               <!-- Контент блока -->
               <div class="flex-1 overflow-auto">
                 <PageBlock
@@ -82,7 +82,7 @@
 
 <script setup>
 import { ref, computed, onMounted, shallowRef, watch } from 'vue'
-import PageBlock from './PageBlock.vue'
+import PageBlock from '../PageBlock.vue'
 import { usePages } from '~/composables/usePages'
 
 const props = defineProps({
@@ -153,7 +153,7 @@ onMounted(async () => {
 // Обработчик изменения layout
 const handleLayoutUpdated = (newLayout) => {
   if (!props.isEditMode) return
-  
+
   emit('layout-updated', {
     pageId: props.page.id,
     layout: newLayout,
@@ -163,7 +163,5 @@ const handleLayoutUpdated = (newLayout) => {
 </script>
 
 <style scoped>
-.page-container {
-  break-inside: avoid;
-}
+/* Стили без печати */
 </style>
