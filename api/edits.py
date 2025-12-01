@@ -84,6 +84,30 @@ def get_edit_for_post(telegram_id, channel_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@edits_bp.route('/api/edits', methods=['GET'])
+def get_all_edits():
+    """Получение всех правок"""
+    try:
+        edits = Edit.query.all()
+        
+        edits_data = []
+        for edit in edits:
+            edits_data.append({
+                'id': edit.id,
+                'telegram_id': edit.telegram_id,
+                'channel_id': edit.channel_id,
+                'date': edit.date,
+                'changes': edit.changes
+            })
+        
+        return jsonify({
+            'success': True,
+            'edits': edits_data
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @edits_bp.route('/api/edits/<channel_id>', methods=['GET'])
 def get_edits_for_channel(channel_id):
     """Получение всех правок для канала"""
@@ -106,4 +130,35 @@ def get_edits_for_channel(channel_id):
         }), 200
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@edits_bp.route('/api/edits/<channel_id>', methods=['DELETE'])
+def delete_edits_for_channel(channel_id):
+    """Удаление всех правок для канала"""
+    try:
+        # Находим все правки для канала
+        edits = Edit.query.filter_by(channel_id=channel_id).all()
+        count = len(edits)
+        
+        if count == 0:
+            return jsonify({
+                'success': True,
+                'message': f'No edits found for channel {channel_id}',
+                'deleted_count': 0
+            }), 200
+        
+        # Удаляем все правки
+        for edit in edits:
+            db.session.delete(edit)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully deleted {count} edits for channel {channel_id}',
+            'deleted_count': count
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500

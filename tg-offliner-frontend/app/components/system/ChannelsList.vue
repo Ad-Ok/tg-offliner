@@ -193,6 +193,36 @@
         Поддерживается: @channelname, channelname, @username, username, PEER ID
       </div>
     </div>
+
+    <!-- Правки (история изменений) -->
+    <div v-if="!channelsLoading && transients.length > 0" class="mt-12">
+      <h2 class="text-2xl mb-2">Правки (история изменений)</h2>
+      <p class="text-sm text-gray-600 mb-4">
+        Правки — это записи об изменениях постов (редактирование текста, реакции, скрытие). 
+        Они сохраняются в базе даже после удаления канала и могут быть очищены вручную.
+      </p>
+
+      <ul class="list bg-base-100 rounded-box shadow-md mb-8">
+        <li v-for="transient in transients" :key="transient.channel_id" class="list-row">
+          <div></div>
+          <div>
+            <span class="text-md font-bold">{{ transient.channel_id }}</span>
+            <div class="text-sm text-gray-600">
+              {{ transient.edits_count }} {{ transient.edits_count === 1 ? 'правка' : transient.edits_count < 5 ? 'правки' : 'правок' }}
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <button 
+              @click="clearTransients(transient.channel_id)" 
+              class="btn btn-xs btn-outline btn-warning"
+            >
+              Очистить правки
+            </button>
+          </div>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -219,6 +249,7 @@ export default {
     return {
       channels: [],
       previewChannels: [], // Отдельный массив для preview-каналов
+      transients: [], // Статистика транзиентов (история правок)
       channelsLoading: true, // Загрузка списка каналов
       previewLoading: false, // Загрузка preview канала
       newChannel: "", // Поле для ввода имени канала
@@ -249,6 +280,7 @@ export default {
   },
   created() {
     this.fetchChannels();
+    this.fetchTransients();
   },
   methods: {
     fetchChannels() {
@@ -262,6 +294,53 @@ export default {
         .catch((error) => {
           console.error('Ошибка при загрузке каналов:', error);
           this.channelsLoading = false;
+        });
+    },
+    fetchTransients() {
+      api
+        .get('/api/edits')
+        .then((response) => {
+          const edits = response.data.edits || [];
+          
+          // Группируем правки по channel_id и считаем количество
+          const statsMap = {};
+          edits.forEach(edit => {
+            if (!statsMap[edit.channel_id]) {
+              statsMap[edit.channel_id] = 0;
+            }
+            statsMap[edit.channel_id]++;
+          });
+          
+          // Преобразуем в массив для отображения
+          this.transients = Object.keys(statsMap).map(channel_id => ({
+            channel_id: channel_id,
+            edits_count: statsMap[channel_id]
+          }));
+        })
+        .catch((error) => {
+          console.error('Ошибка при загрузке правок:', error);
+        });
+    },
+    async clearTransients(channelId) {
+      const confirmed = await this.showConfirmDialog({
+        title: 'Очистка правок',
+        message: `Вы уверены, что хотите удалить все правки для канала ${channelId}? Это действие нельзя отменить.`,
+        confirmText: 'Очистить',
+        cancelText: 'Отмена',
+        type: 'warning'
+      });
+
+      if (!confirmed) return;
+
+      api
+        .delete(`/api/edits/${channelId}`)
+        .then((response) => {
+          eventBus.showAlert(response.data.message, "success");
+          this.fetchTransients(); // Обновляем список правок
+        })
+        .catch((error) => {
+          const errorMessage = error.response?.data?.error || 'Ошибка при очистке правок';
+          eventBus.showAlert(errorMessage, "danger");
         });
     },
     addChannel() {
