@@ -16,16 +16,43 @@ pages_bp = Blueprint('pages', __name__)
 @pages_bp.route('/pages', methods=['GET'])
 def get_pages():
     """Возвращает список всех страниц или страниц из конкретного канала.
-    Если для канала нет страниц, автоматически создает страницы по 4 поста на каждой."""
-    channel_id = request.args.get('channel_id')  # Получаем ID канала из параметров запроса
+    Если для канала нет страниц, автоматически создает страницы по 4 поста на каждой.
+    
+    Параметры:
+    - channel_id: фильтр по ID канала
+    - page_number: фильтр по номеру страницы (работает только вместе с channel_id)
+    - limit: количество страниц для загрузки (по умолчанию: все)
+    - offset: смещение для пагинации
+    """
+    channel_id = request.args.get('channel_id')
+    page_number = request.args.get('page_number', type=int)
+    limit = request.args.get('limit', type=int)
+    offset = request.args.get('offset', type=int, default=0)
+    
     if channel_id:
-        pages = Page.query.filter_by(channel_id=channel_id).all()
+        # Базовый запрос по каналу
+        query = Page.query.filter_by(channel_id=channel_id)
         
-        # Если страниц нет, создаем автоматически все страницы для всех постов канала
-        if not pages:
+        # Фильтр по номеру страницы (если есть поле page_number в json_data)
+        if page_number is not None:
+            # Поиск по json_data -> page_number
+            query = query.filter(Page.json_data['page_number'].astext.cast(db.Integer) == page_number)
+        
+        # Пагинация
+        if limit:
+            query = query.offset(offset).limit(limit)
+        
+        pages = query.all()
+        
+        # Если страниц нет И не запрашивали конкретную страницу, создаем автоматически
+        if not pages and page_number is None:
             pages = _auto_generate_pages(channel_id)
     else:
-        pages = Page.query.all()  # Возвращаем все страницы
+        # Возвращаем все страницы
+        query = Page.query
+        if limit:
+            query = query.offset(offset).limit(limit)
+        pages = query.all()
 
     return jsonify([{
         "id": page.id,
@@ -50,7 +77,15 @@ def get_page(page_id):
 
 @pages_bp.route('/pages', methods=['POST'])
 def create_page():
-    """Создает новую страницу."""
+    """Создает новую страницу.
+    
+    Ожидаемые данные:
+    {
+        "channel_id": "str",
+        "page_number": int (опционально),
+        "json_data": {...}
+    }
+    """
     data = request.get_json()
     
     if not data or 'channel_id' not in data:
@@ -69,6 +104,10 @@ def create_page():
     }
     
     json_data = data.get('json_data', default_json_data)
+    
+    # Добавляем page_number в json_data если передан
+    if 'page_number' in data:
+        json_data['page_number'] = data['page_number']
     
     # Убедимся что есть временные метки
     if 'created_at' not in json_data:
