@@ -2,6 +2,47 @@
 
 The TG-Offliner app is designed to download content from Telegram channels and export it as HTML and PDF.
 
+## **Features**
+
+### **Channel Management**
+- **Download Telegram channels** — Import messages, media, and metadata from any public or private channel you have access to
+- **Preview channels** — View channel information before downloading
+- **Multiple channel support** — Manage and export multiple channels simultaneously
+- **Channel deletion** — Remove downloaded channel data when no longer needed
+
+### **Content Export**
+- **HTML export** — Export channel content as clean, standalone HTML files with embedded styles
+- **Gallery layout** — Organize media-heavy channels in a visual gallery format
+- **Discussion comments** — Include or exclude discussion/reply threads
+- **System messages** — Optional inclusion of service messages (user joined, pinned message, etc.)
+- **Polls support** — Preserve poll questions and voting options
+- **Reposts/forwards** — Control inclusion of forwarded messages
+
+### **Media Handling**
+- **Download media** — Automatically download photos, videos, audio, and documents
+- **Avatar caching** — Store channel and user avatars locally
+- **Thumbnail generation** — Create previews for media files
+- **Media organization** — Structured storage in channel-specific directories
+
+### **Post Management**
+- **Edit tracking** — Monitor and record changes to posts over time
+- **Hide posts** — Mark individual posts as hidden without deleting them
+- **Edit history** — View complete edit history with timestamps and changes
+- **Persistent edits** — Edit records remain even after channel deletion
+
+### **Customization**
+- **Message limits** — Set maximum number of messages to download per channel
+- **Selective import** — Choose which message types to include (polls, reposts, system messages, discussions)
+- **Layout options** — Different presentation formats for different content types
+
+### **Technical Features**
+- **Docker-based deployment** — Easy setup with Docker Compose
+- **Persistent storage** — Database and media files preserved across restarts
+- **Real-time progress** — Live download status updates
+- **Server logs** — View application logs directly from the UI
+- **RESTful API** — Backend API for programmatic access
+- **Modern frontend** — Nuxt.js-based responsive interface with Tailwind CSS
+
 ---
 
 ## **Quick Start**
@@ -72,16 +113,6 @@ After successful authorization, a `session_name.session` file will be created to
 **Note:**  
 You no longer need to run the frontend separately with `npm run serve`.  
 All services are managed via Docker Compose and work together out of the box.
-
----
-
-## **Features**
-
-- Export Telegram posts as individual HTML files
-- Combine all exported posts into a single PDF file (WIP - work in progress)
-- Generate an index file with links to all posts
-- Support for grouped messages and media attachments
-- Flexible command-line options for controlling the export process
 
 ---
 

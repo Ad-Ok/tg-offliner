@@ -1,6 +1,6 @@
 <template>
   <div class="flex gap-2">
-    <!-- TODO: PDF генерация в разработке (WIP) -->
+    <!-- TODO: PDF generation is work in progress (WIP) -->
     <!-- <button 
       @click="handlePrintPdf" 
       :disabled="isLoading"
@@ -58,19 +58,19 @@ const handlePrintPdf = async () => {
         const filePath = `downloads/${props.channelId}/${props.channelId}.pdf`;
         const fileUrl = `http://localhost:5000/${filePath}`;
         eventBus.showAlert(
-          `PDF файл для канала <strong>${props.channelId}</strong> успешно создан: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,
+          `PDF file for channel <strong>${props.channelId}</strong> successfully created: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,
           "success",
           { html: true }
         );
       } else {
-        eventBus.showAlert(result.error || "Ошибка при создании PDF", "danger")
+        eventBus.showAlert(result.error || "Error creating PDF", "danger")
       }
     } else {
-      eventBus.showAlert("Неожиданный ответ сервера", "danger")
+      eventBus.showAlert("Unexpected server response", "danger")
     }
   } catch (error) {
-    eventBus.showAlert(error.message || "Ошибка при создании PDF", "danger")
-    console.error("Ошибка при создании PDF:", error)
+    eventBus.showAlert(error.message || "Error creating PDF", "danger")
+    console.error("Error creating PDF:", error)
   } finally {
     isLoadingPdf.value = false
   }
@@ -89,14 +89,14 @@ const handleExportHtml = async () => {
     const filePath = `downloads/${props.channelId}/index.html`;
     const fileUrl = `http://localhost:5000/${filePath}`;
     eventBus.showAlert(
-      `HTML файл для канала <strong>${props.channelId}</strong> успешно создан: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,
+      `HTML file for channel <strong>${props.channelId}</strong> successfully created: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,
       "success",
       { html: true }
     )
     
   } catch (error) {
-    eventBus.showAlert(error.message || "Ошибка при создании HTML", "danger")
-    console.error("Ошибка при экспорте HTML:", error)
+    eventBus.showAlert(error.message || "Error creating HTML", "danger")
+    console.error("Error exporting HTML:", error)
   } finally {
     isLoadingHtml.value = false
   }

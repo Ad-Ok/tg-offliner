@@ -2,7 +2,7 @@
   <div class="channel-cover font-sans">
     <div class="cover-header mb-8">
       <div class="flex items-center gap-8 mb-4">
-        <!-- Аватар канала -->
+        <!-- Channel avatar -->
         <div class="avatar">
           <div class="w-24 h-24 rounded-full ring ring-primary-content ring-offset-base-100 ring-offset-2">
             <img 
@@ -27,11 +27,11 @@
             <div class="cover-stats bg-base-200 py-1">
                 <div class="flex flex-wrap gap-6 text-sm">
                     <div class="stat-item">
-                    <span class="font-semibold">ID канала: </span>
+                    <span class="font-semibold">Channel ID: </span>
                     <span class="font-mono text-primary">{{ channel.id }}</span>
                     </div>
                     <div v-if="channel.discussion_group_id" class="stat-item">
-                    <span class="font-semibold">Группа обсуждений: </span>
+                    <span class="font-semibold">Discussion group: </span>
                     <span class="font-mono text-secondary">{{ channel.discussion_group_id }}</span>
                     </div>
                 </div>
@@ -43,7 +43,7 @@
                     <span class="font-mono text-primary">{{ formatSubscribers(channel.subscribers) }}</span>
                 </div>
                 <div v-if="channel.creation_date" class="flex items-center gap-1">
-                    <span class="font-semibold">Создан: </span>
+                    <span class="font-semibold">Created: </span>
                     <span class="font-mono text-primary whitespace-nowrap">{{ formatDate(channel.creation_date) }}</span>
                 </div>
             </div>
@@ -58,7 +58,7 @@
         </div>
       </div>
 
-    <!-- Описание канала -->
+    <!-- Channel description -->
     <div v-if="channel.description" class="cover-description pl-32">
     <p class="text-base-content/80 leading-relaxed">{{ channel.description }}</p>
     </div>
@@ -86,12 +86,12 @@ const props = defineProps({
   }
 });
 
-// URL аватара с правильным базовым путем
+// Avatar URL with correct base path
 const avatarSrc = computed(() => {
   return props.channel.avatar ? `${mediaBase}/downloads/${props.channel.avatar}` : null;
 });
 
-// Инициалы канала для случая, когда нет аватара
+// Channel initials for when there's no avatar
 const channelInitials = computed(() => {
   if (!props.channel.name) return '?';
   return props.channel.name
@@ -101,7 +101,7 @@ const channelInitials = computed(() => {
     .substring(0, 2);
 });
 
-// Форматирование количества подписчиков
+// Format subscriber count
 const formatSubscribers = (subscribers) => {
   const num = parseInt(subscribers);
   if (isNaN(num)) return subscribers;
@@ -114,7 +114,7 @@ const formatSubscribers = (subscribers) => {
   return num.toString();
 };
 
-// Форматирование даты
+// Format date
 const formatDate = (dateString) => {
   try {
     const date = new Date(dateString);

@@ -13,7 +13,7 @@
       </div>
       
       <div v-else-if="error" class="flex items-center justify-center h-full p-4">
-        <p class="text-red-500">Ошибка: {{ error }}</p>
+        <p class="text-red-500">Error: {{ error }}</p>
       </div>
       
       <div v-else-if="post" class="h-full overflow-auto">
@@ -43,7 +43,7 @@
           <button 
             @click="$emit('delete', blockId)"
             class="btn btn-xs btn-ghost text-error"
-            title="Удалить блок"
+            title="Delete block"
           >
             🗑️
           </button>
@@ -52,7 +52,7 @@
 
       <!-- Основное содержимое блока -->
       <div class="block-content">
-        <!-- Описание/текст -->
+        <!-- Description/text -->
         <p v-if="content?.description" class="block-description">
           {{ content.description }}
         </p>
@@ -60,7 +60,7 @@
         <!-- Дополнительные поля контента -->
         <div v-if="content?.text" class="block-text" v-html="content.text"></div>
         
-        <!-- Медиа контент (если есть) -->
+        <!-- Media content (if any) -->
         <div v-if="content?.media_url" class="block-media">
           <img 
             v-if="isImage(content.media_url)" 
@@ -129,7 +129,7 @@ const post = ref(null)
 const loading = ref(false)
 const error = ref(null)
 
-// Если посты переданы через props, используем их
+// If posts are passed via props, use them
 const postFromProps = computed(() => {
   if (!props.content?.telegram_id || !props.channelPosts.length) {
     return null
@@ -137,7 +137,7 @@ const postFromProps = computed(() => {
   return props.channelPosts.find(p => p.telegram_id === props.content.telegram_id)
 })
 
-// Загрузка поста по channel_id и telegram_id (только если не передан через props)
+// Load post by channel_id and telegram_id (only if not passed via props)
 const loadPost = async () => {
   // Если пост уже есть в props, используем его
   if (postFromProps.value) {
@@ -168,7 +168,7 @@ const loadPost = async () => {
     }
   } catch (err) {
     console.error('Error loading post:', err)
-    error.value = 'Ошибка загрузки поста'
+    error.value = 'Error loading post'
   } finally {
     loading.value = false
   }

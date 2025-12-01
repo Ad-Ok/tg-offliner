@@ -18,7 +18,7 @@
     <div class="quote-content text-sm text-gray-600 dark:text-gray-400">
       <p v-if="originalPost.message" v-html="truncateMessage(originalPost.message)"></p>
       
-      <!-- Превью медиа если есть -->
+      <!-- Media preview if any -->
       <div v-if="originalPost.media_url" class="mt-2">
         <img 
           v-if="originalPost.media_type === 'photo'"

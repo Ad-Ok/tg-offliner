@@ -39,19 +39,19 @@
             class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
           >
             <div class="h-full flex flex-col">
-              <!-- Заголовок блока с кнопкой удаления -->
+              <!-- Block header with delete button -->
               <div v-if="isEditMode" class="flex justify-between items-center p-2 bg-gray-100 border-b border-gray-200">
                 <span class="text-xs text-gray-600 font-medium">{{ item.i }}</span>
                 <button
                   @click="$emit('delete-block', item.i)"
                   class="text-red-500 hover:text-red-700 text-sm font-bold"
-                  title="Удалить блок"
+                  title="Delete block"
                 >
                   ✕
                 </button>
               </div>
 
-              <!-- Контент блока -->
+              <!-- Block content -->
               <div class="flex-1 overflow-auto">
                 <PageBlock
                   :block-id="item.i"
@@ -131,12 +131,12 @@ const initializeLayout = () => {
 // Инициализация при монтировании
 initializeLayout()
 
-// Перезагрузка layout при изменении страницы
+// Reload layout when page changes
 watch(() => props.page, () => {
   initializeLayout()
 }, { deep: true })
 
-// Загрузка компонентов Vue Grid Layout на клиенте
+// Load Vue Grid Layout components on client
 onMounted(async () => {
   if (process.client) {
     try {

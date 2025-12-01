@@ -1,6 +1,6 @@
 <template>
   <div v-if="hasActiveDownloads">
-    <h2 class="text-2xl mb-2">Активные загрузки</h2>
+    <h2 class="text-2xl mb-2">Active Downloads</h2>
     <div class="list bg-base-100 rounded-box shadow-md mb-8">
       <div 
         v-for="(status, channelId) in activeDownloads" 
@@ -18,21 +18,21 @@
         <div class="flex-1 min-w-0">
           <div class="font-bold text-lg">{{ status.details.channel_name || channelId }}</div>
           <div class="mt-2">
-            <span class="text-sm">⏳ Загрузка...</span>
+            <span class="text-sm">⏳ Downloading...</span>
             
-            <!-- Детальная статистика -->
+            <!-- Detailed statistics -->
             <div v-if="status.details.posts_processed !== undefined" class="mt-2 text-sm text-base-content/70">
               <div>
-                Постов: {{ status.details.posts_processed }}
+                Posts: {{ status.details.posts_processed }}
                 <span v-if="getChannelTotalPosts(channelId) || status.details.total_posts"> 
-                  из {{ getChannelTotalPosts(channelId) || status.details.total_posts }}
+                  of {{ getChannelTotalPosts(channelId) || status.details.total_posts }}
                 </span>
-                <span v-if="status.details.comments_processed">, комментариев: {{ status.details.comments_processed }}</span>
+                <span v-if="status.details.comments_processed">, comments: {{ status.details.comments_processed }}</span>
               </div>
             </div>
           </div>
 
-          <!-- Прогресс-бар для визуального отображения -->
+          <!-- Progress bar for visual display -->
           <div v-if="status.details && status.details.posts_processed !== undefined" class="w-full mt-3">
             <progress 
               class="progress progress-primary w-full h-4"
@@ -50,13 +50,13 @@
             @click="$emit('stop-download', channelId)"
             class="btn btn-sm btn-outline btn-warning"
           >
-            Остановить
+            Stop
           </button>
           <button 
             @click="$emit('cancel-download', channelId)"
             class="btn btn-sm btn-outline btn-error"
           >
-            Отменить
+            Cancel
           </button>
         </div>
       </div>
@@ -100,13 +100,13 @@ export default {
   },
   methods: {
     getChannelTotalPosts(channelId) {
-      // Ищем в загруженных каналах
+      // Search in downloaded channels
       const channel = this.channels.find(ch => ch.id === channelId);
       if (channel && channel.posts_count !== undefined) {
         return channel.posts_count;
       }
       
-      // Ищем в preview каналах
+      // Search in preview channels
       const previewChannel = this.previewChannels.find(ch => ch.id === channelId);
       if (previewChannel && previewChannel.posts_count !== undefined) {
         return previewChannel.posts_count;
@@ -117,7 +117,7 @@ export default {
     getProgressPercentage(status, channelId) {
       const { posts_processed, total_posts } = status.details || {};
       
-      // Если total_posts не задан или равен 0, пытаемся получить из информации о канале
+      // If total_posts is not set or is 0, try to get it from channel info
       let actualTotalPosts = total_posts;
       if (!actualTotalPosts || actualTotalPosts === 0) {
         actualTotalPosts = this.getChannelTotalPosts(channelId);
@@ -141,7 +141,7 @@ export default {
         hasDetails: !!status.details
       });
       
-      // Показываем прогресс-бар если есть информация о постах
+      // Show progress bar if there's info about posts
       return status.details && 
              status.details.posts_processed !== undefined &&
              (channelTotalPosts > 0 || status.details.total_posts > 0);
