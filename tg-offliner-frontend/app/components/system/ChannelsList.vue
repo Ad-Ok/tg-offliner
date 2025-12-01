@@ -63,7 +63,7 @@
 
           <div class="flex gap-2">
             <ChannelExports :channelId="channel.id" />
-            <button @click="removeChannel(channel.id)" class="btn btn-xs btn-outline btn-error">Удалить канал</button>
+            <button @click="removeChannel(channel.id)" class="btn btn-xs btn-outline btn-error">Удалить загрузку</button>
           </div>
         </li>
       </ul>
@@ -184,9 +184,6 @@
             {{ previewLoading ? 'Загрузка...' : 'Предварительный просмотр' }}
           </button>
         </div>
-        <button @click="testLoadLlamatest" class="btn ml-auto">
-          Загрузить llamatest
-        </button>
         <div v-if="previewLoading" class="ml-4 text-primary">
           <div class="loading loading-bars loading-sm mr-2"></div>
           Получаем информацию о канале...
@@ -298,8 +295,8 @@ export default {
     },
     async removeChannel(channelId) {
       const confirmed = await this.showConfirmDialog({
-        title: 'Удаление канала',
-        message: 'Вы уверены, что хотите удалить этот канал?',
+        title: 'Удаление загрузки канала',
+        message: 'Вы уверены, что хотите удалить загруженные данные этого канала?',
         confirmText: 'Удалить',
         cancelText: 'Отмена',
         type: 'error'
@@ -419,7 +416,7 @@ export default {
       // Подтверждение действия
       const confirmed = await this.showConfirmDialog({
         title: 'Отмена загрузки',
-        message: 'Вы уверены, что хотите отменить загрузку и удалить канал? Это действие нельзя отменить.',
+        message: 'Вы уверены, что хотите отменить загрузку и удалить загруженные данные канала? Это действие нельзя отменить.',
         confirmText: 'Отменить загрузку',
         cancelText: 'Продолжить загрузку',
         type: 'warning'
@@ -494,44 +491,6 @@ export default {
       // Удаляем статус для канала из локального состояния
       delete this.downloadStatuses[channel];
       this.$forceUpdate(); // Принудительно обновляем компонент
-    },
-    
-    // Тестовая загрузка канала llamatest
-    async testLoadLlamatest() {
-      const channelUsername = 'llamatest';
-      
-      try {
-        // Сначала удаляем канал, если он существует
-        eventBus.showAlert('Удаляем существующий канал llamatest...', 'info');
-        
-        // Ищем канал в списке загруженных каналов
-        const existingChannel = this.channels.find(ch => 
-          ch.username === channelUsername || 
-          ch.name?.toLowerCase().includes('llamatest') ||
-          ch.id?.toString().includes('llamatest')
-        );
-        
-        if (existingChannel) {
-          await this.deleteChannel(existingChannel.id);
-          // Небольшая задержка после удаления
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        
-        // Затем загружаем канал
-        eventBus.showAlert('Загружаем канал llamatest...', 'info');
-        
-        const response = await api.post('/api/add_channel', {
-          channel_username: channelUsername,
-        });
-        
-        eventBus.showAlert(response.data.message, 'success');
-        this.fetchChannels(); // Обновляем список каналов
-        
-      } catch (error) {
-        const errorMessage = error.response?.data?.error || error.message || 'Ошибка при тестовой загрузке';
-        eventBus.showAlert(errorMessage, 'danger');
-        console.error('Ошибка при тестовой загрузке llamatest:', error);
-      }
     }
   },
   
