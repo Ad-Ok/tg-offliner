@@ -4,161 +4,48 @@ The TG-Offliner app is designed to download content from Telegram channels and e
 
 ---
 
-## **Usage**
+## **Quick Start**
 
-# TG-Offliner
+### **1. Getting Telegram API Credentials**
 
-The TG-Offliner app is designed to download content from Telegram channels and export it as HTML and PDF.
+1. **Go to https://my.telegram.org**
+2. **Sign in** using your phone number
+3. **Navigate to "API development tools" https://my.telegram.org/apps** 
+4. **Fill out the application creation form:**
+   - App title: `TG-Offliner` (or any other name)
+   - Short name: `tg-offliner` (or any other)
+   - Platform: choose appropriate (e.g., Desktop)
+   - Description: optional
+5. **Click "Create application"**
+6. **Save the obtained credentials:**
+   - `api_id` — this is your `API_ID`
+   - `api_hash` — this is your `API_HASH`
 
-## **Быстрый старт**
+⚠️ **Important:** Never publish these credentials or add them to git!
 
-### **1. Настройка конфигурации**
+### **2. Configuration Setup**
 ```bash
-# Скопируйте пример конфигурации
+# Copy the example configuration
 cp example.env .env
 
-# Отредактируйте .env файл и заполните:
-# - API_ID: Получите на https://my.telegram.org
-# - API_HASH: Получите на https://my.telegram.org  
-# - PHONE: Ваш номер телефона (с кодом страны, например +1234567890)
+# Edit the .env file and fill in the obtained credentials:
+# API_ID=your_api_id_from_step_1
+# API_HASH=your_api_hash_from_step_1
+# PHONE=+1XXXXXXXXXX  # Your phone number with country code
 ```
 
-### **2. Авторизация в Telegram**
+### **3. Telegram Authorization**
 ```bash
-# Первоначальная авторизация (выполните один раз)
+# Initial authorization (run once)
 docker compose run --rm app python authorize_telegram.py
 
-# Введите код из SMS/Telegram когда будет запрос
+# You will receive a confirmation code via Telegram or SMS
+# Enter the received code in the terminal
 ```
 
-### **3. Запуск приложения**
-```bash
-# Запуск всего приложения
-docker compose up --build
+After successful authorization, a `session_name.session` file will be created to store your session.
 
-# Приложение будет доступно по адресу:
-# - Backend: http://localhost:5000
-# - Frontend: http://localhost:3000
-```
-
----
-
-## **Usage**
-
-### **Ensure dependencies are installed:**
-
-```
-
----
-
-### **Run the script:**
-
-Navigate to the folder where the `telegram_export.py` file is located and execute the following command:
-
-```bash
-python telegram_export.py --channel <channel_name>
-```
-
-Replace `<channel_name>` with the username of the Telegram channel (without `@`).
-
----
-
-### **Authorization:**
-
-On the first run, the script will ask for an authorization code sent to your Telegram account. Enter the code in the terminal.
-
----
-
-### **Result:**
-
-After the script finishes:
-- The exported HTML files will be saved in the folder specified by the `OUTPUT_DIR` variable (default is `telegram_export`).
-- A combined PDF file (`posts_feed.pdf`) will also be generated in the same folder.
-
-If you moved sensitive data to a `.env` file, ensure the `.env` file is in the same directory as the script.
-
----
-
-## **Command-line Flags**
-
-The script supports the following flags to control its behavior:
-
-1. **`--channel`** (required)  
-   Use this flag to specify the Telegram channel to export posts from (without `@`).  
-   Example:
-   ```bash
-   python telegram_export.py --channel example_channel
-   ```
-
-2. **`--no-pdf`**  
-   Use this flag to download posts as HTML without generating a PDF.  
-   Example:
-   ```bash
-   python telegram_export.py --channel example_channel --no-pdf
-   ```
-
-3. **`--only-pdf`**  
-   Use this flag to generate a PDF from already downloaded HTML files without downloading new posts.  
-   Example:
-   ```bash
-   python telegram_export.py --channel example_channel --only-pdf
-   ```
-
-4. **`--no-index`**  
-   Use this flag to skip generating the index file with links to all posts.  
-   Example:
-   ```bash
-   python telegram_export.py --channel example_channel --no-index
-   ```
-
-5. **Default behavior (no flags):**  
-   If no flags are provided, the script will:
-   - Download posts as HTML.
-   - Generate a PDF from the downloaded HTML files.
-   - Generate an index file with links to all posts.  
-   Example:
-   ```bash
-   python telegram_export.py --channel example_channel
-   ```
-
----
-
-### **Examples**
-
-- **Download only HTML files:**
-  ```bash
-  python telegram_export.py --channel example_channel --no-pdf
-  ```
-
-- **Generate a PDF from existing HTML files:**
-  ```bash
-  python telegram_export.py --channel example_channel --only-pdf
-  ```
-
-- **Download only HTML files without generating an index file:**
-  ```bash
-  python telegram_export.py --channel example_channel --no-pdf --no-index
-  ```
-
-- **Generate a PDF from existing HTML files without generating an index file:**
-  ```bash
-  python telegram_export.py --channel example_channel --only-pdf --no-index
-  ```
-
-- **Perform all actions (default):**
-  ```bash
-  python telegram_export.py --channel example_channel
-  ```
-
----
-
-## **Features**
-
-- Export Telegram posts as individual HTML files.
-- Combine all exported posts into a single PDF file.
-- Generate an index file with links to all posts.
-- Support for grouped messages and media attachments.
-- Flexible command-line options for controlling the export process.
+### **4. Running the Application**
 
 ## **Run with Docker**
 
@@ -188,56 +75,78 @@ All services are managed via Docker Compose and work together out of the box.
 
 ---
 
+## **Features**
+
+- Export Telegram posts as individual HTML files
+- Combine all exported posts into a single PDF file (WIP - work in progress)
+- Generate an index file with links to all posts
+- Support for grouped messages and media attachments
+- Flexible command-line options for controlling the export process
+
+---
+
+## **Security**
+
+⚠️ **Important Security Guidelines:**
+
+- **Never publish the `.env` file** — it contains your personal credentials
+- **Never add `*.session*` files to git** — they contain your authorization data
+- **The `downloads/` directory** may contain personal data from channels
+- Use `.gitignore` to protect sensitive files (already configured in the project)
+- After cloning the public repository, create your own `.env` file based on `example.env`
+
+---
+
 ## **Testing**
 
-Проект имеет **98 тестов** с полным покрытием основных функций.
+The project has **98 tests** with full coverage of core functionality.
 
-### **Backend тесты (Python)**
+### **Backend Tests (Python)**
 
-- **Запуск всех тестов локально:**
+- **Run all tests locally:**
   ```bash
   cd tg-offliner
   python -m unittest discover tests/ -v
   ```
 
-- **Запуск конкретного тестового файла:**
+- **Run a specific test file:**
   ```bash
   python -m unittest tests.test_api_layouts -v
   ```
 
-- **Базовый прогон в Docker:**
+- **Basic run in Docker:**
   ```bash
   docker compose run --rm app python tests/run_tests.py
   ```
-  Запускает все unit-тесты и выводит краткое резюме прямо в консоль.
+  Runs all unit tests and outputs a brief summary directly to the console.
 
-- **HTML-отчёт:**
+- **HTML report:**
   ```bash
   docker compose run --rm app python tests/run_tests.py --html
   ```
-  Генерирует файл в `test_reports/` с подробной таблицей по каждому тесту.
+  Generates a file in `test_reports/` with a detailed table for each test.
 
-- **Интеграционные проверки:**
+- **Integration tests:**
   ```bash
   docker compose run --rm -e RUN_TELEGRAM_INTEGRATION=1 app python tests/run_tests.py --html
   ```
-  Дополнительно выполняет импорт тестового канала `@llamatest`. По умолчанию тест помечен как `skipped`, чтобы не обращаться к Telegram без необходимости.
+  Additionally performs import of the test channel `@llamatest`. By default, the test is marked as `skipped` to avoid accessing Telegram unnecessarily.
 
-### **Frontend тесты (JavaScript)**
+### **Frontend Tests (JavaScript)**
 
-- **Запуск всех тестов локально:**
+- **Run all tests locally:**
   ```bash
   cd tg-offliner-frontend
   npm test
   ```
 
-- **Запуск тестов в watch режиме:**
+- **Run tests in watch mode:**
   ```bash
   npm test -- --watch
   ```
 
-### **Покрытие тестами**
+### **Test Coverage**
 
-- **Backend:** 90 unit-тестов (unittest)
-- **Frontend:** 8 тестов (Vitest)
-- **Новые функции:** Полностью покрыты тесты для layout generation, API endpoints и frontend service
+- **Backend:** 90 unit tests (unittest)
+- **Frontend:** 8 tests (Vitest)
+- **New features:** Fully covered tests for layout generation, API endpoints, and frontend service
