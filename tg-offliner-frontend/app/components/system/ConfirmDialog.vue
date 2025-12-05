@@ -1,21 +1,21 @@
 <template>
   <div v-if="isVisible" class="modal modal-open">
     <div class="modal-box">
-      <h3 class="font-bold text-lg">{{ title || 'Подтверждение' }}</h3>
+      <h3 class="font-bold text-lg">{{ title || 'Confirmation' }}</h3>
       <p class="py-4">{{ message }}</p>
       <div class="modal-action">
         <button 
           class="btn btn-outline"
           @click="handleCancel"
         >
-          {{ cancelText || 'Отмена' }}
+          {{ cancelText || 'Cancel' }}
         </button>
         <button 
           class="btn"
           :class="confirmButtonClass"
           @click="handleConfirm"
         >
-          {{ confirmText || 'Подтвердить' }}
+          {{ confirmText || 'Confirm' }}
         </button>
       </div>
     </div>
@@ -33,7 +33,7 @@ export default {
     },
     title: {
       type: String,
-      default: 'Подтверждение'
+      default: 'Confirmation'
     },
     message: {
       type: String,
@@ -41,11 +41,11 @@ export default {
     },
     confirmText: {
       type: String,
-      default: 'Подтвердить'
+      default: 'Confirm'
     },
     cancelText: {
       type: String,
-      default: 'Отмена'
+      default: 'Cancel'
     },
     type: {
       type: String,

@@ -13,7 +13,7 @@
           alt="Медиа"
         />
       </a>
-      <!-- Видео -->
+      <!-- Video -->
       <a
         v-else-if="mimeType && mimeType.startsWith('video/')"
         :href="fullMediaSrc"
@@ -35,7 +35,7 @@
           :src="mediaSrc"
           :type="mimeType"
         />
-        Ваш браузер не поддерживает аудио.
+        Your browser does not support audio.
       </audio>
       <a v-else :href="mediaSrc" target="_blank">Скачать файл</a>
     </div>
@@ -95,7 +95,7 @@ export default {
       return `${mediaBase}/downloads/${this.mediaUrl}`;
     },
     fullMediaSrc() {
-      // Для fancybox используем полный размер если он есть
+      // For fancybox use full size if available
       if (this.fullMediaUrl) {
         return `${mediaBase}/downloads/${this.fullMediaUrl}`;
       }

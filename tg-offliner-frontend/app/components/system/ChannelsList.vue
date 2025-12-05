@@ -1,7 +1,7 @@
 <template>
   <div class="channels-list max-w-6xl mx-auto">
     
-    <!-- Панель статуса загрузок -->
+    <!-- Download status panel -->
     <DownloadStatus 
       :downloadStatuses="downloadStatuses"
       :channels="channels"
@@ -13,12 +13,12 @@
 
     <div v-if="channelsLoading" class="flex justify-center py-20">
       <div class="loading loading-xl text-primary mr-4"></div>
-      <div class="text-xl">Загрузка списка каналов...</div>
+      <div class="text-xl">Loading channels list...</div>
     </div>
     
-    <!-- Загруженные каналы -->
+    <!-- Downloaded Channels -->
     <div v-if="!channelsLoading && channels.length > 0">
-      <h2 class="text-2xl mb-2">Загруженные каналы</h2>
+      <h2 class="text-2xl mb-2">Downloaded Channels</h2>
 
       <ul class="list bg-base-100 rounded-box shadow-md mb-8">
         <li v-for="channel in channels" :key="channel.id" class="list-row">
@@ -35,9 +35,9 @@
           <div>
             <router-link :to="`/${channel.id}/posts`" class="text-md font-bold text-primary">{{ channel.name }}</router-link>
             <div>
-              <span v-if="channel.creation_date">Создан {{ channel.creation_date }}</span>
-              <span v-if="channel.subscribers">&nbsp;•&nbsp;{{ channel.subscribers }} подписчиков</span>
-              <span v-if="channel.discussion_group_id">&nbsp;•&nbsp;Есть группа обсуждений</span>
+              <span v-if="channel.creation_date">Created {{ channel.creation_date }}</span>
+              <span v-if="channel.subscribers">&nbsp;•&nbsp;{{ channel.subscribers }} subscribers</span>
+              <span v-if="channel.discussion_group_id">&nbsp;•&nbsp;Has discussion group</span>
             </div>
             <div class="list-col-wrap text-xs mt-2" v-if="channel.description">
               {{ channel.description }}
@@ -46,32 +46,32 @@
 
 
           <div class="text-xs uppercase font-semibold opacity-60">
-            <!-- Индикатор статуса загрузки -->
+            <!-- Download status indicator -->
             <span v-if="isDownloading(channel.id)" class="download-status downloading">
-              &nbsp;•&nbsp;⏳ Загружается...
+              &nbsp;•&nbsp;⏳ Downloading...
               <span v-if="getDownloadProgress(channel.id)">
                 ({{ getDownloadProgress(channel.id) }})
               </span>
             </span>
             <span v-else-if="getDownloadStatus(channel.id) === 'stopped'" class="download-status stopped">
-              &nbsp;•&nbsp;⏸️ Остановлено
+              &nbsp;•&nbsp;⏸️ Stopped
             </span>
             <span v-else-if="getDownloadStatus(channel.id) === 'error'" class="download-status error">
-              &nbsp;•&nbsp;❌ Ошибка
+              &nbsp;•&nbsp;❌ Error
             </span>
           </div>
 
           <div class="flex gap-2">
             <ChannelExports :channelId="channel.id" />
-            <button @click="removeChannel(channel.id)" class="btn btn-xs btn-outline btn-error">Удалить канал</button>
+            <button @click="removeChannel(channel.id)" class="btn btn-xs btn-outline btn-error">Delete download</button>
           </div>
         </li>
       </ul>
     </div>
 
-    <!-- Preview каналы -->
+    <!-- Preview channels -->
     <div v-if="previewChannels.length > 0">
-      <h2 class="text-2xl mb-2">Предварительный просмотр</h2>
+      <h2 class="text-2xl mb-2">Preview</h2>
       <ul class="list bg-base-100 rounded-box shadow-md mb-8">
         <li v-for="(preview, index) in previewChannels" :key="`preview-${preview.id}`" class="list-row">
 
@@ -80,7 +80,7 @@
               <img
                 v-if="preview.avatar"
                 :src="channelAvatarSrc(preview)"
-                alt="Аватар"
+                alt="Avatar"
               />
             </div>
           </div>
@@ -88,19 +88,19 @@
           <div>
             <span class="text-md font-bold">{{ preview.name }}</span>
             <div>
-              <span v-if="preview.creation_date">Создан {{ preview.creation_date }}</span>
-              <span v-if="preview.subscribers">&nbsp;•&nbsp;{{ preview.subscribers }} подписчиков</span>
-              <span v-if="preview.posts_count !== undefined">&nbsp;•&nbsp;{{ preview.posts_count }} постов</span>
-              <span v-if="preview.discussion_group_id">&nbsp;•&nbsp;Есть группа обсуждений</span>
+              <span v-if="preview.creation_date">Created {{ preview.creation_date }}</span>
+              <span v-if="preview.subscribers">&nbsp;•&nbsp;{{ preview.subscribers }} subscribers</span>
+              <span v-if="preview.posts_count !== undefined">&nbsp;•&nbsp;{{ preview.posts_count }} posts</span>
+              <span v-if="preview.discussion_group_id">&nbsp;•&nbsp;Has discussion group</span>
             </div>
             <div class="list-col-wrap text-xs mt-2" v-if="preview.description">
               {{ preview.description }}
             </div>
           </div>
 
-            <!-- Настройки экспорта -->
+            <!-- Export settings -->
             <div class="p-3 bg-base-200 rounded-lg list-col-wrap list-col-grow col-span-full">
-              <div class="text-sm font-medium mb-2">Загрузить:</div>
+              <div class="text-sm font-medium mb-2">Download:</div>
               <div class="flex items-end">
                 <div>
 
@@ -111,7 +111,7 @@
                         v-model="exportSettings.include_system_messages"
                         class="checkbox checkbox-sm"
                       />
-                      <span>Системные сообщения</span>
+                      <span>System messages</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                       <input 
@@ -119,7 +119,7 @@
                         v-model="exportSettings.include_reposts"
                         class="checkbox checkbox-sm"
                       />
-                      <span>Репосты</span>
+                      <span>Reposts</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                       <input 
@@ -127,7 +127,7 @@
                         v-model="exportSettings.include_polls"
                         class="checkbox checkbox-sm"
                       />
-                      <span>Опросы</span>
+                      <span>Polls</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer" v-if="preview.discussion_group_id">
                       <input 
@@ -135,25 +135,25 @@
                         v-model="exportSettings.include_discussion_comments"
                         class="checkbox checkbox-sm"
                       />
-                      <span>Комментарии</span>
+                      <span>Comments</span>
                     </label>
                   </div>
                   <div class="flex items-center gap-2 text-sm">
-                    <span>Лимит сообщений:</span>
+                    <span>Message limit:</span>
                     <input 
                       type="number" 
                       v-model.number="exportSettings.message_limit"
-                      placeholder="Без лимита"
+                      placeholder="No limit"
                       class="input input-sm input-bordered w-24"
                       min="1"
                     />
-                    <span class="text-xs opacity-70">(пусто = все сообщения)</span>
+                    <span class="text-xs opacity-70">(empty = all messages)</span>
                   </div>
                 </div>
 
                 <div class="flex gap-4 ml-auto">
-                  <button @click="removePreview(index)" class="btn btn-soft btn-error">Отменить</button>
-                  <button @click="loadChannel(preview, index)" class="btn btn-primary">Загрузить канал</button>
+                  <button @click="removePreview(index)" class="btn btn-soft btn-error">Cancel</button>
+                  <button @click="loadChannel(preview, index)" class="btn btn-primary">Download channel</button>
                 </div>
               </div>
 
@@ -162,15 +162,15 @@
       </ul>
     </div>
 
-    <!-- Форма добавления канала -->
-    <h2 class="text-2xl mb-2">Добавить канал</h2>
+    <!-- Add channel form -->
+    <h2 class="text-2xl mb-2">Add Channel</h2>
     <div class="rounded-box shadow-md bg-base-100 p-4 mb-8">
       <div class="flex items-baseline mb-2">
         <div class="join">
           <input
             v-model="newChannel"
             type="text"
-            placeholder="Введите имя канала или ID пользователя"
+            placeholder="Enter channel name or user ID"
             @keyup.enter="previewChannel"
             :disabled="previewLoading"
             class="input join-item w-80"
@@ -181,20 +181,47 @@
             class="btn btn-primary join-item"
             :class="{'btn-disabled': previewLoading}"
           >
-            {{ previewLoading ? 'Загрузка...' : 'Предварительный просмотр' }}
+            {{ previewLoading ? 'Loading...' : 'Preview' }}
           </button>
         </div>
-        <button @click="testLoadLlamatest" class="btn ml-auto">
-          Загрузить llamatest
-        </button>
         <div v-if="previewLoading" class="ml-4 text-primary">
           <div class="loading loading-bars loading-sm mr-2"></div>
-          Получаем информацию о канале...
+          Fetching channel info...
         </div>
       </div>
       <div class="text-xs text-info-content">
-        Поддерживается: @channelname, channelname, @username, username, PEER ID
+        Supported: @channelname, channelname, @username, username, PEER ID
       </div>
+    </div>
+
+    <!-- Edits (change history) -->
+    <div v-if="!channelsLoading && transients.length > 0" class="mt-12">
+      <h2 class="text-2xl mb-2">Edits (Change History)</h2>
+      <p class="text-sm text-gray-600 mb-4">
+        Edits are records of post changes (text editing, reactions, hiding). 
+        They are saved in the database even after channel deletion and can be cleared manually.
+      </p>
+
+      <ul class="list bg-base-100 rounded-box shadow-md mb-8">
+        <li v-for="transient in transients" :key="transient.channel_id" class="list-row">
+          <div></div>
+          <div>
+            <span class="text-md font-bold">{{ transient.channel_id }}</span>
+            <div class="text-sm text-gray-600">
+              {{ transient.edits_count }} {{ transient.edits_count === 1 ? 'edit' : 'edits' }}
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <button 
+              @click="clearTransients(transient.channel_id)" 
+              class="btn btn-xs btn-outline btn-warning"
+            >
+              Clear edits
+            </button>
+          </div>
+        </li>
+      </ul>
     </div>
   </div>
 </template>
@@ -221,28 +248,29 @@ export default {
   data() {
     return {
       channels: [],
-      previewChannels: [], // Отдельный массив для preview-каналов
-      channelsLoading: true, // Загрузка списка каналов
-      previewLoading: false, // Загрузка preview канала
-      newChannel: "", // Поле для ввода имени канала
-      logs: "", // Логи сервера
-      logsLoading: false, // Флаг загрузки логов
-      logsInterval: null, // Интервал для обновления логов
-      logsOffset: 0, // Offset для логов
-      downloadStatuses: {}, // Статусы загрузки каналов
-      statusCheckInterval: null, // Интервал проверки статусов
-      // Настройки экспорта
+      previewChannels: [], // Separate array for preview channels
+      transients: [], // Transients statistics (edit history)
+      channelsLoading: true, // Loading channels list
+      previewLoading: false, // Loading preview channel
+      newChannel: "", // Channel name input field
+      logs: "", // Server logs
+      logsLoading: false, // Logs loading flag
+      logsInterval: null, // Logs update interval
+      logsOffset: 0, // Logs offset
+      downloadStatuses: {}, // Channel download statuses
+      statusCheckInterval: null, // Status check interval
+      // Export settings
       exportSettings: {
         include_system_messages: false,
         include_reposts: true,
         include_polls: true,
         include_discussion_comments: true,
-        message_limit: null, // null для безлимитного, число для ограничения
+        message_limit: null, // null for unlimited, number for limit
       },
     };
   },
   computed: {
-    // Возвращает объект: id -> src для аватара
+    // Returns object: id -> src for avatar
     channelAvatarSrc() {
       return (channel) =>
         channel.avatar
@@ -252,6 +280,7 @@ export default {
   },
   created() {
     this.fetchChannels();
+    this.fetchTransients();
   },
   methods: {
     fetchChannels() {
@@ -263,21 +292,68 @@ export default {
           this.channelsLoading = false;
         })
         .catch((error) => {
-          console.error('Ошибка при загрузке каналов:', error);
+          console.error('Error loading channels:', error);
           this.channelsLoading = false;
+        });
+    },
+    fetchTransients() {
+      api
+        .get('/api/edits')
+        .then((response) => {
+          const edits = response.data.edits || [];
+          
+          // Group edits by channel_id and count them
+          const statsMap = {};
+          edits.forEach(edit => {
+            if (!statsMap[edit.channel_id]) {
+              statsMap[edit.channel_id] = 0;
+            }
+            statsMap[edit.channel_id]++;
+          });
+          
+          // Convert to array for display
+          this.transients = Object.keys(statsMap).map(channel_id => ({
+            channel_id: channel_id,
+            edits_count: statsMap[channel_id]
+          }));
+        })
+        .catch((error) => {
+          console.error('Error loading edits:', error);
+        });
+    },
+    async clearTransients(channelId) {
+      const confirmed = await this.showConfirmDialog({
+        title: 'Clear Edits',
+        message: `Are you sure you want to delete all edits for channel ${channelId}? This action cannot be undone.`,
+        confirmText: 'Clear',
+        cancelText: 'Cancel',
+        type: 'warning'
+      });
+
+      if (!confirmed) return;
+
+      api
+        .delete(`/api/edits/${channelId}`)
+        .then((response) => {
+          eventBus.showAlert(response.data.message, "success");
+          this.fetchTransients(); // Update edits list
+        })
+        .catch((error) => {
+          const errorMessage = error.response?.data?.error || 'Error clearing edits';
+          eventBus.showAlert(errorMessage, "danger");
         });
     },
     addChannel() {
       if (!this.newChannel.trim()) {
-        eventBus.showAlert("Введите имя канала!", "warning");
+        eventBus.showAlert("Enter channel name!", "warning");
         return;
       }
 
-      // Удаляем символ @ в начале строки, если он есть
+      // Remove @ symbol at the beginning if present
       const sanitizedChannel = this.newChannel.trim().replace(/^@/, "");
 
-      // Показываем сообщение о начале отправки запроса
-      eventBus.showAlert(`Отправка запроса с данными: ${sanitizedChannel}`, "info");
+      // Show request start message
+      eventBus.showAlert(`Sending request with data: ${sanitizedChannel}`, "info");
 
       api
         .post('/api/add_channel', {
@@ -285,23 +361,23 @@ export default {
         })
         .then((response) => {
           eventBus.showAlert(response.data.message, "success");
-          this.newChannel = ""; // Очищаем поле ввода
-          this.fetchChannels(); // Обновляем список каналов
+          this.newChannel = ""; // Clear input field
+          this.fetchChannels(); // Update channels list
         })
         .catch((error) => {
           if (error.response && error.response.status === 400) {
             eventBus.showAlert(error.response.data.error, "warning");
           } else {
-            eventBus.showAlert("Ошибка при добавлении канала", "danger");
+            eventBus.showAlert("Error adding channel", "danger");
           }
         });
     },
     async removeChannel(channelId) {
       const confirmed = await this.showConfirmDialog({
-        title: 'Удаление канала',
-        message: 'Вы уверены, что хотите удалить этот канал?',
-        confirmText: 'Удалить',
-        cancelText: 'Отмена',
+        title: 'Delete Channel Download',
+        message: 'Are you sure you want to delete the downloaded data for this channel?',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
         type: 'error'
       });
 
@@ -313,26 +389,26 @@ export default {
       return api
         .delete(`/api/channels/${channelId}`)
         .then((response) => {
-          // Если запрос успешен, выводим сообщение об успехе
+          // If request is successful, show success message
           if (response.data.message) {
             eventBus.showAlert(response.data.message, "success");
           }
-          this.fetchChannels(); // Обновляем список каналов
+          this.fetchChannels(); // Update channels list
           return response;
         })
         .catch((error) => {
-          // Если произошла ошибка, выводим сообщение об ошибке
+          // If an error occurs, show error message
           if (error.response && error.response.data.error) {
             eventBus.showAlert(error.response.data.error, "danger");
           } else {
-            eventBus.showAlert("Неизвестная ошибка при удалении канала", "danger");
+            eventBus.showAlert("Unknown error deleting channel", "danger");
           }
           throw error;
         });
     },
     previewChannel() {
       if (!this.newChannel.trim()) {
-        eventBus.showAlert("Введите имя канала!", "warning");
+        eventBus.showAlert("Enter channel name!", "warning");
         return;
       }
       const sanitizedChannel = this.newChannel.trim().replace(/^@/, "");
@@ -340,35 +416,35 @@ export default {
       api.get(`/api/channel_preview?username=${encodeURIComponent(sanitizedChannel)}`)
         .then(response => {
           const preview = response.data;
-          // Сохраняем оригинальный ввод пользователя для последующего использования
+          // Save original user input for later use
           preview.originalInput = sanitizedChannel;
           
-          // Проверяем, не добавлен ли уже этот канал
+          // Check if this channel is already added
           const existsInChannels = this.channels.some(ch => ch.id === preview.id);
           const existsInPreview = this.previewChannels.some(ch => ch.id === preview.id);
           
           if (existsInChannels) {
-            eventBus.showAlert("Этот канал уже загружен!", "warning");
+            eventBus.showAlert("This channel is already downloaded!", "warning");
           } else if (existsInPreview) {
-            eventBus.showAlert("Предварительный просмотр этого канала уже добавлен!", "warning");
+            eventBus.showAlert("Preview for this channel already added!", "warning");
           } else {
-            this.previewChannels.push(preview); // Добавляем в preview-каналы
-            eventBus.showAlert("Предварительный просмотр готов. Нажмите 'Загрузить канал' для добавления.", "info");
+            this.previewChannels.push(preview); // Add to preview channels
+            eventBus.showAlert("Preview ready. Click 'Download channel' to add.", "info");
           }
           this.previewLoading = false;
           this.newChannel = "";
         })
         .catch(error => {
-          eventBus.showAlert("Ошибка: " + (error.response?.data?.error || error.message), "danger");
+          eventBus.showAlert("Error: " + (error.response?.data?.error || error.message), "danger");
           this.previewLoading = false;
         });
     },
     loadChannel(preview, index) {
-      // Используем оригинальный ввод пользователя, а не трансформированный username
+      // Use original user input, not transformed username
       const channelInput = preview.originalInput;
 
-      // Показываем сообщение о начале загрузки
-      eventBus.showAlert(`Загружаем канал ${preview.name}...`, "info");
+      // Show loading start message
+      eventBus.showAlert(`Loading channel ${preview.name}...`, "info");
 
       api
         .post('/api/add_channel', {
@@ -377,30 +453,30 @@ export default {
         })
         .then((response) => {
           eventBus.showAlert(response.data.message, "success");
-          // Удаляем из preview после успешной загрузки
+          // Remove from preview after successful loading
           this.previewChannels.splice(index, 1);
-          this.fetchChannels(); // Обновляем список каналов
+          this.fetchChannels(); // Update channels list
         })
         .catch((error) => {
           if (error.response && error.response.status === 400) {
             eventBus.showAlert(error.response.data.error, "warning");
           } else {
-            eventBus.showAlert("Ошибка при добавлении канала", "danger");
+            eventBus.showAlert("Error adding channel", "danger");
           }
         });
     },
     removePreview(index) {
       this.previewChannels.splice(index, 1);
-      eventBus.showAlert("Предварительный просмотр отменен", "info");
+      eventBus.showAlert("Preview canceled", "info");
     },
     
-    // Методы для управления загрузкой
+    // Methods for download management
     async checkDownloadStatuses() {
       try {
         const response = await api.get('/api/download/status');
         this.downloadStatuses = response.data;
       } catch (error) {
-        console.error('Ошибка получения статусов загрузки:', error);
+        console.error('Error getting download statuses:', error);
       }
     },
     
@@ -408,20 +484,20 @@ export default {
       try {
         const response = await api.post(`/api/download/stop/${channelId}`);
         eventBus.showAlert(response.data.message, "success");
-        this.checkDownloadStatuses(); // Обновляем статусы
+        this.checkDownloadStatuses(); // Update statuses
       } catch (error) {
-        const errorMessage = error.response?.data?.error || 'Ошибка остановки загрузки';
+        const errorMessage = error.response?.data?.error || 'Error stopping download';
         eventBus.showAlert(errorMessage, "danger");
       }
     },
     
     async cancelDownload(channelId) {
-      // Подтверждение действия
+      // Confirm action
       const confirmed = await this.showConfirmDialog({
-        title: 'Отмена загрузки',
-        message: 'Вы уверены, что хотите отменить загрузку и удалить канал? Это действие нельзя отменить.',
-        confirmText: 'Отменить загрузку',
-        cancelText: 'Продолжить загрузку',
+        title: 'Cancel Download',
+        message: 'Are you sure you want to cancel the download and delete the downloaded channel data? This action cannot be undone.',
+        confirmText: 'Cancel download',
+        cancelText: 'Continue download',
         type: 'warning'
       });
 
@@ -430,19 +506,19 @@ export default {
       }
       
       try {
-        // Сначала останавливаем загрузку
+        // First stop the download
         await api.post(`/api/download/stop/${channelId}`);
         
-        // Затем удаляем канал и дискуссионную группу
+        // Then delete channel and discussion group
         const response = await api.delete(`/api/channels/${channelId}`);
         
-        eventBus.showAlert('Загрузка отменена, канал удален', "success");
+        eventBus.showAlert('Download canceled, channel deleted', "success");
         
-        // Обновляем список каналов и статусы
+        // Update channels list and statuses
         this.loadChannels();
         this.checkDownloadStatuses();
       } catch (error) {
-        const errorMessage = error.response?.data?.error || 'Ошибка отмены загрузки';
+        const errorMessage = error.response?.data?.error || 'Error canceling download';
         eventBus.showAlert(errorMessage, "danger");
       }
     },
@@ -464,13 +540,13 @@ export default {
       
       if (posts_processed !== undefined) {
         if (total_posts) {
-          progress = `${posts_processed} из ${total_posts} постов`;
+          progress = `${posts_processed} of ${total_posts} posts`;
         } else {
-          progress = `${posts_processed} постов`;
+          progress = `${posts_processed} posts`;
         }
         
         if (comments_processed) {
-          progress += `, ${comments_processed} комментариев`;
+          progress += `, ${comments_processed} comments`;
         }
       }
       
@@ -480,7 +556,7 @@ export default {
     startStatusPolling() {
       this.statusCheckInterval = setInterval(() => {
         this.checkDownloadStatuses();
-      }, 2000); // Проверяем каждые 2 секунды
+      }, 2000); // Check every 2 seconds
     },
     
     stopStatusPolling() {
@@ -491,57 +567,19 @@ export default {
     },
     
     clearStatus(channel) {
-      // Удаляем статус для канала из локального состояния
+      // Remove status for channel from local state
       delete this.downloadStatuses[channel];
-      this.$forceUpdate(); // Принудительно обновляем компонент
-    },
-    
-    // Тестовая загрузка канала llamatest
-    async testLoadLlamatest() {
-      const channelUsername = 'llamatest';
-      
-      try {
-        // Сначала удаляем канал, если он существует
-        eventBus.showAlert('Удаляем существующий канал llamatest...', 'info');
-        
-        // Ищем канал в списке загруженных каналов
-        const existingChannel = this.channels.find(ch => 
-          ch.username === channelUsername || 
-          ch.name?.toLowerCase().includes('llamatest') ||
-          ch.id?.toString().includes('llamatest')
-        );
-        
-        if (existingChannel) {
-          await this.deleteChannel(existingChannel.id);
-          // Небольшая задержка после удаления
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        
-        // Затем загружаем канал
-        eventBus.showAlert('Загружаем канал llamatest...', 'info');
-        
-        const response = await api.post('/api/add_channel', {
-          channel_username: channelUsername,
-        });
-        
-        eventBus.showAlert(response.data.message, 'success');
-        this.fetchChannels(); // Обновляем список каналов
-        
-      } catch (error) {
-        const errorMessage = error.response?.data?.error || error.message || 'Ошибка при тестовой загрузке';
-        eventBus.showAlert(errorMessage, 'danger');
-        console.error('Ошибка при тестовой загрузке llamatest:', error);
-      }
+      this.$forceUpdate(); // Force component update
     }
   },
   
   mounted() {
-    this.checkDownloadStatuses(); // Проверяем статусы при загрузке
-    this.startStatusPolling(); // Запускаем опрос статусов
+    this.checkDownloadStatuses(); // Check statuses on load
+    this.startStatusPolling(); // Start status polling
   },
   
   beforeUnmount() {
-    this.stopStatusPolling(); // Останавливаем опрос при выходе
+    this.stopStatusPolling(); // Stop polling on exit
   },
 };
 </script>

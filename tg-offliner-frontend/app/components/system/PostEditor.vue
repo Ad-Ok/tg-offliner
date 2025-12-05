@@ -7,7 +7,7 @@
       :disabled="isSaving"
       :class="isHidden ? 'btn-info' : 'btn-error'"
       class="absolute top-2 left-full ml-2 z-10 btn btn-circle btn-sm btn-outline text-xl print:hidden disabled:opacity-50 disabled:cursor-not-allowed"
-      :title="isSaving ? 'Сохранение...' : (isHidden ? 'Показать пост' : 'Скрыть пост')"
+      :title="isSaving ? 'Saving...' : (isHidden ? 'Show post' : 'Hide post')"
     >
       <span v-if="isSaving">⏳</span>
       <span v-else-if="isHidden">👁</span>

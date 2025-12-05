@@ -25,7 +25,7 @@
       />
 
       <div class="media-grid mt-2">
-        <!-- Если есть layout, используем его для позиционирования -->
+        <!-- If there's a layout, use it for positioning -->
         <div v-show="layoutData" class="gallery-container relative" :style="galleryContainerStyle">
           <div
             v-for="(cell, index) in layoutData?.cells || []"
