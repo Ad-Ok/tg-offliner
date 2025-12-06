@@ -1,25 +1,18 @@
 #!/usr/bin/env python3
 """
-Скрипт для автоматичес            print("🔐 ТРЕБУЕТСЯ АВТОРИЗАЦИЯ В TELEGRAM:")
-            print("1. Остановите контейнер (Ctrl+C)")
-            print("2. Запустите на хосте: python authorize_telegram.py")
-            print("3. Введите код из Telegram")
-            print("4. Перезапустите контейнер: docker compose up")
-            print("\nИли запустите контейнер в интерактивном режиме:")
-            print("docker compose run --rm app python authorize_telegram.py")верки авторизации в Telegram при запуске приложения.
-Если авторизация не выполнена, запрашивает её у пользователя.
+Simplified authorization check that only verifies the session file exists.
+Does not attempt to connect to Telegram to avoid startup delays.
 """
 
 import os
 import sys
-from telethon.sync import TelegramClient
 from config import API_ID, API_HASH, PHONE
 
 def check_and_authorize():
-    """Проверяет авторизацию и при необходимости выполняет её."""
+    """Checks if session file exists without connecting to Telegram."""
     print("🔍 Проверка авторизации в Telegram...")
     
-    # Проверяем наличие переменных окружения
+    # Check environment variables
     if not API_ID or not API_HASH or not PHONE:
         print("❌ Ошибка: Не заданы API_ID, API_HASH или PHONE в .env файле")
         print("📝 Создайте файл .env на основе example.env и заполните его данными")
@@ -27,50 +20,22 @@ def check_and_authorize():
     
     print(f"📱 Номер телефона: {PHONE}")
     
-    # Создаем клиент с той же сессией, что использует веб-сервер
-    client = TelegramClient('session_name', API_ID, API_HASH)
+    # Check if session file exists
+    session_file = 'session_name.session'
     
-    try:
-        # Пытаемся подключиться
-        client.start()
-        
-        if client.is_user_authorized():
-            print("✅ Авторизация уже выполнена!")
-            
-            # Получаем информацию о пользователе
-            me = client.get_me()
-            print(f"👤 Авторизован как: {me.first_name} {me.last_name or ''}")
-            if me.username:
-                print(f"📧 Username: @{me.username}")
-            
-            return True
-        else:
-            print("❌ Требуется авторизация")
-            print("📞 Отправка кода авторизации...")
-            
-            # Запрашиваем код
-            client.send_code_request(PHONE)
-            
-            # В Docker контейнере нет интерактивного ввода
-            # Поэтому выводим инструкции и завершаем
-            print("\n🔐 ТРЕБУЕТСЯ АВТОРИЗАЦИЯ В TELEGRAM:")
-            print("1. Остановите контейнер (Ctrl+C)")
-            print("2. Запустите на хосте: python authorize_telegram.py")
-            print("3. Введите код из Telegram")
-            print("4. Перезапустите контейнер: docker-compose up")
-            print("\nИли запустите контейнер в интерактивном режиме:")
-            print("docker-compose run --rm app python authorize_telegram.py")
-            
-            return False
-            
-    except Exception as e:
-        print(f"❌ Ошибка при проверке авторизации: {e}")
+    if os.path.exists(session_file) and os.path.getsize(session_file) > 0:
+        print("✅ Файл сессии найден!")
+        print(f"�� Размер: {os.path.getsize(session_file)} байт")
+        return True
+    else:
+        print("❌ Файл сессии не найден или пуст")
+        print("📞 Требуется авторизация...")
+        print("\n🔐 ТРЕБУЕТСЯ АВТОРИЗАЦИЯ В TELEGRAM:")
+        print("1. Остановите контейнер (Ctrl+C)")
+        print("2. Запустите: docker compose run --rm app python authorize_telegram.py")
+        print("3. Введите код из Telegram")
+        print("4. Перезапустите контейнер: docker compose up")
         return False
-    finally:
-        try:
-            client.disconnect()
-        except:
-            pass
 
 def main():
     """Основная функция проверки авторизации."""
