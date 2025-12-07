@@ -118,10 +118,12 @@ export default {
   },
   computed: {
     firstPost() {
-      return this.posts[0] || {};
+      // Find post with message text, fallback to first post
+      const postWithMessage = this.posts.find(post => post.message && post.message.trim() !== '');
+      return postWithMessage || this.posts[0] || {};
     },
     groupedId() {
-      return this.firstPost.grouped_id;
+      return (this.posts[0] || {}).grouped_id;
     },
     postsWithMedia() {
       return this.posts
