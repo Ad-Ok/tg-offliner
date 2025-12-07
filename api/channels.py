@@ -27,6 +27,8 @@ def get_channels():
         "description": channel.description,
         "creation_date": channel.creation_date,
         "subscribers": channel.subscribers,
+        "posts_count": channel.posts_count,
+        "comments_count": channel.comments_count,
         "discussion_group_id": channel.discussion_group_id,
         "changes": channel.changes if hasattr(channel, 'changes') else {}
     } for channel in channels])
@@ -51,6 +53,8 @@ def add_channel_to_db():
         creation_date=data.get('creation_date'),  # <-- должно быть!
         subscribers=data.get('subscribers'),
         description=data.get('description'),
+        posts_count=data.get('posts_count'),
+        comments_count=data.get('comments_count'),
         discussion_group_id=data.get('discussion_group_id'),
         changes=data.get('changes', {})
     )

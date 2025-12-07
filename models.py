@@ -37,6 +37,8 @@ class Channel(db.Model):
     description = db.Column(db.Text, nullable=True)  # Описание канала
     creation_date = db.Column(db.String, nullable=True)  # Дата создания канала
     subscribers = db.Column(db.String, nullable=True)  # Количество подписчиков
+    posts_count = db.Column(db.Integer, nullable=True)  # Количество постов в канале
+    comments_count = db.Column(db.Integer, nullable=True)  # Количество комментариев в группе обсуждений
     discussion_group_id = db.Column(db.BigInteger, nullable=True)  # ID группы обсуждений канала
     changes = db.Column(JSON, nullable=False, default='{}')  # JSON с изменениями канала
 
