@@ -289,23 +289,36 @@ def import_all_discussion_comments(client, channel_id, discussion_group_id):
         comments_imported = 0
         
         for message in all_messages:
-            # Проверяем, является ли это комментарием (ответом)
+            # Пропускаем форварды (они не комментарии)
+            if hasattr(message, 'fwd_from') and message.fwd_from:
+                continue
+            
+            # Проверяем, является ли это ответом
             if not (hasattr(message, 'reply_to') and message.reply_to):
                 continue
             
             if not hasattr(message.reply_to, 'reply_to_msg_id'):
                 continue
             
-            reply_to_msg_id = message.reply_to.reply_to_msg_id
-            
-            # Находим, на какой пост канала это комментарий
+            # Находим корневой пост канала
+            # Проверяем reply_to_top_id (корень треда) или reply_to_msg_id (прямой ответ)
             original_post_id = None
             
-            # Если ответ на форвардированное сообщение
-            for saved_id, fwd_id in forward_mapping.items():
-                if reply_to_msg_id == fwd_id:
-                    original_post_id = saved_id
-                    break
+            # Если есть reply_to_top_id - это ответ в треде, проверяем корень
+            if hasattr(message.reply_to, 'reply_to_top_id') and message.reply_to.reply_to_top_id:
+                top_id = message.reply_to.reply_to_top_id
+                for saved_id, fwd_id in forward_mapping.items():
+                    if top_id == fwd_id:
+                        original_post_id = saved_id
+                        break
+            
+            # Если нет reply_to_top_id, проверяем прямой ответ
+            if original_post_id is None:
+                reply_to_msg_id = message.reply_to.reply_to_msg_id
+                for saved_id, fwd_id in forward_mapping.items():
+                    if reply_to_msg_id == fwd_id:
+                        original_post_id = saved_id
+                        break
             
             if original_post_id is None:
                 continue
