@@ -26,6 +26,19 @@
       </svg>
       HTML
     </button>
+    
+    <button 
+      @click="handleExportIdml" 
+      :disabled="isLoading"
+      class="btn btn-xs btn-outline btn-secondary"
+      :class="{ 'btn-disabled': isLoading }"
+    >
+      <span v-if="isLoadingIdml" class="loading loading-spinner loading-xs mr-1"></span>
+      <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      IDML
+    </button>
   </div>
 </template>
 
@@ -42,8 +55,9 @@ const props = defineProps({
 
 const isLoadingPdf = ref(false)
 const isLoadingHtml = ref(false)
+const isLoadingIdml = ref(false)
 
-const isLoading = computed(() => isLoadingPdf.value || isLoadingHtml.value)
+const isLoading = computed(() => isLoadingPdf.value || isLoadingHtml.value || isLoadingIdml.value)
 
 const handlePrintPdf = async () => {
   try {
@@ -99,6 +113,37 @@ const handleExportHtml = async () => {
     console.error("Error exporting HTML:", error)
   } finally {
     isLoadingHtml.value = false
+  }
+}
+
+const handleExportIdml = async () => {
+  try {
+    isLoadingIdml.value = true
+    
+    const res = await fetch(`${apiBase}/api/channels/${props.channelId}/export-idml`)
+    const contentType = res.headers.get('content-type')
+    
+    if (contentType && contentType.includes('application/json')) {
+      const result = await res.json()
+      if (result.success) {
+        const filePath = `downloads/${props.channelId}/${props.channelId}.idml`;
+        const fileUrl = `http://localhost:5000/${filePath}`;
+        eventBus.showAlert(
+          `IDML file for channel <strong>${props.channelId}</strong> successfully created: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,
+          "success",
+          { html: true }
+        );
+      } else {
+        eventBus.showAlert(result.error || "Error creating IDML", "danger")
+      }
+    } else {
+      eventBus.showAlert("Unexpected server response", "danger")
+    }
+  } catch (error) {
+    eventBus.showAlert(error.message || "Error creating IDML", "danger")
+    console.error("Error creating IDML:", error)
+  } finally {
+    isLoadingIdml.value = false
   }
 }
 </script>

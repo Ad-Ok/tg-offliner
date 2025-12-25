@@ -587,3 +587,85 @@ def print_channel_to_pdf(channel_id):
         sys.setrecursionlimit(old_limit)
         current_app.logger.info(f"Лимит рекурсии восстановлен до {old_limit}")
         current_app.logger.info("=== КОНЕЦ PDF ГЕНЕРАЦИИ ===")
+
+@channels_bp.route('/channels/<channel_id>/export-idml', methods=['GET'])
+def export_channel_to_idml(channel_id):
+    """Экспортирует канал в IDML формат для InDesign."""
+    try:
+        current_app.logger.info(f"=== НАЧАЛО IDML ЭКСПОРТА для канала {channel_id} ===")
+        
+        # Получаем канал и его посты
+        channel = Channel.query.filter_by(id=channel_id).first()
+        if not channel:
+            return jsonify({"error": "Канал не найден"}), 404
+        
+        # Получаем настройки печати канала
+        print_settings = channel.print_settings or {}
+        
+        # Получаем все видимые посты (не hidden)
+        # TODO: позже добавим фильтрацию по hidden через Edits
+        posts = Post.query.filter_by(channel_id=channel_id).order_by(Post.telegram_id.asc()).limit(10).all()
+        
+        if not posts:
+            return jsonify({"error": "В канале нет постов для экспорта"}), 404
+        
+        current_app.logger.info(f"Найдено {len(posts)} постов для экспорта")
+        
+        # Создаем IDML builder
+        from idml_export.builder import IDMLBuilder
+        
+        builder = IDMLBuilder(channel, print_settings)
+        builder.create_document()
+        
+        # Добавляем тестовый пост (пока просто текст)
+        for post in posts:
+            # Получаем индивидуальные настройки поста
+            post_settings = post.print_settings or {}
+            
+            # Текст поста
+            if post.message:
+                story_id = builder.add_text_story(post.message, 'PostBody')
+                
+                # Вычисляем bounds для текстового фрейма
+                # Упрощенная версия - просто добавляем под текущей позицией
+                from idml_export.coordinates import calculate_text_frame_bounds
+                page_bounds = builder.current_page['bounds']
+                text_area = calculate_text_frame_bounds(
+                    page_bounds,
+                    builder.settings['margins']
+                )
+                
+                # Простой фрейм высотой 150pt
+                frame_bounds = [
+                    builder.current_y,
+                    text_area['bounds'][1],
+                    builder.current_y + 150,
+                    text_area['bounds'][3]
+                ]
+                
+                builder.add_text_frame(story_id, frame_bounds)
+                builder.current_y += 160  # +10 для отступа между постами
+        
+        # Сохраняем IDML
+        channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
+        os.makedirs(channel_dir, exist_ok=True)
+        
+        idml_path = os.path.join(channel_dir, f"{channel_id}.idml")
+        builder.save(idml_path)
+        
+        if not os.path.exists(idml_path):
+            current_app.logger.error(f"IDML файл не найден после создания: {idml_path}")
+            return jsonify({"error": "IDML файл не был создан"}), 500
+        
+        current_app.logger.info(f"IDML для канала {channel_id} успешно создан: {idml_path}")
+        current_app.logger.info("=== КОНЕЦ IDML ЭКСПОРТА ===")
+        
+        return jsonify({
+            "success": True,
+            "message": f"IDML файл создан в downloads/{channel_id}/{channel_id}.idml",
+            "path": idml_path
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.exception(f"ОШИБКА при экспорте IDML для канала {channel_id}")
+        return jsonify({"error": f"Ошибка при экспорте IDML: {str(e)}"}), 500

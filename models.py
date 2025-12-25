@@ -24,6 +24,8 @@ class Post(db.Model):
     reactions = db.Column(JSON, nullable=True)  # Хранение реакций в формате JSON
     grouped_id = db.Column(db.BigInteger, nullable=True)  # ID медиа-группы (альбома)
     reply_to = db.Column(db.Integer, nullable=True)  # ID сообщения, на которое дан ответ
+    print_settings = db.Column(JSON, nullable=True)  # Настройки печатной версии поста
+    # {"text_columns": 2, "image_placement": "above_text", "page_break_before": false}
 
     def __repr__(self):
         return f"<Post {self.telegram_id} from channel {self.channel_id}>"
@@ -41,6 +43,8 @@ class Channel(db.Model):
     comments_count = db.Column(db.Integer, nullable=True)  # Количество комментариев в группе обсуждений
     discussion_group_id = db.Column(db.BigInteger, nullable=True)  # ID группы обсуждений канала
     changes = db.Column(JSON, nullable=False, default='{}')  # JSON с изменениями канала
+    print_settings = db.Column(JSON, nullable=True)  # Глобальные настройки печати для канала
+    # {"page_size": "A4", "margins": [20,15,20,15], "text_columns": 1, "column_gutter": 5}
 
     def __repr__(self):
         return f"<Channel {self.id} - {self.name}>"
