@@ -37,7 +37,11 @@
             <div>
               <span v-if="channel.creation_date">Created {{ channel.creation_date }}</span>
               <span v-if="channel.subscribers">&nbsp;•&nbsp;{{ channel.subscribers }} subscribers</span>
-              <span v-if="channel.discussion_group_id">&nbsp;•&nbsp;Has discussion group</span>
+              <span v-if="channel.posts_count !== undefined">
+                &nbsp;•&nbsp;{{ channel.posts_count }} posts
+                <span v-if="channel.comments_count">&nbsp;+ {{ channel.comments_count }} comments</span>
+              </span>
+              <span v-if="channel.discussion_group_id && !channel.comments_count">&nbsp;•&nbsp;Has discussion group</span>
             </div>
             <div class="list-col-wrap text-xs mt-2" v-if="channel.description">
               {{ channel.description }}
@@ -90,8 +94,11 @@
             <div>
               <span v-if="preview.creation_date">Created {{ preview.creation_date }}</span>
               <span v-if="preview.subscribers">&nbsp;•&nbsp;{{ preview.subscribers }} subscribers</span>
-              <span v-if="preview.posts_count !== undefined">&nbsp;•&nbsp;{{ preview.posts_count }} posts</span>
-              <span v-if="preview.discussion_group_id">&nbsp;•&nbsp;Has discussion group</span>
+              <span v-if="preview.posts_count !== undefined">
+                &nbsp;•&nbsp;{{ preview.posts_count }} posts
+                <span v-if="preview.comments_count">&nbsp;+ {{ preview.comments_count }} comments</span>
+              </span>
+              <span v-if="preview.discussion_group_id && !preview.comments_count">&nbsp;•&nbsp;Has discussion group</span>
             </div>
             <div class="list-col-wrap text-xs mt-2" v-if="preview.description">
               {{ preview.description }}
@@ -545,8 +552,8 @@ export default {
           progress = `${posts_processed} posts`;
         }
         
-        if (comments_processed) {
-          progress += `, ${comments_processed} comments`;
+        if (comments_processed !== undefined && comments_processed > 0) {
+          progress += ` • ${comments_processed} comments`;
         }
       }
       

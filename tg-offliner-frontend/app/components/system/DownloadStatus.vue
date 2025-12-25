@@ -27,7 +27,9 @@
                 <span v-if="getChannelTotalPosts(channelId) || status.details.total_posts"> 
                   of {{ getChannelTotalPosts(channelId) || status.details.total_posts }}
                 </span>
-                <span v-if="status.details.comments_processed">, comments: {{ status.details.comments_processed }}</span>
+                <span v-if="status.details.comments_processed !== undefined && status.details.comments_processed > 0">
+                  &nbsp;•&nbsp;Comments: {{ status.details.comments_processed }}
+                </span>
               </div>
             </div>
           </div>
@@ -103,19 +105,24 @@ export default {
       // Search in downloaded channels
       const channel = this.channels.find(ch => ch.id === channelId);
       if (channel && channel.posts_count !== undefined) {
-        return channel.posts_count;
+        const total = channel.posts_count + (channel.comments_count || 0);
+        return total;
       }
       
       // Search in preview channels
       const previewChannel = this.previewChannels.find(ch => ch.id === channelId);
       if (previewChannel && previewChannel.posts_count !== undefined) {
-        return previewChannel.posts_count;
+        const total = previewChannel.posts_count + (previewChannel.comments_count || 0);
+        return total;
       }
       
       return null;
     },
     getProgressPercentage(status, channelId) {
-      const { posts_processed, total_posts } = status.details || {};
+      const { posts_processed, total_posts, comments_processed } = status.details || {};
+      
+      // Calculate total processed (posts + comments)
+      const totalProcessed = (posts_processed || 0) + (comments_processed || 0);
       
       // If total_posts is not set or is 0, try to get it from channel info
       let actualTotalPosts = total_posts;
@@ -124,8 +131,8 @@ export default {
       }
       
       if (!actualTotalPosts || actualTotalPosts === 0) return 0;
-      if (posts_processed === undefined) return 0;
-      return Math.min((posts_processed / actualTotalPosts) * 100, 100);
+      if (totalProcessed === undefined) return 0;
+      return Math.min((totalProcessed / actualTotalPosts) * 100, 100);
     },
     shouldShowProgressBar(status, channelId) {
       const channelTotalPosts = this.getChannelTotalPosts(channelId);

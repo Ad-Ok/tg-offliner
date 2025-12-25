@@ -64,6 +64,19 @@ def get_channel_info(client, entity, output_dir, folder_name=None):
             print(f"Ошибка при получении количества постов: {e}")
             posts_count = 0
 
+        # Получаем количество комментариев из группы обсуждений
+        comments_count = 0
+        if discussion_group_id:
+            try:
+                from utils.entity_validation import get_entity_by_username_or_id
+                discussion_entity, error = get_entity_by_username_or_id(client, str(discussion_group_id))
+                if discussion_entity:
+                    discussion_messages = client.get_messages(discussion_entity, limit=1)
+                    comments_count = discussion_messages.total if hasattr(discussion_messages, 'total') else 0
+                    print(f"=== Количество сообщений в группе обсуждений: {comments_count} ===")
+            except Exception as e:
+                print(f"Ошибка при получении количества комментариев: {e}")
+
         # Формируем информацию о канале
         channel_id = entity.username or str(entity.id)
         return {
@@ -76,6 +89,7 @@ def get_channel_info(client, entity, output_dir, folder_name=None):
             "subscribers": participants_count if participants_count is not None else None,
             "description": getattr(full_info.full_chat, "about", None),
             "posts_count": posts_count,
+            "comments_count": comments_count,  # Добавляем количество комментариев
             "discussion_group_id": discussion_group_id  # Добавляем ID группы обсуждений
         }
 

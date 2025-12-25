@@ -189,16 +189,6 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
                     if response.status_code in [200, 201]:
                         processed_count += 1
                         logging.info(f"Пост {post.id} добавлен в базу, всего обработано: {processed_count}")
-                        
-                        # Если у канала есть группа обсуждений и включен импорт комментариев
-                        if discussion_group_id and include_discussion_comments:
-                            post_comments = import_discussion_comments(
-                                client, 
-                                real_id, 
-                                discussion_group_id, 
-                                post.id
-                            )
-                            comments_count += post_comments
                     else:
                         logging.error(f"Ошибка добавления поста {post.id}: {response.text}")
                 else:
@@ -214,9 +204,17 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
                 logging.error(f"Ошибка при обработке сообщения: {str(e)}")
         
         logging.info(f"Обработано сообщений: {processed_count}")
-        logging.info(f"Импортировано комментариев: {comments_count}")
-        logging.info(f"Всего итераций цикла: {post_iteration}")
-        logging.info(f"Канал {channel_username} импортирован: {processed_count} сообщений, {comments_count} комментариев")
+        logging.info(f"Канал {channel_username} импортирован: {processed_count} сообщений")
+        
+        # Импортируем ВСЕ комментарии из группы обсуждений за один проход
+        if discussion_group_id and include_discussion_comments:
+            logging.info(f"Начинаем импорт комментариев из группы обсуждений {discussion_group_id}...")
+            comments_count = import_all_discussion_comments(
+                client,
+                real_id,
+                discussion_group_id
+            )
+            logging.info(f"Импортировано комментариев: {comments_count}")
         
         # Финальное обновление прогресса
         update_import_progress(channel_id, processed_count, comments_count, total_posts)
@@ -233,6 +231,123 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
     except Exception as e:
         logging.error(f"Ошибка импорта канала {channel_username}: {str(e)}")
         return {"success": False, "error": str(e)}
+
+def import_all_discussion_comments(client, channel_id, discussion_group_id):
+    """
+    Импортирует ВСЕ комментарии из группы обсуждений за один проход.
+    Оптимизированная версия вместо import_discussion_comments.
+    
+    :param client: Подключённый клиент Telethon
+    :param channel_id: ID канала
+    :param discussion_group_id: ID группы обсуждений
+    :return: Количество импортированных комментариев
+    """
+    try:
+        logging.info(f"Получаем все сообщения из группы обсуждений {discussion_group_id}")
+        
+        # Получаем entity группы обсуждений
+        discussion_entity, error = get_entity_by_username_or_id(client, str(discussion_group_id))
+        if discussion_entity is None:
+            logging.error(f"Не удалось получить группу обсуждений {discussion_group_id}: {error}")
+            return 0
+        
+        # Сохраняем информацию о дискуссионной группе
+        try:
+            save_discussion_group_info(client, discussion_entity)
+        except Exception as e:
+            logging.error(f"Ошибка сохранения дискуссионной группы: {e}")
+        
+        folder_name = f"channel_{discussion_group_id}"
+        
+        # Шаг 1: Получаем ВСЕ сообщения из группы и строим мапинг форвардов
+        logging.info("Шаг 1/2: Сканирование всех сообщений группы обсуждений...")
+        
+        forward_mapping = {}  # {saved_from_msg_id: forwarded_msg_id}
+        all_messages = []
+        message_count = 0
+        
+        for message in client.iter_messages(discussion_entity):
+            message_count += 1
+            all_messages.append(message)
+            
+            # Если это форвард из канала, запоминаем маппинг
+            if hasattr(message, 'fwd_from') and message.fwd_from:
+                if hasattr(message.fwd_from, 'saved_from_msg_id'):
+                    saved_id = message.fwd_from.saved_from_msg_id
+                    forward_mapping[saved_id] = message.id
+                    logging.debug(f"Форвард: пост {saved_id} -> message {message.id}")
+            
+            if message_count % 500 == 0:
+                logging.info(f"  Обработано {message_count} сообщений, найдено {len(forward_mapping)} форвардов")
+        
+        logging.info(f"Всего сообщений в группе: {message_count}")
+        logging.info(f"Найдено форвардов из канала: {len(forward_mapping)}")
+        
+        # Шаг 2: Проходим по всем сообщениям и импортируем комментарии
+        logging.info("Шаг 2/2: Импорт комментариев...")
+        
+        comments_imported = 0
+        
+        for message in all_messages:
+            # Пропускаем форварды (они не комментарии)
+            if hasattr(message, 'fwd_from') and message.fwd_from:
+                continue
+            
+            # Проверяем, является ли это ответом
+            if not (hasattr(message, 'reply_to') and message.reply_to):
+                continue
+            
+            if not hasattr(message.reply_to, 'reply_to_msg_id'):
+                continue
+            
+            # Находим корневой пост канала
+            # Проверяем reply_to_top_id (корень треда) или reply_to_msg_id (прямой ответ)
+            original_post_id = None
+            
+            # Если есть reply_to_top_id - это ответ в треде, проверяем корень
+            if hasattr(message.reply_to, 'reply_to_top_id') and message.reply_to.reply_to_top_id:
+                top_id = message.reply_to.reply_to_top_id
+                for saved_id, fwd_id in forward_mapping.items():
+                    if top_id == fwd_id:
+                        original_post_id = saved_id
+                        break
+            
+            # Если нет reply_to_top_id, проверяем прямой ответ
+            if original_post_id is None:
+                reply_to_msg_id = message.reply_to.reply_to_msg_id
+                for saved_id, fwd_id in forward_mapping.items():
+                    if reply_to_msg_id == fwd_id:
+                        original_post_id = saved_id
+                        break
+            
+            if original_post_id is None:
+                continue
+            
+            # Обрабатываем комментарий
+            try:
+                comment_data = process_message_for_api(message, str(discussion_group_id), client, folder_name)
+                if comment_data:
+                    # Устанавливаем связь с оригинальным постом канала
+                    comment_data['reply_to'] = original_post_id
+                    
+                    # Добавляем комментарий в базу
+                    api_url = "http://localhost:5000/api/posts"
+                    response = requests.post(api_url, json=comment_data)
+                    if response.status_code in [200, 201]:
+                        comments_imported += 1
+                        if comments_imported % 50 == 0:
+                            logging.info(f"  Импортировано {comments_imported} комментариев")
+                    else:
+                        logging.error(f"Ошибка добавления комментария {message.id}: {response.text}")
+            except Exception as e:
+                logging.error(f"Ошибка обработки комментария {message.id}: {e}")
+        
+        logging.info(f"✅ Импортировано {comments_imported} комментариев")
+        return comments_imported
+        
+    except Exception as e:
+        logging.error(f"Ошибка импорта комментариев: {e}")
+        return 0
 
 def import_discussion_comments(client, channel_id, discussion_group_id, original_post_id):
     """
@@ -275,23 +390,30 @@ def import_discussion_comments(client, channel_id, discussion_group_id, original
             # Ищем среди последних сообщений форвардированный пост из канала
             recent_messages = client.iter_messages(discussion_entity, limit=forward_search_limit)
             
+            forwards_found = 0
             for message in recent_messages:
                 # Проверяем, является ли сообщение форвардом из нашего канала
-                if (hasattr(message, 'fwd_from') and 
-                    message.fwd_from and 
-                    hasattr(message.fwd_from, 'from_id')):
-                    
-                    # Дополнительно проверяем по saved_from_msg_id если доступно
-                    if (hasattr(message.fwd_from, 'saved_from_msg_id') and 
-                        message.fwd_from.saved_from_msg_id == original_post_id):
-                        forwarded_post_id = message.id
-                        logging.info(f"Найден форвардированный пост {forwarded_post_id} для оригинального поста {original_post_id}")
-                        break
+                if (hasattr(message, 'fwd_from') and message.fwd_from):
+                    forwards_found += 1
+                    logging.info(f"=== Найден форвард message.id={message.id} ===")
+                    logging.info(f"fwd_from: {message.fwd_from}")
+                    logging.info(f"has from_id: {hasattr(message.fwd_from, 'from_id')}")
+                    if hasattr(message.fwd_from, 'from_id'):
+                        logging.info(f"from_id: {message.fwd_from.from_id}")
+                    logging.info(f"has saved_from_msg_id: {hasattr(message.fwd_from, 'saved_from_msg_id')}")
+                    if hasattr(message.fwd_from, 'saved_from_msg_id'):
+                        logging.info(f"saved_from_msg_id: {message.fwd_from.saved_from_msg_id}, original_post_id: {original_post_id}")
+                        if message.fwd_from.saved_from_msg_id == original_post_id:
+                            forwarded_post_id = message.id
+                            logging.info(f"✅ Найден форвардированный пост {forwarded_post_id} для оригинального поста {original_post_id}")
+                            break
                     
                     # Альтернативный поиск: проверяем дату и содержимое
                     # Иногда saved_from_msg_id может отсутствовать
                     if hasattr(message.fwd_from, 'date'):
                         logging.debug(f"Проверяем форвард с датой {message.fwd_from.date}")
+            
+            logging.info(f"Всего найдено форвардов при поиске для поста {original_post_id}: {forwards_found}")
             
             # Если нашли форвардированный пост, ищем ответы на него
             if forwarded_post_id:
