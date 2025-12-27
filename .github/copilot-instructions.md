@@ -471,7 +471,87 @@ npm run build:pdf-css        # Собрать PDF CSS
 
 **Основной класс:** `IDMLBuilder` в `builder.py`
 
+### Архитектура экспорта (ВАЖНО!)
+
+**Новый подход: HTML → Layout → IDML**
+
+```
+1. Генерация HTML preview для печати (с PDF CSS)
+   ↓
+2. WeasyPrint рендерит документ и извлекает координаты элементов
+   ↓
+3. Сохранение layout.json с координатами всех блоков
+   ↓
+4. IDMLBuilder создает IDML на основе точных координат
+```
+
+**Почему так:**
+- ✅ Переиспользуем существующую HTML структуру
+- ✅ Автоматическая пагинация через CSS (@page, page-break)
+- ✅ Точные координаты из браузерного рендера
+- ✅ Один источник правды для preview/PDF/IDML
+
+### API Endpoints
+
+- `GET /api/channels/<channel_id>/extract-layout` - Извлечь координаты элементов
+- `GET /api/channels/<channel_id>/export-idml` - Экспорт в IDML
+- `GET /api/channels/<channel_id>/print` - Экспорт в PDF (с извлечением layout)
+
+### Извлечение Layout
+
+**Функция:** `extract_layout_from_document(document, channel_id)` в `api/channels.py`
+
+**Что делает:**
+1. Обходит все boxes в WeasyPrint Document
+2. Извлекает координаты (x, y, width, height)
+3. Определяет номер страницы
+4. Группирует элементы по постам (data-telegram-id)
+5. Сохраняет в JSON формате
+
+**Формат layout.json:**
+```json
+{
+  "channel_id": "llamasass",
+  "pages": [
+    {
+      "number": 0,
+      "width": 595.28,
+      "height": 841.89,
+      "elements": [
+        {
+          "tag": "div",
+          "classes": ["post"],
+          "data-telegram-id": "123",
+          "x": 50.0,
+          "y": 100.0,
+          "width": 495.28,
+          "height": 200.0,
+          "page": 0
+        }
+      ]
+    }
+  ],
+  "posts": [
+    {
+      "telegram_id": "123",
+      "elements": [...]
+    }
+  ]
+}
+```
+
 ### Использование
+
+**Вариант 1: Через API (с автоматическим извлечением)**
+```bash
+# Извлечь layout
+GET /api/channels/llamasass/extract-layout
+
+# Экспортировать IDML (использует layout)
+GET /api/channels/llamasass/export-idml
+```
+
+**Вариант 2: Программно**
 
 ```python
 from idml_export.builder import IDMLBuilder

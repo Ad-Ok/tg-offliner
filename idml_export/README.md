@@ -1,6 +1,15 @@
 # IDML Export Module
 
-Модуль для экспорта Telegram каналов в формат InDesign (IDML).
+Модуль для экспорта Telegram каналов в формат InDesign (IDML) с поддержкой текста и медиа.
+
+## Возможности
+
+✅ Экспорт текстовых постов  
+✅ Экспорт изображений с автоматическим масштабированием  
+✅ Поддержка разных размеров страниц (A4, US Letter)  
+✅ Настройка полей и колонок  
+✅ Автоматическая упаковка медиа-файлов в IDML пакет  
+✅ Сохранение пропорций изображений  
 
 ## Структура
 
@@ -37,6 +46,20 @@ builder.add_text_frame(story_id, bounds=[100, 100, 200, 400])
 
 # Сохраняем
 builder.save('output.idml')
+```
+
+### Добавление поста с медиа (новое!)
+
+```python
+# Получаем посты
+posts = Post.query.filter_by(channel_id=channel.id).all()
+
+# Добавляем каждый пост (текст + медиа)
+for post in posts:
+    builder.add_post(post, downloads_dir='downloads')
+
+# Сохраняем - медиа-файлы автоматически упакуются в Links/
+builder.save('output_with_media.idml')
 ```
 
 ### Через API

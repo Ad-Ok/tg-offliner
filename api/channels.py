@@ -16,6 +16,103 @@ channels_bp = Blueprint('channels', __name__)
 # Константы
 DOWNLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'downloads')
 
+def extract_layout_from_document(document, channel_id):
+    """
+    Извлекает координаты элементов из WeasyPrint Document.
+    
+    :param document: WeasyPrint Document объект после render()
+    :param channel_id: ID канала для логирования
+    :return: dict с layout данными
+    """
+    layout_data = {
+        'channel_id': channel_id,
+        'pages': [],
+        'posts': []
+    }
+    
+    current_app.logger.info(f"Извлечение layout из {len(document.pages)} страниц")
+    
+    for page_num, page in enumerate(document.pages):
+        page_data = {
+            'number': page_num,
+            'width': float(page.width),
+            'height': float(page.height),
+            'elements': []
+        }
+        
+        # Обходим все boxes на странице
+        for box in page._page_box.descendants():
+            # Интересуют только boxes с элементами (не пустые контейнеры)
+            element = getattr(box, 'element', None)
+            if element is None:
+                continue
+            
+            # Получаем тег и классы элемента
+            element_tag = element.tag if hasattr(element, 'tag') else None
+            element_classes = element.get('class', '').split() if hasattr(element, 'get') else []
+            element_id = element.get('id', '') if hasattr(element, 'get') else ''
+            
+            # Извлекаем координаты
+            position_x = float(box.position_x) if hasattr(box, 'position_x') else 0
+            position_y = float(box.position_y) if hasattr(box, 'position_y') else 0
+            width = float(box.width) if hasattr(box, 'width') else 0
+            height = float(box.height) if hasattr(box, 'height') else 0
+            
+            # Пропускаем нулевые элементы
+            if width == 0 or height == 0:
+                continue
+            
+            element_data = {
+                'tag': element_tag,
+                'classes': element_classes,
+                'id': element_id,
+                'x': position_x,
+                'y': position_y,
+                'width': width,
+                'height': height,
+                'page': page_num
+            }
+            
+            # Для текстовых элементов извлекаем текст
+            if hasattr(box, 'text'):
+                element_data['text'] = box.text
+            
+            # Для изображений извлекаем src
+            if element_tag == 'img' and hasattr(element, 'get'):
+                src = element.get('src', '')
+                if src:
+                    element_data['src'] = src
+            
+            # Добавляем data-атрибуты (для telegram-id и т.д.)
+            if hasattr(element, 'get'):
+                for attr_name in element.keys():
+                    if attr_name.startswith('data-'):
+                        element_data[attr_name] = element.get(attr_name)
+            
+            page_data['elements'].append(element_data)
+        
+        layout_data['pages'].append(page_data)
+        current_app.logger.info(f"  Страница {page_num}: {len(page_data['elements'])} элементов")
+    
+    # Группируем элементы по постам (по data-telegram-id)
+    posts_by_id = {}
+    for page in layout_data['pages']:
+        for elem in page['elements']:
+            telegram_id = elem.get('data-telegram-id')
+            if telegram_id:
+                if telegram_id not in posts_by_id:
+                    posts_by_id[telegram_id] = {
+                        'telegram_id': telegram_id,
+                        'elements': []
+                    }
+                posts_by_id[telegram_id]['elements'].append(elem)
+    
+    layout_data['posts'] = list(posts_by_id.values())
+    current_app.logger.info(f"Найдено {len(layout_data['posts'])} постов с координатами")
+    
+    return layout_data
+
+
 @channels_bp.route('/channels', methods=['GET'])
 def get_channels():
     """Возвращает список всех каналов."""
@@ -563,8 +660,22 @@ def print_channel_to_pdf(channel_id):
         pdf_path = os.path.join(channel_dir, f"{channel_id}.pdf")
         current_app.logger.info(f"Начинаем генерацию PDF: {pdf_path}")
         
-        HTML(filename=pdf_html_path).write_pdf(pdf_path)
+        # Рендерим документ и сохраняем PDF
+        html = HTML(filename=pdf_html_path)
+        document = html.render()
+        document.write_pdf(pdf_path)
         current_app.logger.info("PDF успешно сгенерирован")
+        
+        # Извлекаем layout информацию для отладки
+        try:
+            layout_data = extract_layout_from_document(document, channel_id)
+            layout_path = os.path.join(channel_dir, f"{channel_id}_layout.json")
+            with open(layout_path, 'w', encoding='utf-8') as f:
+                import json
+                json.dump(layout_data, f, indent=2, ensure_ascii=False)
+            current_app.logger.info(f"Layout данные сохранены: {layout_path}")
+        except Exception as layout_error:
+            current_app.logger.warning(f"Не удалось извлечь layout: {layout_error}")
 
         if not os.path.exists(pdf_path):
             current_app.logger.error(f"PDF-файл не найден после генерации: {pdf_path}")
@@ -617,34 +728,10 @@ def export_channel_to_idml(channel_id):
         builder = IDMLBuilder(channel, print_settings)
         builder.create_document()
         
-        # Добавляем тестовый пост (пока просто текст)
+        # Добавляем посты с медиа
         for post in posts:
-            # Получаем индивидуальные настройки поста
-            post_settings = post.print_settings or {}
-            
-            # Текст поста
-            if post.message:
-                story_id = builder.add_text_story(post.message, 'PostBody')
-                
-                # Вычисляем bounds для текстового фрейма
-                # Упрощенная версия - просто добавляем под текущей позицией
-                from idml_export.coordinates import calculate_text_frame_bounds
-                page_bounds = builder.current_page['bounds']
-                text_area = calculate_text_frame_bounds(
-                    page_bounds,
-                    builder.settings['margins']
-                )
-                
-                # Простой фрейм высотой 150pt
-                frame_bounds = [
-                    builder.current_y,
-                    text_area['bounds'][1],
-                    builder.current_y + 150,
-                    text_area['bounds'][3]
-                ]
-                
-                builder.add_text_frame(story_id, frame_bounds)
-                builder.current_y += 160  # +10 для отступа между постами
+            # Используем новый метод add_post который обрабатывает и текст, и медиа
+            builder.add_post(post, DOWNLOADS_DIR)
         
         # Сохраняем IDML
         channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
@@ -669,3 +756,56 @@ def export_channel_to_idml(channel_id):
     except Exception as e:
         current_app.logger.exception(f"ОШИБКА при экспорте IDML для канала {channel_id}")
         return jsonify({"error": f"Ошибка при экспорте IDML: {str(e)}"}), 500
+
+@channels_bp.route('/channels/<channel_id>/extract-layout', methods=['GET'])
+def extract_channel_layout(channel_id):
+    """
+    Извлекает layout информацию из HTML для последующей генерации IDML.
+    Возвращает JSON с координатами всех элементов.
+    """
+    try:
+        current_app.logger.info(f"=== ИЗВЛЕЧЕНИЕ LAYOUT для канала {channel_id} ===")
+        
+        # Создаем PDF HTML (или используем существующий)
+        pdf_html_path = create_pdf_html(channel_id)
+        
+        if not pdf_html_path or not os.path.exists(pdf_html_path):
+            current_app.logger.error("PDF HTML не был создан")
+            return jsonify({"error": "Ошибка при создании PDF HTML"}), 500
+        
+        current_app.logger.info(f"PDF HTML создан: {pdf_html_path}")
+        
+        # Рендерим документ БЕЗ сохранения PDF
+        current_app.logger.info("Рендеринг документа для извлечения layout...")
+        from weasyprint import HTML
+        
+        html = HTML(filename=pdf_html_path)
+        document = html.render()
+        current_app.logger.info("Документ отрендерен")
+        
+        # Извлекаем layout
+        layout_data = extract_layout_from_document(document, channel_id)
+        
+        # Сохраняем layout в файл для отладки
+        channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
+        os.makedirs(channel_dir, exist_ok=True)
+        
+        layout_path = os.path.join(channel_dir, f"{channel_id}_layout.json")
+        with open(layout_path, 'w', encoding='utf-8') as f:
+            import json
+            json.dump(layout_data, f, indent=2, ensure_ascii=False)
+        
+        current_app.logger.info(f"Layout сохранен: {layout_path}")
+        current_app.logger.info("=== КОНЕЦ ИЗВЛЕЧЕНИЯ LAYOUT ===")
+        
+        # Возвращаем layout данные
+        return jsonify({
+            "success": True,
+            "message": f"Layout извлечен, найдено {len(layout_data['posts'])} постов на {len(layout_data['pages'])} страницах",
+            "layout": layout_data,
+            "saved_to": layout_path
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.exception(f"ОШИБКА при извлечении layout для канала {channel_id}")
+        return jsonify({"error": f"Ошибка при извлечении layout: {str(e)}"}), 500

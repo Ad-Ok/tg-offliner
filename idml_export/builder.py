@@ -5,8 +5,10 @@
 import os
 import zipfile
 import uuid
+import shutil
 from lxml import etree as ET
 from datetime import datetime
+from PIL import Image
 
 from .constants import PAGE_SIZES, DEFAULT_PRINT_SETTINGS, DEFAULT_POST_SETTINGS
 from .styles import generate_styles_xml
@@ -35,6 +37,7 @@ class IDMLBuilder:
         self.stories = []
         self.master_spreads = []
         self.links = []  # Ссылки на изображения
+        self.media_files = []  # Список медиа-файлов для упаковки [{source, dest}]
         
         # Текущая позиция для размещения контента
         self.current_page = None
@@ -118,15 +121,75 @@ class IDMLBuilder:
         self.current_page['frames'].append(frame)
         return frame_id
     
-    def add_image_frame(self, image_path, bounds):
+    def get_image_dimensions(self, image_path):
+        """
+        Получает размеры изображения в пикселях
+        
+        :param image_path: путь к изображению
+        :return: (width, height) или None если не удалось прочитать
+        """
+        try:
+            with Image.open(image_path) as img:
+                return img.size
+        except Exception as e:
+            print(f"Не удалось получить размеры изображения {image_path}: {e}")
+            return None
+    
+    def calculate_image_bounds(self, image_path, max_width, start_y, max_height=None):
+        """
+        Вычисляет bounds для изображения с сохранением пропорций
+        
+        :param image_path: путь к изображению
+        :param max_width: максимальная ширина в points
+        :param start_y: начальная Y координата
+        :param max_height: максимальная высота в points (опционально)
+        :return: [y1, x1, y2, x2] или None
+        """
+        dimensions = self.get_image_dimensions(image_path)
+        if not dimensions:
+            return None
+        
+        img_width, img_height = dimensions
+        aspect_ratio = img_width / img_height
+        
+        # Вычисляем размеры с сохранением пропорций
+        width = max_width
+        height = width / aspect_ratio
+        
+        # Ограничиваем высоту если нужно
+        if max_height and height > max_height:
+            height = max_height
+            width = height * aspect_ratio
+        
+        # Центрируем по горизонтали
+        from .coordinates import calculate_text_frame_bounds
+        page_bounds = self.current_page['bounds']
+        text_area = calculate_text_frame_bounds(
+            page_bounds,
+            self.settings['margins']
+        )
+        
+        x1 = text_area['bounds'][1]
+        x2 = x1 + width
+        y1 = start_y
+        y2 = start_y + height
+        
+        return [y1, x1, y2, x2]
+    
+    def add_image_frame(self, image_path, bounds, link_in_package=True):
         """
         Добавляет фрейм с изображением
         
         :param image_path: путь к изображению (относительный или абсолютный)
         :param bounds: [y1, x1, y2, x2]
+        :param link_in_package: если True, копирует файл в IDML пакет
         """
         frame_id = self.next_id('frame_')
         link_id = self.next_id('link_')
+        
+        # Имя файла для ссылки в IDML
+        image_filename = os.path.basename(image_path)
+        link_path = f"Links/{image_filename}"
         
         frame = {
             'id': frame_id,
@@ -134,7 +197,7 @@ class IDMLBuilder:
             'bounds': bounds,
             'image': {
                 'link_id': link_id,
-                'path': image_path
+                'path': link_path  # Путь внутри IDML пакета
             }
         }
         
@@ -143,10 +206,85 @@ class IDMLBuilder:
         # Добавляем ссылку в список
         self.links.append({
             'id': link_id,
-            'path': image_path
+            'path': link_path
         })
         
+        # Добавляем файл для копирования в пакет
+        if link_in_package and os.path.exists(image_path):
+            self.media_files.append({
+                'source': image_path,
+                'dest': link_path
+            })
+        
         return frame_id
+    
+    def add_post(self, post, downloads_dir):
+        """
+        Добавляет пост с текстом и медиа
+        
+        :param post: объект Post из БД
+        :param downloads_dir: путь к директории с загруженными файлами
+        :return: высота добавленного контента
+        """
+        from .coordinates import calculate_text_frame_bounds
+        
+        page_bounds = self.current_page['bounds']
+        text_area = calculate_text_frame_bounds(
+            page_bounds,
+            self.settings['margins']
+        )
+        
+        start_y = self.current_y
+        content_height = 0
+        
+        # Получаем настройки размещения изображения
+        post_settings = post.print_settings or {}
+        image_placement = post_settings.get('image_placement', DEFAULT_POST_SETTINGS['image_placement'])
+        
+        # Сначала добавляем текст если есть
+        if post.message:
+            story_id = self.add_text_story(post.message, 'PostBody')
+            
+            # Уменьшенный фрейм высотой 75pt (было 150pt)
+            text_height = 75
+            frame_bounds = [
+                self.current_y,
+                text_area['bounds'][1],
+                self.current_y + text_height,
+                text_area['bounds'][3]
+            ]
+            
+            self.add_text_frame(story_id, frame_bounds)
+            self.current_y += text_height + 10
+            content_height += text_height + 10
+        
+        # Потом добавляем медиа под текстом
+        if post.media_url:
+            media_full_path = os.path.join(downloads_dir, post.media_url)
+            
+            if os.path.exists(media_full_path):
+                # Вычисляем bounds для изображения
+                available_width = text_area['width']
+                max_height = 400  # максимальная высота изображения в points (~14cm)
+                
+                image_bounds = self.calculate_image_bounds(
+                    media_full_path,
+                    available_width,
+                    self.current_y,
+                    max_height
+                )
+                
+                if image_bounds:
+                    self.add_image_frame(media_full_path, image_bounds)
+                    image_height = image_bounds[2] - image_bounds[0]
+                    self.current_y += image_height + 10  # отступ после изображения
+                    content_height += image_height + 10
+        
+        # Отступ между постами
+        self.current_y += 20
+        content_height += 20
+        
+        return content_height
     
     def save(self, output_path):
         """
@@ -170,6 +308,19 @@ class IDMLBuilder:
             self._generate_spreads(temp_dir)
             self._generate_stories(temp_dir)
             
+            # Копируем медиа-файлы в папку Links
+            if self.media_files:
+                links_dir = os.path.join(temp_dir, 'Links')
+                os.makedirs(links_dir, exist_ok=True)
+                
+                for media in self.media_files:
+                    source_path = media['source']
+                    dest_filename = os.path.basename(media['dest'])
+                    dest_path = os.path.join(links_dir, dest_filename)
+                    
+                    if os.path.exists(source_path):
+                        shutil.copy2(source_path, dest_path)
+            
             # Создаем ZIP архив (IDML)
             with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as idml_zip:
                 # mimetype должен быть первым и без компрессии
@@ -192,7 +343,6 @@ class IDMLBuilder:
             
         finally:
             # Очистка временных файлов
-            import shutil
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
     
@@ -408,9 +558,10 @@ class IDMLBuilder:
         # Добавляем Image
         if 'image' in frame:
             image = ET.SubElement(rect, 'Image', Self=self.next_id('image_'))
+            # Используем относительный путь внутри IDML пакета
             link = ET.SubElement(image, 'Link',
                                Self=frame['image']['link_id'],
-                               LinkResourceURI=f"file:///{frame['image']['path']}")
+                               LinkResourceURI=f"file:{frame['image']['path']}")
         
         return rect
     

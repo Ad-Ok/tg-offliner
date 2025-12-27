@@ -33,19 +33,28 @@
     <!-- Desktop menu -->
     <div class="navbar-center hidden lg:flex">
       <ul class="menu menu-horizontal px-1">
-        <li>
-          <!-- Export Buttons - только на странице канала -->
-          <ChannelExports 
-            v-if="isChannelPage && route.params.channelId"
-            :channelId="route.params.channelId"
-          />
-          <!-- <NuxtLink 
-            to="/" 
-            class="btn btn-ghost"
-            :class="{ 'btn-active': $route.path === '/' }"
-          >
-            🏠 Главная
-          </NuxtLink> -->
+        <li v-if="isChannelPage && route.params.channelId && !isPreviewPage">
+          <!-- Print/Export buttons - показываем только на странице постов -->
+          <div class="flex gap-2">
+            <NuxtLink 
+              :to="`/${route.params.channelId}/preview`"
+              class="btn btn-sm btn-outline btn-primary"
+            >
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+              </svg>
+              Печать в PDF/IDML
+            </NuxtLink>
+            <button 
+              @click="handleExportHtml"
+              class="btn btn-sm btn-outline btn-info"
+            >
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              Экспорт в HTML
+            </button>
+          </div>
         </li>
       </ul>
     </div>
@@ -66,9 +75,9 @@
         {{ isGridMode ? 'Режим ленты' : 'Режим сетки' }}
       </button> -->
       
-      <!-- Edit Mode Toggle Button - только на странице канала -->
+      <!-- Edit Mode Toggle Button - только на странице постов, не в preview -->
       <button 
-        v-if="isChannelPage"
+        v-if="isChannelPage && !isPreviewPage"
         @click="editModeStore.toggleEditMode()"
         :class="editModeStore.isEditMode ? 'btn-error' : 'btn-outline'"
         class="btn btn-sm mr-3"
@@ -100,7 +109,8 @@
 
 <script setup>
 import { useEditModeStore } from '~/stores/editMode'
-import ChannelExports from '~/components/system/ChannelExports.vue'
+import { eventBus } from '~/eventBus'
+import { apiBase } from '~/services/api'
 
 // Используем store для режима редактирования
 const editModeStore = useEditModeStore()
@@ -108,8 +118,13 @@ const editModeStore = useEditModeStore()
 // Определяем, находимся ли мы на странице канала
 const route = useRoute()
 const isChannelPage = computed(() => {
-  // Проверяем, что путь соответствует паттерну /[channelId]/posts или /[channelId]/pages
-  return (route.path.includes('/posts') || route.path.includes('/pages')) && route.params.channelId
+  // Проверяем, что путь соответствует паттерну /[channelId]/posts или /[channelId]/pages или /[channelId]/preview
+  return (route.path.includes('/posts') || route.path.includes('/pages') || route.path.includes('/preview')) && route.params.channelId
+})
+
+// Определяем, находимся ли мы на странице preview
+const isPreviewPage = computed(() => {
+  return route.path.includes('/preview')
 })
 
 // Определяем, в каком режиме мы находимся
@@ -126,6 +141,30 @@ const toggleViewMode = () => {
   } else {
     // Переход на режим сетки (pages)
     navigateTo(`/${channelId}/pages`)
+
+// Обработчик экспорта HTML
+const handleExportHtml = async () => {
+  const channelId = route.params.channelId
+  try {
+    const res = await fetch(`${apiBase}/api/channels/${channelId}/export-html`)
+    
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`)
+    }
+    
+    const filePath = `downloads/${channelId}/index.html`
+    const fileUrl = `http://localhost:5000/${filePath}`
+    eventBus.showAlert(
+      `HTML файл для канала <strong>${channelId}</strong> успешно создан: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,
+      "success",
+      { html: true }
+    )
+    
+  } catch (error) {
+    eventBus.showAlert(error.message || "Ошибка создания HTML", "danger")
+    console.error("Error exporting HTML:", error)
+  }
+}
   }
 }
 
