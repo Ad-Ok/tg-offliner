@@ -56,6 +56,42 @@
             </button>
           </div>
         </li>
+        
+        <!-- Preview mode buttons -->
+        <li v-if="isPreviewPage && route.params.channelId">
+          <div class="flex gap-2">
+            <button 
+              @click="handleExportPdf"
+              :disabled="isExportingPdf"
+              class="btn btn-sm btn-primary"
+            >
+              <span v-if="isExportingPdf" class="loading loading-spinner loading-xs mr-1"></span>
+              <svg v-else class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Экспорт в PDF
+            </button>
+            
+            <button 
+              @click="handleExportIdml"
+              :disabled="isExportingIdml"
+              class="btn btn-sm btn-secondary"
+            >
+              <span v-if="isExportingIdml" class="loading loading-spinner loading-xs mr-1"></span>
+              <svg v-else class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Экспорт в IDML
+            </button>
+            
+            <NuxtLink 
+              :to="`/${route.params.channelId}/posts`"
+              class="btn btn-sm btn-ghost"
+            >
+              ← Назад к постам
+            </NuxtLink>
+          </div>
+        </li>
       </ul>
     </div>
     
@@ -126,6 +162,70 @@ const isChannelPage = computed(() => {
 const isPreviewPage = computed(() => {
   return route.path.includes('/preview')
 })
+
+// Состояние для экспорта
+const isExportingPdf = ref(false)
+const isExportingIdml = ref(false)
+
+// Обработчик экспорта PDF
+const handleExportPdf = async () => {
+  const channelId = route.params.channelId
+  isExportingPdf.value = true
+  try {
+    const res = await fetch(`${apiBase}/api/channels/${channelId}/print`)
+    const contentType = res.headers.get('content-type')
+    
+    if (contentType && contentType.includes('application/json')) {
+      const result = await res.json()
+      if (result.success) {
+        const filePath = `downloads/${channelId}/${channelId}.pdf`
+        const fileUrl = `http://localhost:5000/${filePath}`
+        eventBus.showAlert(
+          `PDF файл для канала <strong>${channelId}</strong> успешно создан: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,
+          "success",
+          { html: true }
+        )
+      } else {
+        eventBus.showAlert(result.error || "Ошибка создания PDF", "danger")
+      }
+    }
+  } catch (error) {
+    eventBus.showAlert(error.message || "Ошибка создания PDF", "danger")
+    console.error("Error creating PDF:", error)
+  } finally {
+    isExportingPdf.value = false
+  }
+}
+
+// Обработчик экспорта IDML
+const handleExportIdml = async () => {
+  const channelId = route.params.channelId
+  isExportingIdml.value = true
+  try {
+    const res = await fetch(`${apiBase}/api/channels/${channelId}/export-idml`)
+    const contentType = res.headers.get('content-type')
+    
+    if (contentType && contentType.includes('application/json')) {
+      const result = await res.json()
+      if (result.success) {
+        const filePath = `downloads/${channelId}/${channelId}.idml`
+        const fileUrl = `http://localhost:5000/${filePath}`
+        eventBus.showAlert(
+          `IDML файл для канала <strong>${channelId}</strong> успешно создан: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,
+          "success",
+          { html: true }
+        )
+      } else {
+        eventBus.showAlert(result.error || "Ошибка создания IDML", "danger")
+      }
+    }
+  } catch (error) {
+    eventBus.showAlert(error.message || "Ошибка создания IDML", "danger")
+    console.error("Error creating IDML:", error)
+  } finally {
+    isExportingIdml.value = false
+  }
+}
 
 // Определяем, в каком режиме мы находимся
 const isGridMode = computed(() => {

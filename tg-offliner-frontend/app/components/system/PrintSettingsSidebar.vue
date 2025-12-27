@@ -2,12 +2,18 @@
   <div class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
     <!-- Header -->
     <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-      <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-        Настройки печати
-      </h2>
-      <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-        Настройте параметры экспорта
-      </p>
+      <div class="flex items-center justify-between mb-1">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          Настройки печати
+        </h2>
+      </div>
+      <div class="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+        </svg>
+        <span class="font-medium">Превью печати. Страниц: {{ totalPages || 0 }}</span>
+      </div>
     </div>
     
     <!-- Settings form -->
@@ -145,40 +151,6 @@
         </div>
       </div>
     </div>
-    
-    <!-- Export buttons (footer) -->
-    <div class="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-      <button 
-        @click="saveAndExportPdf"
-        :disabled="isExporting"
-        class="btn btn-primary w-full"
-      >
-        <span v-if="isExportingPdf" class="loading loading-spinner loading-sm"></span>
-        <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-        Экспорт в PDF
-      </button>
-      
-      <button 
-        @click="saveAndExportIdml"
-        :disabled="isExporting"
-        class="btn btn-secondary w-full"
-      >
-        <span v-if="isExportingIdml" class="loading loading-spinner loading-sm"></span>
-        <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-        Экспорт в IDML
-      </button>
-      
-      <button 
-        @click="goBack"
-        class="btn btn-ghost w-full"
-      >
-        ← Назад к постам
-      </button>
-    </div>
   </div>
 </template>
 
@@ -193,10 +165,12 @@ const props = defineProps({
   channelInfo: {
     type: Object,
     default: null
+  },
+  totalPages: {
+    type: Number,
+    default: 0
   }
 })
-
-const emit = defineEmits(['export-pdf', 'export-idml'])
 
 // Настройки печати (по умолчанию или из канала)
 const settings = ref({
@@ -215,48 +189,19 @@ watch(() => props.channelInfo, (info) => {
   }
 }, { immediate: true })
 
-const isExportingPdf = ref(false)
-const isExportingIdml = ref(false)
-const isExporting = computed(() => isExportingPdf.value || isExportingIdml.value)
-
-// Сохраняет настройки и экспортирует в PDF
-const saveAndExportPdf = async () => {
-  isExportingPdf.value = true
+// Автосохранение при изменении настроек
+watch(settings, async (newSettings) => {
   try {
-    // Сохраняем настройки в БД
     await api.put(`/api/channels/${props.channelId}`, {
-      print_settings: settings.value
+      print_settings: newSettings
     })
-    
-    // Запускаем экспорт
-    emit('export-pdf')
   } catch (error) {
-    console.error('Error saving settings:', error)
-  } finally {
-    isExportingPdf.value = false
+    console.error('Error saving print settings:', error)
   }
-}
+}, { deep: true })
 
-// Сохраняет настройки и экспортирует в IDML
-const saveAndExportIdml = async () => {
-  isExportingIdml.value = true
-  try {
-    // Сохраняем настройки в БД
-    await api.put(`/api/channels/${props.channelId}`, {
-      print_settings: settings.value
-    })
-    
-    // Запускаем экспорт
-    emit('export-idml')
-  } catch (error) {
-    console.error('Error saving settings:', error)
-  } finally {
-    isExportingIdml.value = false
-  }
-}
-
-// Вернуться назад к постам
-const goBack = () => {
-  navigateTo(`/${props.channelId}/posts`)
-}
+// Expose settings для доступа из родительского компонента
+defineExpose({
+  settings
+})
 </script>

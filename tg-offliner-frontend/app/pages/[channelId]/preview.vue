@@ -2,14 +2,14 @@
   <div class="flex h-[calc(100vh-64px)]">
     <!-- Sidebar с настройками печати -->
     <PrintSettingsSidebar 
+      ref="sidebarRef"
       :channel-id="channelId"
       :channel-info="channelInfo"
-      @export-pdf="handleExportPdf"
-      @export-idml="handleExportIdml"
+      :total-pages="totalPages"
     />
     
     <!-- Основная область с preview -->
-    <div class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
+    <div class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900" ref="previewContainer">
       <div class="max-w-4xl mx-auto py-8 px-4">
         <!-- Информация о канале -->
         <ChannelCover 
@@ -19,29 +19,17 @@
           :commentsCount="totalCommentsCount"
         />
         
-        <!-- Индикатор режима preview -->
-        <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <div class="flex items-center gap-2 text-blue-800 dark:text-blue-200">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-            </svg>
-            <span class="font-medium">Режим предпросмотра печати</span>
-          </div>
-          <p class="text-sm text-blue-700 dark:text-blue-300 mt-1">
-            Настройте параметры в боковой панели, затем нажмите "Экспорт" для создания PDF или IDML файла
-          </p>
+        <!-- Лента постов в режиме preview с разрывами страниц -->
+        <div ref="wallContainer">
+          <Wall 
+            :channelId="channelId" 
+            :posts="posts" 
+            :loading="pending"
+            :sort-order="sortOrder"
+            :discussion-group-id="channelInfo?.discussion_group_id ? String(channelInfo.discussion_group_id) : null"
+            :mode="'preview'"
+          />
         </div>
-        
-        <!-- Лента постов в режиме preview -->
-        <Wall 
-          :channelId="channelId" 
-          :posts="posts" 
-          :loading="pending"
-          :sort-order="sortOrder"
-          :discussion-group-id="channelInfo?.discussion_group_id ? String(channelInfo.discussion_group_id) : null"
-          :mode="'preview'"
-        />
       </div>
     </div>
   </div>
@@ -52,11 +40,17 @@ import { useRoute } from 'vue-router'
 import Wall from '~/components/Wall.vue'
 import ChannelCover from '~/components/ChannelCover.vue'
 import PrintSettingsSidebar from '~/components/system/PrintSettingsSidebar.vue'
-import { api, apiBase } from '~/services/api'
-import { eventBus } from '~/eventBus'
+import { api } from '~/services/api'
 
 const route = useRoute()
 const channelId = route.params.channelId
+
+// Refs
+const sidebarRef = ref(null)
+const wallContainer = ref(null)
+const previewContainer = ref(null)
+const totalPages = ref(0)
+const pageBreaksData = ref([])
 
 // Состояние для сортировки постов
 const sortOrder = ref('desc')
@@ -172,54 +166,106 @@ const totalCommentsCount = computed(() => {
   return posts.value.filter(post => post.reply_to).length
 })
 
-// Обработчики экспорта
-const handleExportPdf = async () => {
-  try {
-    const res = await fetch(`${apiBase}/api/channels/${channelId}/print`)
-    const contentType = res.headers.get('content-type')
+// Функция для вычисления разрывов страниц
+const calculatePageBreaks = async () => {
+  if (!wallContainer.value || !sidebarRef.value?.settings) return
+  
+  // Получаем настройки из sidebar
+  const settings = sidebarRef.value.settings
+  
+  // Преобразуем мм в пиксели (1mm = 3.7795275591 pixels при 96 DPI)
+  const mmToPx = (mm) => mm * 3.7795275591
+  
+  // Размеры страниц в мм
+  const pageSizes = {
+    'A4': { width: 210, height: 297 },
+    'A3': { width: 297, height: 420 },
+    'USLetter': { width: 215.9, height: 279.4 },
+    'Tabloid': { width: 279.4, height: 431.8 }
+  }
+  
+  const pageSize = pageSizes[settings.page_size] || pageSizes['A4']
+  
+  // Преобразуем поля из пунктов в мм (1 pt = 0.3528 мм)
+  const ptToMm = (pt) => pt * 0.3528
+  const topMargin = ptToMm(settings.margins[0])
+  const bottomMargin = ptToMm(settings.margins[2])
+  
+  // Высота контентной области страницы в пикселях
+  const pageHeight = mmToPx(pageSize.height - topMargin - bottomMargin)
+  
+  // Находим все посты
+  const posts = wallContainer.value.querySelectorAll('[data-post-id]')
+  
+  // Удаляем старые разрывы страниц
+  const oldBreaks = wallContainer.value.querySelectorAll('.page-break')
+  oldBreaks.forEach(br => br.remove())
+  
+  let currentPageHeight = 0
+  let pageCount = 1
+  const pagesData = [{ page: 1, posts: [] }] // Структура: [{ page: 1, posts: [{telegram_id, channel_id}] }]
+  
+  posts.forEach((post, index) => {
+    const postHeight = post.offsetHeight
+    const postId = post.getAttribute('data-post-id')
+    const postChannelId = post.getAttribute('data-channel-id')
     
-    if (contentType && contentType.includes('application/json')) {
-      const result = await res.json()
-      if (result.success) {
-        const filePath = `downloads/${channelId}/${channelId}.pdf`
-        const fileUrl = `http://localhost:5000/${filePath}`
-        eventBus.showAlert(
-          `PDF файл для канала <strong>${channelId}</strong> успешно создан: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,
-          "success",
-          { html: true }
-        )
-      } else {
-        eventBus.showAlert(result.error || "Ошибка создания PDF", "danger")
-      }
+    // Если добавление этого поста превысит высоту страницы
+    if (currentPageHeight + postHeight > pageHeight && currentPageHeight > 0) {
+      // Вставляем разрыв страницы перед постом
+      const pageBreak = document.createElement('div')
+      pageBreak.className = 'page-break border-t-4 border-dashed border-blue-400 my-8 relative'
+      pageBreak.innerHTML = `
+        <div class="absolute -top-6 left-0 bg-blue-500 text-white px-3 py-1 rounded text-xs font-semibold">
+          Страница ${pageCount + 1}
+        </div>
+      `
+      post.parentNode.insertBefore(pageBreak, post)
+      
+      // Сбрасываем счетчик высоты
+      currentPageHeight = postHeight
+      pageCount++
+      pagesData.push({ page: pageCount, posts: [] })
+    } else {
+      currentPageHeight += postHeight
     }
+    
+    // Добавляем пост на текущую страницу
+    if (postId && postChannelId) {
+      pagesData[pagesData.length - 1].posts.push({
+        telegram_id: parseInt(postId),
+        channel_id: postChannelId
+      })
+    }
+  })
+  
+  totalPages.value = pageCount
+  pageBreaksData.value = pagesData
+  
+  // Сохраняем в базу данных для использования при экспорте
+  await savePageBreaks(pagesData)
+}
+
+// Функция для сохранения информации о разрывах страниц
+const savePageBreaks = async (pagesData) => {
+  try {
+    // Сохраняем в changes канала
+    await api.put(`/api/channels/${channelId}`, {
+      changes: {
+        ...channelInfo.value?.changes,
+        preview_pages: pagesData
+      }
+    })
+    console.log('Page breaks saved:', pagesData.length, 'pages')
   } catch (error) {
-    eventBus.showAlert(error.message || "Ошибка создания PDF", "danger")
-    console.error("Error creating PDF:", error)
+    console.error('Error saving page breaks:', error)
   }
 }
 
-const handleExportIdml = async () => {
-  try {
-    const res = await fetch(`${apiBase}/api/channels/${channelId}/export-idml`)
-    const contentType = res.headers.get('content-type')
-    
-    if (contentType && contentType.includes('application/json')) {
-      const result = await res.json()
-      if (result.success) {
-        const filePath = `downloads/${channelId}/${channelId}.idml`
-        const fileUrl = `http://localhost:5000/${filePath}`
-        eventBus.showAlert(
-          `IDML файл для канала <strong>${channelId}</strong> успешно создан: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,
-          "success",
-          { html: true }
-        )
-      } else {
-        eventBus.showAlert(result.error || "Ошибка создания IDML", "danger")
-      }
-    }
-  } catch (error) {
-    eventBus.showAlert(error.message || "Ошибка создания IDML", "danger")
-    console.error("Error creating IDML:", error)
-  }
-}
+// Пересчитываем при монтировании
+onMounted(() => {
+  nextTick(() => {
+    calculatePageBreaks()
+  })
+})
 </script>
