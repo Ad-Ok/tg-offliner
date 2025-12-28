@@ -7,12 +7,13 @@ export const useEditModeStore = defineStore('editMode', {
     
     return {
       isEditMode: false,
-      isExportMode: false
+      isExportMode: false,
+      isPreviewEditMode: false
     }
   },
 
   getters: {
-    showDeleteButtons: (state) => state.isEditMode && !state.isExportMode
+    showDeleteButtons: (state) => (state.isEditMode || state.isPreviewEditMode) && !state.isExportMode
   },
 
   actions: {
@@ -26,6 +27,18 @@ export const useEditModeStore = defineStore('editMode', {
 
     disableEditMode() {
       this.isEditMode = false
+    },
+
+    togglePreviewEditMode() {
+      this.isPreviewEditMode = !this.isPreviewEditMode
+    },
+
+    enablePreviewEditMode() {
+      this.isPreviewEditMode = true
+    },
+
+    disablePreviewEditMode() {
+      this.isPreviewEditMode = false
     },
 
     enableExportMode() {

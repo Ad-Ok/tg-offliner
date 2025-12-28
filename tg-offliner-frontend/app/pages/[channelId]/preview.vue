@@ -27,7 +27,7 @@
             :loading="pending"
             :sort-order="sortOrder"
             :discussion-group-id="channelInfo?.discussion_group_id ? String(channelInfo.discussion_group_id) : null"
-            :mode="'preview'"
+            :mode="isEditMode ? 'preview-edit' : 'preview'"
           />
         </div>
       </div>
@@ -42,9 +42,11 @@ import ChannelCover from '~/components/ChannelCover.vue'
 import PrintSettingsSidebar from '~/components/system/PrintSettingsSidebar.vue'
 import { api } from '~/services/api'
 import { PAGE_SIZES, mmToPx } from '~/utils/units'
+import { useEditModeStore } from '~/stores/editMode'
 
 const route = useRoute()
 const channelId = route.params.channelId
+const editModeStore = useEditModeStore()
 
 // Refs
 const sidebarRef = ref(null)
@@ -55,6 +57,22 @@ const pageBreaksData = ref([])
 
 // Состояние для сортировки постов
 const sortOrder = ref('desc')
+
+// Режим редактирования - используем computed для связи со store
+const isEditMode = computed(() => editModeStore.isPreviewEditMode)
+
+// Функция пересчета страниц - экспортируем для вызова из Navbar
+const recalculatePages = () => {
+  calculatePageBreaks()
+}
+
+// Экспортируем функцию для внешнего использования
+defineExpose({ recalculatePages })
+
+// Сохраняем ссылку на функцию в window для доступа из Navbar
+if (typeof window !== 'undefined') {
+  window.__previewRecalculatePages = recalculatePages
+}
 
 // Загрузка данных (копируем логику из posts.vue)
 const { data: posts, pending } = await useAsyncData(

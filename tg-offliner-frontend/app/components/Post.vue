@@ -1,13 +1,16 @@
 <template>
   <div 
     class="post-container relative"
-    :class="{ 'hidden': isHidden && editModeStore.isExportMode }"
+    :class="{ 
+      'hidden': isHidden && (editModeStore.isExportMode || editModeStore.isPreviewEditMode),
+      'opacity-25': isHidden && editModeStore.isPreviewEditMode && !editModeStore.isExportMode 
+    }"
   >
     <PostEditor :post="post" @hiddenStateChanged="onHiddenStateChanged" />
     
     <div 
       class="post w-full font-sans print:text-sm"
-      :class="{ 'opacity-25 print:hidden': isHidden && !editModeStore.isExportMode }"
+      :class="{ 'opacity-25 print:hidden': isHidden && !editModeStore.isExportMode && !editModeStore.isPreviewEditMode }"
     >
       <div class="post-wrap p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm print:shadow-none print:border print:border-gray-300 print:p-3">
         <PostHeader
