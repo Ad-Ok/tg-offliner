@@ -17,9 +17,9 @@ PAGE_SIZES = {
 # Дефолтные настройки печати
 DEFAULT_PRINT_SETTINGS = {
     'page_size': 'A4',
-    'margins': [56.69, 56.69, 56.69, 56.69],  # top, left, bottom, right (20mm в points)
+    'margins': [20, 20, 20, 20],  # top, left, bottom, right (в миллиметрах)
     'text_columns': 1,
-    'column_gutter': 14.17,  # 5mm в points
+    'column_gutter': 5,  # в миллиметрах
     'master_page_enabled': True,
     'include_headers_footers': True,
 }

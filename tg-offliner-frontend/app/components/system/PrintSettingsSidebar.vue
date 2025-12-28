@@ -37,7 +37,7 @@
       <!-- Поля (margins) -->
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Поля страницы (в пунктах)
+          Поля страницы (в миллиметрах)
         </label>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -46,7 +46,8 @@
               v-model.number="settings.margins[0]" 
               type="number" 
               class="input input-bordered input-sm w-full"
-              step="0.1"
+              step="1"
+              min="0"
             />
           </div>
           <div>
@@ -55,7 +56,8 @@
               v-model.number="settings.margins[1]" 
               type="number" 
               class="input input-bordered input-sm w-full"
-              step="0.1"
+              step="1"
+              min="0"
             />
           </div>
           <div>
@@ -64,7 +66,8 @@
               v-model.number="settings.margins[2]" 
               type="number" 
               class="input input-bordered input-sm w-full"
-              step="0.1"
+              step="1"
+              min="0"
             />
           </div>
           <div>
@@ -73,12 +76,13 @@
               v-model.number="settings.margins[3]" 
               type="number" 
               class="input input-bordered input-sm w-full"
-              step="0.1"
+              step="1"
+              min="0"
             />
           </div>
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-          1 пункт = 0.3528 мм (стандарт InDesign)
+          Миллиметры (мм)
         </p>
       </div>
       
@@ -99,13 +103,14 @@
       <!-- Расстояние между колонками -->
       <div v-if="settings.text_columns > 1">
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Расстояние между колонками (пункты)
+          Расстояние между колонками (мм)
         </label>
         <input 
           v-model.number="settings.column_gutter" 
           type="number" 
           class="input input-bordered w-full"
-          step="0.1"
+          step="1"
+          min="0"
         />
       </div>
       
@@ -143,10 +148,10 @@
         </h3>
         <div class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
           <div>Страница: {{ settings.page_size }}</div>
-          <div>Поля: {{ settings.margins.join(', ') }} пт</div>
+          <div>Поля: {{ settings.margins.join(', ') }} мм</div>
           <div>Колонок: {{ settings.text_columns }}</div>
           <div v-if="settings.text_columns > 1">
-            Зазор: {{ settings.column_gutter }} пт
+            Зазор: {{ settings.column_gutter }} мм
           </div>
         </div>
       </div>
@@ -175,9 +180,9 @@ const props = defineProps({
 // Настройки печати (по умолчанию или из канала)
 const settings = ref({
   page_size: 'A4',
-  margins: [56.69, 56.69, 56.69, 56.69], // top, left, bottom, right (в пунктах)
+  margins: [20, 20, 20, 20], // top, left, bottom, right (в миллиметрах)
   text_columns: 1,
-  column_gutter: 14.17,
+  column_gutter: 5, // в миллиметрах
   master_page_enabled: true,
   include_headers_footers: true
 })

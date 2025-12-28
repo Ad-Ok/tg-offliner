@@ -3,12 +3,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Дефолтные настройки @page для PDF, будут переопределены inline стилями из БД */
 @page {
   size: A4;
-  margin-top: 10pt;
-  margin-bottom: 10pt;
-  margin-left: 20pt;
-  margin-right: 20pt;
+  margin: 20mm;
 }
 
 @layer components {

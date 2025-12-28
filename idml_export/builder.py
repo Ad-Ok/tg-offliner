@@ -24,10 +24,15 @@ class IDMLBuilder:
     def __init__(self, channel, print_settings=None):
         """
         :param channel: объект Channel из БД
-        :param print_settings: dict с глобальными настройками печати
+        :param print_settings: dict с глобальными настройками печати (margins в мм)
         """
         self.channel = channel
         self.settings = {**DEFAULT_PRINT_SETTINGS, **(print_settings or {})}
+        
+        # Конвертируем margins и column_gutter из мм в пункты (1 мм = 2.83465 пункта)
+        self.settings['margins'] = [m * 2.83465 for m in self.settings['margins']]
+        if 'column_gutter' in self.settings:
+            self.settings['column_gutter'] = self.settings['column_gutter'] * 2.83465
         
         # Генераторы ID
         self._id_counter = 100

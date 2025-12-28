@@ -445,29 +445,68 @@ downloads/
 
 API клиенты в `app/services/` - используй их для запросов к backend.
 
-### Tailwind конфигурация
+### Tailwind конфигурация (КРИТИЧЕСКИ ВАЖНО!)
 
 **ДВА конфига:**
 1. `tailwind.config.js` - Для основного UI
 2. `tailwind.pdf.config.js` - Для PDF экспорта
 
-**ДВА CSS файла:**
-1. `public/styles.css` - Из основного конфига
-2. `public/styles-pdf.css` - Из PDF конфига
+**ИСХОДНЫЙ файл:** `assets/tailwind.css`
+- Содержит `@tailwind` директивы и кастомные стили
+- Содержит `@page` настройки для PDF
+- **ТОЛЬКО ЭТОТ ФАЙЛ НУЖНО РЕДАКТИРОВАТЬ!**
 
-**Команды:**
+**СГЕНЕРИРОВАННЫЕ файлы (НЕ ТРОГАТЬ!):**
+1. `public/styles.css` - Генерируется из `assets/tailwind.css` + `tailwind.config.js`
+2. `public/styles-pdf.css` - Генерируется из `assets/tailwind.css` + `tailwind.pdf.config.js`
+
+**❌ НИКОГДА НЕ РЕДАКТИРУЙ:**
+- `public/styles.css`
+- `public/styles-pdf.css`
+
+**✅ ВСЕГДА РЕДАКТИРУЙ:**
+- `assets/tailwind.css` (исходник)
+- Затем запускай сборку
+
+**Команды сборки:**
 ```bash
+# Локально (если есть node_modules)
 npm run watch:tailwindcss    # Следить за изменениями основного CSS
 npm run watch:pdf-css        # Следить за изменениями PDF CSS
 npm run build:tailwindcss    # Собрать основной CSS
 npm run build:pdf-css        # Собрать PDF CSS
+
+# Внутри Docker контейнера (всегда работает)
+docker compose exec ssr sh -c "cd /app && npm run build:pdf-css"
+docker compose exec ssr sh -c "cd /app && npm run build:tailwindcss"
+```
+
+**Пример добавления кастомных стилов:**
+```css
+/* В assets/tailwind.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Кастомные стили для PDF */
+@page {
+  size: A4;
+  margin: 20mm;
+}
+
+.custom-class {
+  /* твои стили */
+}
+```
+
+Затем:
+```bash
+docker compose exec ssr sh -c "cd /app && npm run build:pdf-css"
 ```
 
 ---
 
 ## 📄 IDML ЭКСПОРТ (InDesign)
-
-### Модуль idml_export/
 
 **Основной класс:** `IDMLBuilder` в `builder.py`
 
@@ -728,7 +767,12 @@ def should_stop_import(channel_id):
 1. **Docker:**
    - ❌ `docker-compose up` → ✅ `docker compose up`
 
-2. **Telegram клиент:**
+2. **Tailwind CSS:**
+   - ❌ Редактировать `public/styles.css` → ✅ Редактировать `assets/tailwind.css` и пересобрать
+   - ❌ Редактировать `public/styles-pdf.css` → ✅ Редактировать `assets/tailwind.css` и пересобрать
+   - ❌ Забывать пересобирать CSS → ✅ `docker compose exec ssr sh -c "cd /app && npm run build:pdf-css"`
+
+3. **Telegram клиент:**
    - ❌ Создавать новый TelegramClient → ✅ Использовать `connect_to_telegram()`
    - ❌ Выдумывать API_ID/API_HASH → ✅ Читать из `.env`
 

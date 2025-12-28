@@ -263,7 +263,8 @@ def get_channel(channel_id):
         "creation_date": channel.creation_date,
         "subscribers": channel.subscribers,
         "discussion_group_id": channel.discussion_group_id,
-        "changes": channel.changes if hasattr(channel, 'changes') else {}
+        "changes": channel.changes if hasattr(channel, 'changes') else {},
+        "print_settings": channel.print_settings if hasattr(channel, 'print_settings') else {}
     })
 
 @channels_bp.route('/channels/<channel_id>', methods=['DELETE'])
@@ -349,6 +350,9 @@ def update_channel(channel_id):
             channel.discussion_group_id = data['discussion_group_id']
         if 'changes' in data:
             channel.changes = data['changes']
+        if 'print_settings' in data:
+            channel.print_settings = data['print_settings']
+            current_app.logger.info(f"Обновлены print_settings для канала {channel_id}: {data['print_settings']}")
         
         db.session.commit()
         
@@ -361,7 +365,8 @@ def update_channel(channel_id):
             "creation_date": channel.creation_date,
             "subscribers": channel.subscribers,
             "discussion_group_id": channel.discussion_group_id,
-            "changes": channel.changes if hasattr(channel, 'changes') else {}
+            "changes": channel.changes if hasattr(channel, 'changes') else {},
+            "print_settings": channel.print_settings if hasattr(channel, 'print_settings') else {}
         }), 200
         
     except Exception as e:
@@ -606,6 +611,28 @@ def create_pdf_html(channel_id):
             css_link['rel'] = 'stylesheet'
             css_link['href'] = './styles-pdf.css'
             head.append(css_link)
+            
+            # Добавляем inline стили с настройками печати из БД
+            if channel and channel.print_settings:
+                settings = channel.print_settings
+                page_size = settings.get('page_size', 'A4')
+                margins = settings.get('margins', [20, 20, 20, 20])  # в мм
+                
+                # Создаем inline style с @page настройками
+                style_tag = soup.new_tag('style')
+                style_tag.string = f"""
+                @page {{
+                    size: {page_size};
+                    margin-top: {margins[0]}mm;
+                    margin-left: {margins[1]}mm;
+                    margin-bottom: {margins[2]}mm;
+                    margin-right: {margins[3]}mm;
+                }}
+                """
+                head.append(style_tag)
+                current_app.logger.info(f"Применены настройки печати: {page_size}, margins: {margins}mm")
+            else:
+                current_app.logger.warning(f"Настройки печати не найдены для канала {channel_id}")
         
         # Применяем page breaks из preview_pages
         if preview_pages:
