@@ -10,6 +10,7 @@ from flask import Blueprint, jsonify, request, current_app
 from models import db, Post, Channel
 from telegram_client import connect_to_telegram
 from message_processing.channel_info import get_channel_info
+from idml_export.constants import PAGE_SIZES, DEFAULT_PRINT_SETTINGS
 
 channels_bp = Blueprint('channels', __name__)
 
@@ -615,24 +616,40 @@ def create_pdf_html(channel_id):
             # Добавляем inline стили с настройками печати из БД
             if channel and channel.print_settings:
                 settings = channel.print_settings
-                page_size = settings.get('page_size', 'A4')
-                margins = settings.get('margins', [20, 20, 20, 20])  # в мм
-                
-                # Создаем inline style с @page настройками
-                style_tag = soup.new_tag('style')
-                style_tag.string = f"""
-                @page {{
-                    size: {page_size};
-                    margin-top: {margins[0]}mm;
-                    margin-left: {margins[1]}mm;
-                    margin-bottom: {margins[2]}mm;
-                    margin-right: {margins[3]}mm;
-                }}
-                """
-                head.append(style_tag)
-                current_app.logger.info(f"Применены настройки печати: {page_size}, margins: {margins}mm")
             else:
-                current_app.logger.warning(f"Настройки печати не найдены для канала {channel_id}")
+                settings = DEFAULT_PRINT_SETTINGS
+                current_app.logger.warning(f"Настройки печати не найдены для канала {channel_id}, используем дефолтные")
+            
+            page_size = settings.get('page_size', 'A4')
+            margins = settings.get('margins', DEFAULT_PRINT_SETTINGS['margins'])
+            
+            # Получаем размеры страницы из констант (уже в мм)
+            page_dimensions = PAGE_SIZES.get(page_size, PAGE_SIZES['A4'])
+            page_width_mm = page_dimensions['width']
+            page_height_mm = page_dimensions['height']
+            
+            # Создаем inline style с @page настройками и CSS переменными
+            style_tag = soup.new_tag('style')
+            style_tag.string = f"""
+            :root {{
+                --preview-width: {page_width_mm}mm;
+                --preview-height: {page_height_mm}mm;
+                --preview-padding-top: {margins[0]}mm;
+                --preview-padding-left: {margins[1]}mm;
+                --preview-padding-bottom: {margins[2]}mm;
+                --preview-padding-right: {margins[3]}mm;
+            }}
+            
+            @page {{
+                size: {page_size};
+                margin-top: {margins[0]}mm;
+                margin-left: {margins[1]}mm;
+                margin-bottom: {margins[2]}mm;
+                margin-right: {margins[3]}mm;
+            }}
+            """
+            head.append(style_tag)
+            current_app.logger.info(f"Применены настройки печати: {page_size}, margins: {margins}mm, page dimensions: {page_width_mm}x{page_height_mm}mm")
         
         # Применяем page breaks из preview_pages
         if preview_pages:

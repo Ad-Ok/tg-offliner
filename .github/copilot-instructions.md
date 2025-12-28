@@ -44,6 +44,7 @@ tg-offliner/
 ├── telegram_export.py          # Логика импорта из Telegram
 ├── authorize_telegram.py       # Первичная авторизация
 ├── check_auth.py              # Проверка авторизации
+├── print-config.json           # ⭐ ЕДИНЫЙ ИСТОЧНИК настроек печати (Python + JS)
 ├── .env                        # Credentials (НЕ в Git!)
 ├── session_name.session        # Telegram сессия (НЕ в Git!)
 ├── instance/                   # SQLite база данных
@@ -74,7 +75,7 @@ tg-offliner/
 │   └── time_utils.py          # Работа со временем
 ├── idml_export/               # Экспорт в InDesign
 │   ├── builder.py             # IDMLBuilder класс
-│   ├── constants.py           # Размеры страниц, стили
+│   ├── constants.py           # Загружает из print-config.json
 │   ├── coordinates.py         # Координаты элементов
 │   ├── styles.py              # XML стили
 │   ├── resources.py           # Ресурсы (шрифты, графика)
@@ -88,6 +89,8 @@ tg-offliner/
     │   ├── pages/             # Nuxt страницы
     │   ├── stores/            # Pinia хранилища
     │   ├── services/          # API клиенты
+    │   ├── utils/
+    │   │   └── units.js       # ⭐ Загружает из print-config.json
     │   └── composables/       # Vue composables
     └── public/                # Статика
 ```
@@ -510,7 +513,68 @@ docker compose exec ssr sh -c "cd /app && npm run build:pdf-css"
 
 **Основной класс:** `IDMLBuilder` в `builder.py`
 
-### Архитектура экспорта (ВАЖНО!)
+### ⭐ ЕДИНИЦЫ ИЗМЕРЕНИЯ И КОНСТАНТЫ (КРИТИЧЕСКИ ВАЖНО!)
+
+**ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ:** `print-config.json` в корне проекта
+
+```json
+{
+  "pageSizes": {
+    "A4": { "width": 210, "height": 297 },  // в миллиметрах
+    "A3": { "width": 297, "height": 420 }
+  },
+  "conversion": {
+    "mmToPoints": 2.83465,      // 1mm = 2.83465 points (InDesign)
+    "mmToPx": 3.7795275591      // 1mm = 3.7795... px (96 DPI)
+  },
+  "defaultPrintSettings": {
+    "pageSize": "A4",
+    "margins": [20, 20, 20, 20] // в миллиметрах
+  }
+}
+```
+
+**Кто читает:**
+- **Python:** `idml_export/constants.py` → `json.load('print-config.json')`
+- **JavaScript:** `app/utils/units.js` → `import config from 'print-config.json'`
+
+**Единицы измерения в разных местах:**
+
+| Компонент | Единица | Источник |
+|-----------|---------|----------|
+| **БД (Channel.print_settings)** | миллиметры (mm) | Пользователь |
+| **Frontend (CSS variables)** | миллиметры (mm) | `PAGE_SIZES` из config |
+| **PDF (WeasyPrint)** | миллиметры (mm) | Напрямую: `@page { size: A4; margin: 20mm; }` |
+| **IDML (InDesign)** | points (pt) | Конвертируется: `mm_to_points(mm)` |
+
+**Функции конвертации:**
+
+Python (`idml_export/constants.py`):
+```python
+mm_to_points(mm)   # 210mm → 595.28pt
+points_to_mm(pt)   # 595.28pt → 210mm
+mm_to_px(mm)       # 210mm → 793.7px
+px_to_mm(px)       # 793.7px → 210mm
+points_to_px(pt)   # 595.28pt → 793.7px
+px_to_points(px)   # 793.7px → 595.28pt
+```
+
+JavaScript (`app/utils/units.js`):
+```javascript
+mmToPoints(mm)     // 210mm → 595.28pt
+pointsToMm(pt)     // 595.28pt → 210mm
+mmToPx(mm)         // 210mm → 793.7px
+pxToMm(px)         // 793.7px → 210mm
+pointsToPx(pt)     // 595.28pt → 793.7px
+pxToPoints(px)     // 793.7px → 595.28pt
+```
+
+**❌ НЕ ХАРДКОДЬ константы!** Всегда используй:
+- `PAGE_SIZES` из constants.py или units.js
+- Функции конвертации из тех же модулей
+- Для изменения - редактируй **ТОЛЬКО** `print-config.json`
+
+### Архитектура экспорта
 
 **Новый подход: HTML → Layout → IDML**
 
@@ -619,9 +683,9 @@ builder.save('output.idml')
 ```json
 {
   "page_size": "A4",
-  "margins": [56.69, 56.69, 56.69, 56.69],
+  "margins": [20, 20, 20, 20],  // в миллиметрах [top, left, bottom, right]
   "text_columns": 1,
-  "column_gutter": 14.17,
+  "column_gutter": 5,           // в миллиметрах
   "master_page_enabled": true,
   "include_headers_footers": true
 }
@@ -639,15 +703,25 @@ builder.save('output.idml')
 
 ### Размеры страниц
 
-**constants.py:**
-```python
-PAGE_SIZES = {
-    'A4': (595.28, 841.89),          # 210 × 297 мм
-    'A3': (841.89, 1190.55),         # 297 × 420 мм
-    'USLetter': (612, 792),          # 8.5 × 11 дюймов
-    'Tabloid': (792, 1224)           # 11 × 17 дюймов
+**Из print-config.json:**
+```json
+{
+  "pageSizes": {
+    "A4": { "width": 210, "height": 297 },
+    "A3": { "width": 297, "height": 420 },
+    "USLetter": { "width": 215.9, "height": 279.4 },
+    "Tabloid": { "width": 279.4, "height": 431.8 }
+  }
 }
 ```
+
+**В PDF:**
+- WeasyPrint понимает строковые константы: `@page { size: A4; }`
+- Margins в миллиметрах: `margin: 20mm;`
+
+**В IDML:**
+- InDesign требует размеры в points
+- Конвертация: `mm_to_points(210)` → `595.28pt`
 
 ### Стили параграфов
 

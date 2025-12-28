@@ -10,7 +10,7 @@ from lxml import etree as ET
 from datetime import datetime
 from PIL import Image
 
-from .constants import PAGE_SIZES, DEFAULT_PRINT_SETTINGS, DEFAULT_POST_SETTINGS
+from .constants import PAGE_SIZES, DEFAULT_PRINT_SETTINGS, DEFAULT_POST_SETTINGS, mm_to_points
 from .styles import generate_styles_xml
 from .coordinates import calculate_text_frame_bounds
 from .resources import generate_fonts_xml, generate_graphic_xml, generate_preferences_xml
@@ -29,10 +29,10 @@ class IDMLBuilder:
         self.channel = channel
         self.settings = {**DEFAULT_PRINT_SETTINGS, **(print_settings or {})}
         
-        # Конвертируем margins и column_gutter из мм в пункты (1 мм = 2.83465 пункта)
-        self.settings['margins'] = [m * 2.83465 for m in self.settings['margins']]
+        # Конвертируем margins и column_gutter из мм в пункты используя функцию
+        self.settings['margins'] = [mm_to_points(m) for m in self.settings['margins']]
         if 'column_gutter' in self.settings:
-            self.settings['column_gutter'] = self.settings['column_gutter'] * 2.83465
+            self.settings['column_gutter'] = mm_to_points(self.settings['column_gutter'])
         
         # Генераторы ID
         self._id_counter = 100
@@ -55,10 +55,10 @@ class IDMLBuilder:
     
     def create_document(self):
         """Создает базовый документ с одним Spread"""
-        # Размер страницы
-        page_size = PAGE_SIZES[self.settings['page_size']]
-        width = page_size['width']
-        height = page_size['height']
+        # Размер страницы из констант (в мм), конвертируем в points
+        page_size_mm = PAGE_SIZES[self.settings['page_size']]
+        width = mm_to_points(page_size_mm['width'])
+        height = mm_to_points(page_size_mm['height'])
         
         # Создаем первый Spread
         spread_id = self.next_id('spread_')

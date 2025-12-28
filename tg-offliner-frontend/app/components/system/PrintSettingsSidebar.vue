@@ -27,10 +27,10 @@
           v-model="settings.page_size" 
           class="select select-bordered w-full"
         >
-          <option value="A4">A4 (210 × 297 мм)</option>
-          <option value="A3">A3 (297 × 420 мм)</option>
-          <option value="USLetter">US Letter (8.5 × 11″)</option>
-          <option value="Tabloid">Tabloid (11 × 17″)</option>
+          <option value="A4">A4 ({{ PAGE_SIZES.A4.width }} × {{ PAGE_SIZES.A4.height }} мм)</option>
+          <option value="A3">A3 ({{ PAGE_SIZES.A3.width }} × {{ PAGE_SIZES.A3.height }} мм)</option>
+          <option value="USLetter">US Letter ({{ PAGE_SIZES.USLetter.width }} × {{ PAGE_SIZES.USLetter.height }} мм)</option>
+          <option value="Tabloid">Tabloid ({{ PAGE_SIZES.Tabloid.width }} × {{ PAGE_SIZES.Tabloid.height }} мм)</option>
         </select>
       </div>
       
@@ -161,6 +161,7 @@
 
 <script setup>
 import { api } from '~/services/api'
+import { PAGE_SIZES } from '~/utils/units'
 
 const props = defineProps({
   channelId: {

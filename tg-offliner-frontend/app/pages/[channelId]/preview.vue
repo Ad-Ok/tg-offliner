@@ -10,7 +10,7 @@
     
     <!-- Основная область с preview -->
     <div class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900" ref="previewContainer" :style="previewContainerStyle">
-      <div class="mx-auto py-8" style="width: var(--preview-width); padding-left: var(--preview-padding-left); padding-right: var(--preview-padding-right);">
+      <div class="mx-auto py-8" style="width: var(--preview-width); padding-top: var(--preview-padding-top); padding-left: var(--preview-padding-left); padding-right: var(--preview-padding-right);">
         <!-- Информация о канале -->
         <ChannelCover 
           v-if="channelInfo" 
@@ -41,6 +41,7 @@ import Wall from '~/components/Wall.vue'
 import ChannelCover from '~/components/ChannelCover.vue'
 import PrintSettingsSidebar from '~/components/system/PrintSettingsSidebar.vue'
 import { api } from '~/services/api'
+import { PAGE_SIZES, mmToPx } from '~/utils/units'
 
 const route = useRoute()
 const channelId = route.params.channelId
@@ -183,22 +184,17 @@ const previewContainerStyle = computed(() => {
   if (!sidebarRef.value?.settings) return {}
   
   const settings = sidebarRef.value.settings
-  
-  // Размеры страниц в мм
-  const pageSizes = {
-    'A4': { width: 210, height: 297 },
-    'A3': { width: 297, height: 420 },
-    'USLetter': { width: 215.9, height: 279.4 },
-    'Tabloid': { width: 279.4, height: 431.8 }
-  }
-  
-  const pageSize = pageSizes[settings.page_size] || pageSizes['A4']
+  const pageSize = PAGE_SIZES[settings.page_size] || PAGE_SIZES.A4
+  const topMargin = settings.margins[0]
   const leftMargin = settings.margins[1]
+  const bottomMargin = settings.margins[2]
   const rightMargin = settings.margins[3]
   
   return {
     '--preview-width': `${pageSize.width}mm`,
     '--preview-height': `${pageSize.height}mm`,
+    '--preview-padding-top': `${topMargin}mm`,
+    '--preview-padding-bottom': `${bottomMargin}mm`,
     '--preview-padding-left': `${leftMargin}mm`,
     '--preview-padding-right': `${rightMargin}mm`
   }
@@ -210,21 +206,9 @@ const calculatePageBreaks = async () => {
   
   // Получаем настройки из sidebar
   const settings = sidebarRef.value.settings
+  const pageSize = PAGE_SIZES[settings.page_size] || PAGE_SIZES.A4
   
-  // Преобразуем мм в пиксели (1mm = 3.7795275591 pixels при 96 DPI)
-  const mmToPx = (mm) => mm * 3.7795275591
-  
-  // Размеры страниц в мм
-  const pageSizes = {
-    'A4': { width: 210, height: 297 },
-    'A3': { width: 297, height: 420 },
-    'USLetter': { width: 215.9, height: 279.4 },
-    'Tabloid': { width: 279.4, height: 431.8 }
-  }
-  
-  const pageSize = pageSizes[settings.page_size] || pageSizes['A4']
-  
-  // Поля уже в миллиметрах
+  // Поля в миллиметрах
   const topMargin = settings.margins[0]
   const bottomMargin = settings.margins[2]
   
@@ -247,10 +231,16 @@ const calculatePageBreaks = async () => {
   let pageCount = 1
   const pagesData = [{ page: 1, posts: [] }] // Структура: [{ page: 1, posts: [{telegram_id, channel_id}] }]
   
-  // Добавляем индикатор перед первым постом (страница 1)
-  if (posts.length > 0) {
-    const firstPost = posts[0]
-    firstPost.parentNode.insertBefore(createPageBreak(1), firstPost)
+  // Учитываем высоту channel-cover в расчетах
+  const channelCoverElement = previewContainer.value?.querySelector('.channel-cover')
+  if (channelCoverElement) {
+    currentPageHeight = channelCoverElement.offsetHeight
+  }
+  
+  // Добавляем индикатор страницы 1 в самое начало (перед channel-cover)
+  const firstChild = wallContainer.value.firstChild
+  if (firstChild) {
+    wallContainer.value.insertBefore(createPageBreak(1), firstChild)
   }
   
   posts.forEach((post, index) => {
