@@ -51,7 +51,6 @@ export default {
     loading: { type: Boolean, default: false },
     discussionGroupId: { type: String, default: null },
     sortOrder: { type: String, default: 'desc' }, // 'desc' = новые сверху, 'asc' = старые сверху
-    mode: { type: String, default: 'normal' }, // 'normal' | 'preview' | 'editor'
   },
   computed: {
     // Основные посты (логика зависит от наличия discussionGroupId)

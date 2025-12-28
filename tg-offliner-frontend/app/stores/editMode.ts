@@ -13,7 +13,18 @@ export const useEditModeStore = defineStore('editMode', {
   },
 
   getters: {
-    showDeleteButtons: (state) => (state.isEditMode || state.isPreviewEditMode) && !state.isExportMode
+    showDeleteButtons: (state) => (state.isEditMode || state.isPreviewEditMode) && !state.isExportMode,
+    
+    // Определяем текущую страницу на основе route
+    isPostsPage: () => {
+      if (typeof window === 'undefined') return false
+      return window.location.pathname.includes('/posts')
+    },
+    
+    isPreviewPage: () => {
+      if (typeof window === 'undefined') return false
+      return window.location.pathname.includes('/preview')
+    }
   },
 
   actions: {

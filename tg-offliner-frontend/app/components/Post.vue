@@ -1,17 +1,11 @@
 <template>
   <div 
     class="post-container relative"
-    :class="{ 
-      'hidden': isHidden && (editModeStore.isExportMode || editModeStore.isPreviewEditMode),
-      'opacity-25': isHidden && editModeStore.isPreviewEditMode && !editModeStore.isExportMode 
-    }"
+    :class="postContainerClasses"
   >
     <PostEditor :post="post" @hiddenStateChanged="onHiddenStateChanged" />
     
-    <div 
-      class="post w-full font-sans print:text-sm"
-      :class="{ 'opacity-25 print:hidden': isHidden && !editModeStore.isExportMode && !editModeStore.isPreviewEditMode }"
-    >
+    <div class="post w-full font-sans print:text-sm">
       <div class="post-wrap p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm print:shadow-none print:border print:border-gray-300 print:p-3">
         <PostHeader
           :author-name="post.author_name"
@@ -80,11 +74,34 @@ export default {
   },
   setup(props) {
     const editModeStore = useEditModeStore()
-    const isHidden = ref(props.post.isHidden || false)
+    const isHidden = ref(props.post.hidden || false)
     
     const onHiddenStateChanged = (newHiddenState) => {
       isHidden.value = newHiddenState
     }
+    
+    // Вычисляем классы для post-container в зависимости от режима
+    const postContainerClasses = computed(() => {
+      if (!isHidden.value) return {}
+      
+      // /preview (любой режим) → hidden
+      if (editModeStore.isPreviewPage) {
+        return { 'hidden': true }
+      }
+      
+      // /posts + editMode=true → opacity-25
+      if (editModeStore.isPostsPage && editModeStore.isEditMode) {
+        return { 'opacity-25': true }
+      }
+      
+      // /posts + editMode=false → hidden
+      if (editModeStore.isPostsPage && !editModeStore.isEditMode) {
+        return { 'hidden print:hidden': true }
+      }
+      
+      // Fallback для других случаев
+      return { 'hidden': true }
+    })
     
     // Caption для Fancybox
     const mediaCaption = computed(() => {
@@ -106,6 +123,7 @@ export default {
       editModeStore,
       isHidden,
       onHiddenStateChanged,
+      postContainerClasses,
       mediaCaption
     }
   }

@@ -27,7 +27,6 @@
             :loading="pending"
             :sort-order="sortOrder"
             :discussion-group-id="channelInfo?.discussion_group_id ? String(channelInfo.discussion_group_id) : null"
-            :mode="isEditMode ? 'preview-edit' : 'preview'"
           />
         </div>
       </div>
