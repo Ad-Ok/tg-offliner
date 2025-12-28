@@ -166,6 +166,18 @@ const totalCommentsCount = computed(() => {
   return posts.value.filter(post => post.reply_to).length
 })
 
+// Функция для создания визуального индикатора разрыва страницы
+const createPageBreak = (pageNumber) => {
+  const pageBreak = document.createElement('div')
+  pageBreak.className = 'page-break border-t-4 border-dashed border-blue-400 my-8 relative'
+  pageBreak.innerHTML = `
+    <div class="absolute -top-6 left-0 bg-blue-500 text-white px-3 py-1 rounded text-xs font-semibold">
+      Страница ${pageNumber}
+    </div>
+  `
+  return pageBreak
+}
+
 // Computed стили для preview контейнера на основе настроек печати
 const previewContainerStyle = computed(() => {
   if (!sidebarRef.value?.settings) return {}
@@ -186,6 +198,7 @@ const previewContainerStyle = computed(() => {
   
   return {
     '--preview-width': `${pageSize.width}mm`,
+    '--preview-height': `${pageSize.height}mm`,
     '--preview-padding-left': `${leftMargin}mm`,
     '--preview-padding-right': `${rightMargin}mm`
   }
@@ -237,14 +250,7 @@ const calculatePageBreaks = async () => {
   // Добавляем индикатор перед первым постом (страница 1)
   if (posts.length > 0) {
     const firstPost = posts[0]
-    const pageBreak = document.createElement('div')
-    pageBreak.className = 'page-break border-t-4 border-dashed border-blue-400 my-8 relative'
-    pageBreak.innerHTML = `
-      <div class="absolute -top-6 left-0 bg-blue-500 text-white px-3 py-1 rounded text-xs font-semibold">
-        Страница 1
-      </div>
-    `
-    firstPost.parentNode.insertBefore(pageBreak, firstPost)
+    firstPost.parentNode.insertBefore(createPageBreak(1), firstPost)
   }
   
   posts.forEach((post, index) => {
@@ -259,14 +265,7 @@ const calculatePageBreaks = async () => {
       
       // Вставляем визуальный индикатор разрыва страницы перед постом
       pageCount++
-      const pageBreak = document.createElement('div')
-      pageBreak.className = 'page-break border-t-4 border-dashed border-blue-400 my-8 relative'
-      pageBreak.innerHTML = `
-        <div class="absolute -top-6 left-0 bg-blue-500 text-white px-3 py-1 rounded text-xs font-semibold">
-          Страница ${pageCount}
-        </div>
-      `
-      post.parentNode.insertBefore(pageBreak, post)
+      post.parentNode.insertBefore(createPageBreak(pageCount), post)
       
       // Сбрасываем счетчик высоты
       currentPageHeight = postHeight
