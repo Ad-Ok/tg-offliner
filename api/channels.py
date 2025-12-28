@@ -638,20 +638,20 @@ def create_pdf_html(channel_id):
         if preview_pages:
             current_app.logger.info(f"Применяем page breaks для {len(preview_pages)} страниц")
             
-            # Создаем список последних постов на каждой странице
-            last_posts_on_pages = []
+            # Создаем список первых постов на каждой странице (кроме первой)
+            first_posts_on_pages = []
             for page_data in preview_pages:
-                if page_data.get('posts'):
-                    last_post = page_data['posts'][-1]
-                    last_posts_on_pages.append({
-                        'telegram_id': last_post['telegram_id'],
-                        'channel_id': last_post['channel_id']
+                if page_data.get('page', 0) > 1 and page_data.get('posts'):  # Пропускаем страницу 1
+                    first_post = page_data['posts'][0]
+                    first_posts_on_pages.append({
+                        'telegram_id': first_post['telegram_id'],
+                        'channel_id': first_post['channel_id']
                     })
             
-            current_app.logger.info(f"Посты с page break: {last_posts_on_pages}")
+            current_app.logger.info(f"Посты с page break: {first_posts_on_pages}")
             
-            # Находим и помечаем последние посты на каждой странице
-            for post_info in last_posts_on_pages:
+            # Находим и помечаем первые посты на каждой странице
+            for post_info in first_posts_on_pages:
                 # Ищем div с data-post-id и data-channel-id
                 post_div = soup.find('div', {
                     'data-post-id': str(post_info['telegram_id']),
@@ -663,9 +663,9 @@ def create_pdf_html(channel_id):
                     existing_classes = post_div.get('class', [])
                     if isinstance(existing_classes, str):
                         existing_classes = existing_classes.split()
-                    existing_classes.append('break-after-page')
+                    existing_classes.append('break-before-page')
                     post_div['class'] = existing_classes
-                    current_app.logger.info(f"Добавлен break-after-page для поста {post_info['telegram_id']}")
+                    current_app.logger.info(f"Добавлен break-before-page для поста {post_info['telegram_id']}")
                 else:
                     current_app.logger.warning(f"Пост {post_info['telegram_id']} не найден в HTML")
         

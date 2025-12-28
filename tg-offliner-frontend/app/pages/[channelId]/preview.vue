@@ -225,15 +225,27 @@ const calculatePageBreaks = async () => {
   const oldBreaks = wallContainer.value.querySelectorAll('.page-break')
   oldBreaks.forEach(br => br.remove())
   
-  // Удаляем класс break-after-page со всех постов
+  // Удаляем класс break-before-page со всех постов
   posts.forEach(post => {
-    post.classList.remove('break-after-page')
+    post.classList.remove('break-before-page')
   })
   
   let currentPageHeight = 0
   let pageCount = 1
   const pagesData = [{ page: 1, posts: [] }] // Структура: [{ page: 1, posts: [{telegram_id, channel_id}] }]
-  let previousPost = null
+  
+  // Добавляем индикатор перед первым постом (страница 1)
+  if (posts.length > 0) {
+    const firstPost = posts[0]
+    const pageBreak = document.createElement('div')
+    pageBreak.className = 'page-break border-t-4 border-dashed border-blue-400 my-8 relative'
+    pageBreak.innerHTML = `
+      <div class="absolute -top-6 left-0 bg-blue-500 text-white px-3 py-1 rounded text-xs font-semibold">
+        Страница 1
+      </div>
+    `
+    firstPost.parentNode.insertBefore(pageBreak, firstPost)
+  }
   
   posts.forEach((post, index) => {
     const postHeight = post.offsetHeight
@@ -242,24 +254,22 @@ const calculatePageBreaks = async () => {
     
     // Если добавление этого поста превысит высоту страницы
     if (currentPageHeight + postHeight > pageHeight && currentPageHeight > 0) {
-      // Добавляем класс break-after-page к предыдущему посту (последнему на странице)
-      if (previousPost) {
-        previousPost.classList.add('break-after-page')
-      }
+      // Добавляем класс break-before-page к текущему посту (первому на новой странице)
+      post.classList.add('break-before-page')
       
       // Вставляем визуальный индикатор разрыва страницы перед постом
+      pageCount++
       const pageBreak = document.createElement('div')
       pageBreak.className = 'page-break border-t-4 border-dashed border-blue-400 my-8 relative'
       pageBreak.innerHTML = `
         <div class="absolute -top-6 left-0 bg-blue-500 text-white px-3 py-1 rounded text-xs font-semibold">
-          Страница ${pageCount + 1}
+          Страница ${pageCount}
         </div>
       `
       post.parentNode.insertBefore(pageBreak, post)
       
       // Сбрасываем счетчик высоты
       currentPageHeight = postHeight
-      pageCount++
       pagesData.push({ page: pageCount, posts: [] })
     } else {
       currentPageHeight += postHeight
@@ -272,12 +282,7 @@ const calculatePageBreaks = async () => {
         channel_id: postChannelId
       })
     }
-    
-    previousPost = post
   })
-  
-  // Не забываем про последний пост на последней странице - ему не нужен break-after-page
-  // (он и так последний)
   
   totalPages.value = pageCount
   pageBreaksData.value = pagesData
