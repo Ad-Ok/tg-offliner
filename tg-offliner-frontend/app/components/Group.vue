@@ -40,6 +40,7 @@
               :fullMediaUrl="postsWithMedia[cell.image_index]?.media_url"
               :mediaType="postsWithMedia[cell.image_index]?.media_type"
               :mimeType="postsWithMedia[cell.image_index]?.mime_type"
+              :isGallery="true"
               :class="[
                 { 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode }, 
                 'w-full h-full border-transparent',
@@ -66,6 +67,7 @@
               :fullMediaUrl="post.media_url"
               :mediaType="post.media_type"
               :mimeType="post.mime_type"
+              :isGallery="true"
               :class="{ 'opacity-25 print:hidden': getPostHiddenState(post) && !editModeStore.isExportMode }"
               :caption="getMediaCaption(post)"
               :useFancybox="!layoutData"

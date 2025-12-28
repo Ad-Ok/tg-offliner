@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-xl mx-auto print:max-w-none">
+  <div class="max-w-xl mx-auto print:max-w-none" :class="pageFormatClass">
     <!-- Информация о канале -->
     <ChannelCover 
       v-if="channelInfo" 
@@ -162,6 +162,12 @@ const { data: channelInfo } = await useAsyncData(
   () => api.get(`/api/channels/${channelId}`).then(res => res.data)
 )
 
+// Вычисляем класс формата страницы для CSS правил
+const pageFormatClass = computed(() => {
+  const pageSize = channelInfo.value?.print_settings?.page_size || 'A4'
+  return `page-format-${pageSize.toLowerCase()}`
+})
+
 // Инициализируем sortOrder из настроек канала
 watch(channelInfo, (newChannelInfo) => {
   if (newChannelInfo?.changes?.sortOrder) {
@@ -172,16 +178,18 @@ watch(channelInfo, (newChannelInfo) => {
 const realPostsCount = computed(() => {
   if (!posts.value) return 0
   
-  const mainPosts = posts.value.filter(post => !post.grouped_id && !post.reply_to)
-  const groups = {}
+  // Считаем посты без групп и без ответов
+  const singlePosts = posts.value.filter(post => !post.grouped_id && !post.reply_to)
   
+  // Считаем уникальные группы (grouped_id) среди постов без ответов
+  const uniqueGroups = new Set()
   posts.value.forEach(post => {
     if (post.grouped_id && !post.reply_to) {
-      groups[post.grouped_id] = true
+      uniqueGroups.add(post.grouped_id)
     }
   })
   
-  return mainPosts.length + Object.keys(groups).length
+  return singlePosts.length + uniqueGroups.size
 })
 
 const totalCommentsCount = computed(() => {

@@ -10,7 +10,7 @@
     
     <!-- Основная область с preview -->
     <div class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900" ref="previewContainer" :style="previewContainerStyle">
-      <div class="mx-auto py-8" style="width: var(--preview-width); padding-top: var(--preview-padding-top); padding-left: var(--preview-padding-left); padding-right: var(--preview-padding-right);">
+      <div class="mx-auto py-8" :class="pageFormatClass" style="width: var(--preview-width); padding-top: var(--preview-padding-top); padding-left: var(--preview-padding-left); padding-right: var(--preview-padding-right);">
         <!-- Информация о канале -->
         <ChannelCover 
           v-if="channelInfo" 
@@ -150,16 +150,18 @@ watch(channelInfo, (newChannelInfo) => {
 const realPostsCount = computed(() => {
   if (!posts.value) return 0
   
-  const mainPosts = posts.value.filter(post => !post.grouped_id && !post.reply_to)
-  const groups = {}
+  // Считаем посты без групп и без ответов
+  const singlePosts = posts.value.filter(post => !post.grouped_id && !post.reply_to)
   
+  // Считаем уникальные группы (grouped_id) среди постов без ответов
+  const uniqueGroups = new Set()
   posts.value.forEach(post => {
     if (post.grouped_id && !post.reply_to) {
-      groups[post.grouped_id] = true
+      uniqueGroups.add(post.grouped_id)
     }
   })
   
-  return mainPosts.length + Object.keys(groups).length
+  return singlePosts.length + uniqueGroups.size
 })
 
 const totalCommentsCount = computed(() => {
@@ -200,6 +202,14 @@ const previewContainerStyle = computed(() => {
   }
 })
 
+// Вычисляем класс формата страницы для CSS правил
+const pageFormatClass = computed(() => {
+  const settings = sidebarRef.value?.settings
+  if (!settings) return 'page-format-a4'
+  const pageSize = settings.page_size || 'A4'
+  return `page-format-${pageSize.toLowerCase()}`
+})
+
 // Функция для вычисления разрывов страниц
 const calculatePageBreaks = async () => {
   if (!wallContainer.value || !sidebarRef.value?.settings) return
@@ -218,9 +228,12 @@ const calculatePageBreaks = async () => {
   // Находим все посты
   const posts = wallContainer.value.querySelectorAll('[data-post-id]')
   
-  // Удаляем старые разрывы страниц и классы
-  const oldBreaks = wallContainer.value.querySelectorAll('.page-break')
-  oldBreaks.forEach(br => br.remove())
+  // Удаляем старые разрывы страниц и классы из всего контейнера
+  const contentContainer = previewContainer.value?.querySelector('.mx-auto')
+  if (contentContainer) {
+    const oldBreaks = contentContainer.querySelectorAll('.page-break')
+    oldBreaks.forEach(br => br.remove())
+  }
   
   // Удаляем класс break-before-page со всех постов
   posts.forEach(post => {
@@ -238,9 +251,8 @@ const calculatePageBreaks = async () => {
   }
   
   // Добавляем индикатор страницы 1 в самое начало (перед channel-cover)
-  const firstChild = wallContainer.value.firstChild
-  if (firstChild) {
-    wallContainer.value.insertBefore(createPageBreak(1), firstChild)
+  if (contentContainer && channelCoverElement) {
+    contentContainer.insertBefore(createPageBreak(1), channelCoverElement)
   }
   
   posts.forEach((post, index) => {

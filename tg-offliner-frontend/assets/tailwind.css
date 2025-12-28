@@ -10,5 +10,44 @@
 }
 
 @layer components {
+  .post-media.single-image img {
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Запрещаем разрыв галерей на страницы */
+  .gallery-container,
+  .media-grid {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Ограничиваем высоту картинок для разных форматов страниц */
+  /* Формула: высота страницы - 80mm (margins + отступы) */
+  
+  .page-format-a4 .post-media.single-image img {
+    max-height: 217mm;
+  }
+  
+  .page-format-a3 .post-media.single-image img {
+    max-height: 340mm;
+  }
+  
+  .page-format-usletter .post-media.single-image img {
+    max-height: 199.4mm;
+  }
+  
+  .page-format-tabloid .post-media.single-image img {
+    max-height: 351.8mm;
+  }
+
+  .break-before-page {
+    page-break-before: always;
+    break-before: page;
+  }
 }
 

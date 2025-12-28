@@ -1,5 +1,5 @@
 <template>
-  <div class="post-media" :data-media-type="mediaType" :data-mime-type="mimeType">
+  <div class="post-media" :class="{ 'single-image': !isGallery }" :data-media-type="mediaType" :data-mime-type="mimeType">
     <div v-if="mediaType === 'MessageMediaDocument'">
       <!-- Изображения -->
       <a
@@ -83,7 +83,8 @@ export default {
     imgClass: { type: String, required: false, default: 'w-full' },
     caption: { type: String, required: false, default: '' },
     fullMediaUrl: { type: String, required: false, default: '' },
-    useFancybox: { type: Boolean, required: false, default: true }
+    useFancybox: { type: Boolean, required: false, default: true },
+    isGallery: { type: Boolean, required: false, default: false }
   },
   computed: {
     mediaSrc() {
