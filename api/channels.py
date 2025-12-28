@@ -550,6 +550,13 @@ def export_channel_to_html(channel_id):
 def create_pdf_html(channel_id):
     """Создает HTML специально для PDF с минимальным CSS."""
     try:
+        # Получаем канал для доступа к preview_pages
+        channel = Channel.query.filter_by(id=channel_id).first()
+        preview_pages = []
+        if channel and channel.changes:
+            preview_pages = channel.changes.get('preview_pages', [])
+            current_app.logger.info(f"Найдено {len(preview_pages)} страниц в preview_pages")
+        
         # Получаем HTML от SSR
         ssr_url = f'http://ssr:3000/{channel_id}/posts'
         response = requests.get(ssr_url)
@@ -599,6 +606,41 @@ def create_pdf_html(channel_id):
             css_link['rel'] = 'stylesheet'
             css_link['href'] = './styles-pdf.css'
             head.append(css_link)
+        
+        # Применяем page breaks из preview_pages
+        if preview_pages:
+            current_app.logger.info(f"Применяем page breaks для {len(preview_pages)} страниц")
+            
+            # Создаем список последних постов на каждой странице
+            last_posts_on_pages = []
+            for page_data in preview_pages:
+                if page_data.get('posts'):
+                    last_post = page_data['posts'][-1]
+                    last_posts_on_pages.append({
+                        'telegram_id': last_post['telegram_id'],
+                        'channel_id': last_post['channel_id']
+                    })
+            
+            current_app.logger.info(f"Посты с page break: {last_posts_on_pages}")
+            
+            # Находим и помечаем последние посты на каждой странице
+            for post_info in last_posts_on_pages:
+                # Ищем div с data-post-id и data-channel-id
+                post_div = soup.find('div', {
+                    'data-post-id': str(post_info['telegram_id']),
+                    'data-channel-id': post_info['channel_id']
+                })
+                
+                if post_div:
+                    # Добавляем класс для page break
+                    existing_classes = post_div.get('class', [])
+                    if isinstance(existing_classes, str):
+                        existing_classes = existing_classes.split()
+                    existing_classes.append('break-after-page')
+                    post_div['class'] = existing_classes
+                    current_app.logger.info(f"Добавлен break-after-page для поста {post_info['telegram_id']}")
+                else:
+                    current_app.logger.warning(f"Пост {post_info['telegram_id']} не найден в HTML")
         
         # Удаляем скрипты
         for script in soup.find_all('script'):

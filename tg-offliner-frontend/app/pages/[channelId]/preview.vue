@@ -197,13 +197,19 @@ const calculatePageBreaks = async () => {
   // Находим все посты
   const posts = wallContainer.value.querySelectorAll('[data-post-id]')
   
-  // Удаляем старые разрывы страниц
+  // Удаляем старые разрывы страниц и классы
   const oldBreaks = wallContainer.value.querySelectorAll('.page-break')
   oldBreaks.forEach(br => br.remove())
+  
+  // Удаляем класс break-after-page со всех постов
+  posts.forEach(post => {
+    post.classList.remove('break-after-page')
+  })
   
   let currentPageHeight = 0
   let pageCount = 1
   const pagesData = [{ page: 1, posts: [] }] // Структура: [{ page: 1, posts: [{telegram_id, channel_id}] }]
+  let previousPost = null
   
   posts.forEach((post, index) => {
     const postHeight = post.offsetHeight
@@ -212,7 +218,12 @@ const calculatePageBreaks = async () => {
     
     // Если добавление этого поста превысит высоту страницы
     if (currentPageHeight + postHeight > pageHeight && currentPageHeight > 0) {
-      // Вставляем разрыв страницы перед постом
+      // Добавляем класс break-after-page к предыдущему посту (последнему на странице)
+      if (previousPost) {
+        previousPost.classList.add('break-after-page')
+      }
+      
+      // Вставляем визуальный индикатор разрыва страницы перед постом
       const pageBreak = document.createElement('div')
       pageBreak.className = 'page-break border-t-4 border-dashed border-blue-400 my-8 relative'
       pageBreak.innerHTML = `
@@ -237,7 +248,12 @@ const calculatePageBreaks = async () => {
         channel_id: postChannelId
       })
     }
+    
+    previousPost = post
   })
+  
+  // Не забываем про последний пост на последней странице - ему не нужен break-after-page
+  // (он и так последний)
   
   totalPages.value = pageCount
   pageBreaksData.value = pagesData
