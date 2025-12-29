@@ -787,37 +787,50 @@ def print_channel_to_pdf(channel_id):
 
 @channels_bp.route('/channels/<channel_id>/export-idml', methods=['GET'])
 def export_channel_to_idml(channel_id):
-    """Экспортирует канал в IDML формат для InDesign."""
+    """Экспортирует канал в IDML формат для InDesign из frozen layout."""
     try:
         current_app.logger.info(f"=== НАЧАЛО IDML ЭКСПОРТА для канала {channel_id} ===")
         
-        # Получаем канал и его посты
+        # Получаем канал
         channel = Channel.query.filter_by(id=channel_id).first()
         if not channel:
             return jsonify({"error": "Канал не найден"}), 404
         
+        # Получаем frozen layout
+        from models import Page
+        frozen_pages = Page.query.filter_by(channel_id=channel_id).all()
+        frozen_pages = [p for p in frozen_pages if p.json_data.get('type') == 'frozen_layout']
+        
+        if not frozen_pages:
+            return jsonify({
+                "error": "Frozen layout не найден. Сначала создайте frozen layout в preview."
+            }), 404
+        
+        # Сортируем по номеру страницы
+        frozen_pages.sort(key=lambda p: p.json_data.get('page_number', 0))
+        
+        current_app.logger.info(f"Найдено {len(frozen_pages)} frozen страниц для экспорта")
+        
         # Получаем настройки печати канала
         print_settings = channel.print_settings or {}
         
-        # Получаем все видимые посты (не hidden)
-        # TODO: позже добавим фильтрацию по hidden через Edits
-        posts = Post.query.filter_by(channel_id=channel_id).order_by(Post.telegram_id.asc()).limit(10).all()
-        
-        if not posts:
-            return jsonify({"error": "В канале нет постов для экспорта"}), 404
-        
-        current_app.logger.info(f"Найдено {len(posts)} постов для экспорта")
-        
-        # Создаем IDML builder
+        # Создаем IDML builder из frozen layout
         from idml_export.builder import IDMLBuilder
         
         builder = IDMLBuilder(channel, print_settings)
         builder.create_document()
         
-        # Добавляем посты с медиа
-        for post in posts:
-            # Используем новый метод add_post который обрабатывает и текст, и медиа
-            builder.add_post(post, DOWNLOADS_DIR)
+        # Добавляем страницы из frozen layout
+        for page in frozen_pages:
+            page_data = page.json_data
+            page_number = page_data.get('page_number', 1)
+            posts = page_data.get('posts', [])
+            
+            current_app.logger.info(f"Обработка страницы {page_number} с {len(posts)} постами")
+            
+            # Добавляем каждый пост с его координатами и контентом
+            for post_data in posts:
+                builder.add_frozen_post(post_data, page_number)
         
         # Сохраняем IDML
         channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
@@ -835,8 +848,9 @@ def export_channel_to_idml(channel_id):
         
         return jsonify({
             "success": True,
-            "message": f"IDML файл создан в downloads/{channel_id}/{channel_id}.idml",
-            "path": idml_path
+            "message": f"IDML файл создан из frozen layout ({len(frozen_pages)} страниц)",
+            "path": idml_path,
+            "pages": len(frozen_pages)
         }), 200
         
     except Exception as e:

@@ -37,6 +37,11 @@ class IDMLBuilder:
         # Генераторы ID
         self._id_counter = 100
         
+        # Размеры страницы (инициализируем из настроек)
+        page_size_mm = PAGE_SIZES[self.settings['page_size']]
+        self.page_width = mm_to_points(page_size_mm['width'])
+        self.page_height = mm_to_points(page_size_mm['height'])
+        
         # Структура документа
         self.spreads = []
         self.stories = []
@@ -54,39 +59,100 @@ class IDMLBuilder:
         return f"{prefix}{self._id_counter}"
     
     def create_document(self):
-        """Создает базовый документ с одним Spread"""
+        """Создает пустой документ без страниц (для frozen layout)"""
         # Размер страницы из констант (в мм), конвертируем в points
         page_size_mm = PAGE_SIZES[self.settings['page_size']]
         width = mm_to_points(page_size_mm['width'])
         height = mm_to_points(page_size_mm['height'])
         
-        # Создаем первый Spread
-        spread_id = self.next_id('spread_')
+        # Сохраняем размеры для использования в add_page
+        self.page_width = width
+        self.page_height = height
+        
+        # НЕ создаем spreads здесь - они будут созданы в add_page/add_frozen_post
+        
+        return None
+    
+    def get_all_pages(self):
+        """Возвращает список всех страниц из всех spreads"""
+        all_pages = []
+        for spread in self.spreads:
+            all_pages.extend(spread['pages'])
+        return all_pages
+    
+    def add_page(self, is_right_page=None):
+        """
+        Добавляет новую страницу в документ с правильной структурой разворотов по модели InDesign
+        
+        :param is_right_page: True для правой страницы, False для левой, None - авто
+        :return: новая страница
+        """
         page_id = self.next_id('page_')
         
-        spread = {
-            'id': spread_id,
-            'pages': [{
+        all_pages = self.get_all_pages()
+        page_count = len(all_pages)
+        page_number = page_count + 1
+        
+        # InDesign ItemTransform для страницы
+        # Для правых страниц: 1 0 0 1 0 -pageHeight/2
+        # Для левых страниц: 1 0 0 1 -pageWidth -pageHeight/2
+        center_offset = -self.page_height / 2
+        
+        if page_count == 0:
+            # Страница 1 - одиночная правая (титул)
+            new_page = {
                 'id': page_id,
-                'bounds': [0, 0, height, width],
-                'frames': []
-            }]
-        }
+                'bounds': [0, 0, self.page_height, self.page_width],
+                'frames': [],
+                'item_transform': f'1 0 0 1 0 {center_offset}',
+                'name': str(page_number)
+            }
+            
+            spread_id = self.next_id('spread_')
+            spread = {
+                'id': spread_id,
+                'pages': [new_page],
+                'page_count': 1,
+                'binding_location': 0,  # Одиночная правая
+                'item_transform': '1 0 0 1 0 0'
+            }
+            self.spreads.append(spread)
+            
+        elif page_count % 2 == 1:
+            # Четные страницы (2, 4, 6...) - начинаем новый разворот с ЛЕВОЙ страницы
+            new_page = {
+                'id': page_id,
+                'bounds': [0, 0, self.page_height, self.page_width],
+                'frames': [],
+                'item_transform': f'1 0 0 1 {-self.page_width} {center_offset}',  # Левая страница сдвинута влево
+                'name': str(page_number)
+            }
+            
+            spread_id = self.next_id('spread_')
+            spread = {
+                'id': spread_id,
+                'pages': [new_page],
+                'page_count': 1,  # Пока одна страница, будет 2 после добавления правой
+                'binding_location': 1,  # Разворот
+                'item_transform': f'1 0 0 1 0 {self.page_height + center_offset}'  # Сдвиг разворота вниз
+            }
+            self.spreads.append(spread)
+            
+        else:
+            # Нечетные страницы (3, 5, 7...) - добавляем ПРАВУЮ страницу в текущий разворот
+            new_page = {
+                'id': page_id,
+                'bounds': [0, 0, self.page_height, self.page_width],
+                'frames': [],
+                'item_transform': f'1 0 0 1 0 {center_offset}',  # Правая страница
+                'name': str(page_number)
+            }
+            
+            # Добавляем в текущий spread
+            self.spreads[-1]['pages'].append(new_page)
+            self.spreads[-1]['page_count'] = 2  # Теперь разворот полный
         
-        self.spreads.append(spread)
-        self.current_page = spread['pages'][0]
-        
-        # Вычисляем границы текстовой области
-        text_area = calculate_text_frame_bounds(
-            self.current_page['bounds'],
-            self.settings['margins'],
-            self.settings['text_columns'],
-            self.settings['column_gutter']
-        )
-        
-        self.current_y = text_area['bounds'][0]  # Начинаем с верха текстовой области
-        
-        return spread
+        return new_page
     
     def add_text_story(self, content, style='PostBody'):
         """
@@ -107,12 +173,13 @@ class IDMLBuilder:
         self.stories.append(story)
         return story_id
     
-    def add_text_frame(self, story_id, bounds):
+    def add_text_frame(self, story_id, bounds, page_index=None):
         """
-        Добавляет текстовый фрейм на текущую страницу
+        Добавляет текстовый фрейм на страницу
         
         :param story_id: ID Story
         :param bounds: [y1, x1, y2, x2]
+        :param page_index: индекс страницы (0-based), если None - текущая страница
         """
         frame_id = self.next_id('frame_')
         
@@ -123,7 +190,14 @@ class IDMLBuilder:
             'bounds': bounds
         }
         
-        self.current_page['frames'].append(frame)
+        # Добавляем на указанную или текущую страницу
+        if page_index is not None:
+            all_pages = self.get_all_pages()
+            target_page = all_pages[page_index]
+        else:
+            target_page = self.current_page
+            
+        target_page['frames'].append(frame)
         return frame_id
     
     def get_image_dimensions(self, image_path):
@@ -290,6 +364,65 @@ class IDMLBuilder:
         content_height += 20
         
         return content_height
+    
+    def add_frozen_post(self, post_data, page_number):
+        """
+        Добавляет пост из frozen layout с точными координатами
+        
+        :param post_data: словарь с данными поста из frozen layout
+        :param page_number: номер страницы (1-based)
+        """
+        from .constants import mm_to_points
+        
+        # Убеждаемся что нужное количество страниц существует
+        all_pages = self.get_all_pages()
+        while len(all_pages) < page_number:
+            self.add_page()
+            all_pages = self.get_all_pages()
+        
+        # Получаем bounds из frozen данных (в миллиметрах)
+        bounds_mm = post_data.get('bounds', {})
+        
+        # Frozen координаты:
+        # - top: относительно page-break маркера (ПОСЛЕ top margin) - нужно добавить margin
+        # - left: относительно containerRect.left (УЖЕ включает left margin) - НЕ добавлять margin
+        top_margin_pt = self.settings['margins'][0]  # top margin
+        
+        # Конвертируем bounds в points для InDesign
+        top_pt = mm_to_points(bounds_mm['top']) + top_margin_pt  # Добавляем top margin
+        left_pt = mm_to_points(bounds_mm['left'])  # НЕ добавляем left margin (уже учтен)
+        width_pt = mm_to_points(bounds_mm['width'])
+        height_pt = mm_to_points(bounds_mm['height'])
+        
+        # InDesign bounds: [y1, x1, y2, x2]
+        frame_bounds = [
+            top_pt,                  # y1 (top)
+            left_pt,                 # x1 (left)
+            top_pt + height_pt,      # y2 (bottom)
+            left_pt + width_pt       # x2 (right)
+        ]
+        
+        # Получаем текстовый контент из frozen данных
+        content = post_data.get('content', {})
+        
+        # Собираем текст поста
+        text_parts = []
+        if content.get('header'):
+            text_parts.append(content['header'])
+        if content.get('body'):
+            # Убираем HTML теги для InDesign
+            import re
+            clean_text = re.sub(r'<[^>]+>', '', content['body'])
+            text_parts.append(clean_text)
+        if content.get('date'):
+            text_parts.append(content['date'])
+        
+        full_text = '\n'.join(text_parts)
+        
+        # Создаем story и frame с точными координатами
+        if full_text:
+            story_id = self.add_text_story(full_text, 'PostBody')
+            self.add_text_frame(story_id, frame_bounds, page_index=page_number - 1)
     
     def save(self, output_path):
         """
@@ -477,8 +610,16 @@ class IDMLBuilder:
                 f.write(spread_xml)
     
     def _create_spread_xml(self, spread):
-        """Создает XML для одного Spread"""
-        root = ET.Element('Spread', Self=spread['id'], 
+        """Создает XML для одного Spread по модели InDesign"""
+        page_count = spread.get('page_count', len(spread['pages']))
+        binding_location = spread.get('binding_location', 0)
+        item_transform = spread.get('item_transform', '1 0 0 1 0 0')
+        
+        root = ET.Element('Spread', 
+                         Self=spread['id'],
+                         PageCount=str(page_count),
+                         BindingLocation=str(binding_location),
+                         ItemTransform=item_transform,
                          FlattenerOverride='Default',
                          nsmap={
             None: 'http://ns.adobe.com/AdobeInDesign/4.0/'
@@ -488,27 +629,72 @@ class IDMLBuilder:
         ET.SubElement(root, 'FlattenerPreference')
         
         for page in spread['pages']:
+            page_item_transform = page.get('item_transform', '1 0 0 1 0 0')
+            page_name = page.get('name', '1')
+            
             page_elem = ET.SubElement(root, 'Page',
                                      Self=page['id'],
+                                     Name=page_name,
                                      GeometricBounds=' '.join(map(str, page['bounds'])),
-                                     ItemTransform='1 0 0 1 0 0')
+                                     ItemTransform=page_item_transform)
+            
+            # Добавляем MarginPreference с нашими полями
+            # margins уже в points из __init__
+            top_margin = self.settings['margins'][0]
+            left_margin = self.settings['margins'][1]
+            bottom_margin = self.settings['margins'][2]
+            right_margin = self.settings['margins'][3]
+            
+            ET.SubElement(page_elem, 'MarginPreference',
+                         ColumnCount='1',
+                         ColumnGutter='12',
+                         Top=str(top_margin),
+                         Bottom=str(bottom_margin),
+                         Left=str(left_margin),
+                         Right=str(right_margin),
+                         ColumnDirection='Horizontal',
+                         ColumnsPositions=f'0 {self.page_width - left_margin - right_margin}')
             
             # Добавляем фреймы
             for frame in page['frames']:
                 if frame['type'] == 'TextFrame':
-                    self._create_text_frame_elem(page_elem, frame)
+                    self._create_text_frame_elem(page_elem, frame, page)
                 elif frame['type'] == 'Rectangle':
                     self._create_image_frame_elem(page_elem, frame)
         
         return ET.tostring(root, pretty_print=True, xml_declaration=True, encoding='UTF-8')
     
-    def _create_text_frame_elem(self, parent, frame):
-        """Создает TextFrame элемент"""
+    def _create_text_frame_elem(self, parent, frame, page):
+        """Создает TextFrame элемент по модели InDesign"""
+        # bounds это [y1, x1, y2, x2] - абсолютные координаты на странице
+        y1, x1, y2, x2 = frame['bounds']
+        
+        # Вычисляем центр фрейма от верхнего левого угла
+        center_x = (x1 + x2) / 2
+        center_y_from_top = (y1 + y2) / 2
+        
+        # Вычисляем размеры фрейма
+        width = x2 - x1
+        height = y2 - y1
+        
+        # InDesign: X от левого края, Y от центра страницы
+        page_height = self.page_height
+        center_y = center_y_from_top - (page_height / 2)
+        
+        # Для четных страниц (левая сторона разворота) добавляем offset
+        page_number = int(page['name'])
+        if page_number > 1 and page_number % 2 == 0:
+            # Левая страница разворота - сдвигаем влево на ширину страницы
+            center_x = center_x - self.page_width
+        
+        # ItemTransform задает позицию центра фрейма
+        item_transform = f'1 0 0 1 {center_x} {center_y}'
+        
         text_frame = ET.SubElement(parent, 'TextFrame',
                                    Self=frame['id'],
                                    ParentStory=frame['story_id'],
                                    GeometricBounds=' '.join(map(str, frame['bounds'])),
-                                   ItemTransform='1 0 0 1 0 0',
+                                   ItemTransform=item_transform,
                                    ContentType='TextType')
         
         # Properties с PathGeometry (обязательно для InDesign)
@@ -517,15 +703,17 @@ class IDMLBuilder:
         geo_path = ET.SubElement(path_geo, 'GeometryPathType', PathOpen='false')
         path_points = ET.SubElement(geo_path, 'PathPointArray')
         
-        # Добавляем 4 точки прямоугольника
-        # bounds это [y1, x1, y2, x2], но PathPointType координаты должны быть "x y"
-        y1, x1, y2, x2 = frame['bounds']
+        # PathPoints относительно центра фрейма (симметричные координаты)
+        half_width = width / 2
+        half_height = height / 2
+        
         corners = [
-            (x1, y1),  # top-left
-            (x2, y1),  # top-right
-            (x2, y2),  # bottom-right
-            (x1, y2)   # bottom-left
+            (-half_width, -half_height),  # top-left
+            (half_width, -half_height),   # top-right
+            (half_width, half_height),    # bottom-right
+            (-half_width, half_height)    # bottom-left
         ]
+        
         for x, y in corners:
             anchor = f'{x} {y}'
             ET.SubElement(path_points, 'PathPointType',
