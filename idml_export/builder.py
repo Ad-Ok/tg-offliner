@@ -708,14 +708,19 @@ class IDMLBuilder:
                 if frame['type'] == 'TextFrame':
                     self._create_text_frame_elem(page_elem, frame, page)
                 elif frame['type'] == 'Rectangle':
-                    self._create_image_frame_elem(page_elem, frame)
+                    self._create_image_frame_elem(page_elem, frame, page)
         
         return ET.tostring(root, pretty_print=True, xml_declaration=True, encoding='UTF-8')
     
-    def _create_text_frame_elem(self, parent, frame, page):
-        """Создает TextFrame элемент по модели InDesign"""
-        # bounds это [y1, x1, y2, x2] - абсолютные координаты на странице
-        y1, x1, y2, x2 = frame['bounds']
+    def _calculate_item_transform(self, bounds, page):
+        """
+        Вычисляет ItemTransform и PathPoints для элемента (текст или изображение)
+        
+        :param bounds: [y1, x1, y2, x2] - абсолютные координаты на странице
+        :param page: объект страницы с 'name' (номер страницы)
+        :return: (item_transform, path_points) - строка transform и список точек
+        """
+        y1, x1, y2, x2 = bounds
         
         # Вычисляем центр фрейма от верхнего левого угла
         center_x = (x1 + x2) / 2
@@ -738,6 +743,24 @@ class IDMLBuilder:
         # ItemTransform задает позицию центра фрейма
         item_transform = f'1 0 0 1 {center_x} {center_y}'
         
+        # PathPoints относительно центра фрейма (симметричные координаты)
+        half_width = width / 2
+        half_height = height / 2
+        
+        path_points = [
+            (-half_width, -half_height),  # top-left
+            (half_width, -half_height),   # top-right
+            (half_width, half_height),    # bottom-right
+            (-half_width, half_height)    # bottom-left
+        ]
+        
+        return item_transform, path_points
+    
+    def _create_text_frame_elem(self, parent, frame, page):
+        """Создает TextFrame элемент по модели InDesign"""
+        # Используем утилиту для вычисления позиции
+        item_transform, path_points = self._calculate_item_transform(frame['bounds'], page)
+        
         text_frame = ET.SubElement(parent, 'TextFrame',
                                    Self=frame['id'],
                                    ParentStory=frame['story_id'],
@@ -749,49 +772,37 @@ class IDMLBuilder:
         props = ET.SubElement(text_frame, 'Properties')
         path_geo = ET.SubElement(props, 'PathGeometry')
         geo_path = ET.SubElement(path_geo, 'GeometryPathType', PathOpen='false')
-        path_points = ET.SubElement(geo_path, 'PathPointArray')
+        path_points_array = ET.SubElement(geo_path, 'PathPointArray')
         
-        # PathPoints относительно центра фрейма (симметричные координаты)
-        half_width = width / 2
-        half_height = height / 2
-        
-        corners = [
-            (-half_width, -half_height),  # top-left
-            (half_width, -half_height),   # top-right
-            (half_width, half_height),    # bottom-right
-            (-half_width, half_height)    # bottom-left
-        ]
-        
-        for x, y in corners:
+        for x, y in path_points:
             anchor = f'{x} {y}'
-            ET.SubElement(path_points, 'PathPointType',
+            ET.SubElement(path_points_array, 'PathPointType',
                          Anchor=anchor,
                          LeftDirection=anchor,
                          RightDirection=anchor)
         
         return text_frame
     
-    def _create_image_frame_elem(self, parent, frame):
+    def _create_image_frame_elem(self, parent, frame, page):
         """Создает Rectangle с Image элемент"""
+        # Используем ту же утилиту для вычисления позиции
+        item_transform, path_points = self._calculate_item_transform(frame['bounds'], page)
+        
         rect = ET.SubElement(parent, 'Rectangle',
                             Self=frame['id'],
                             GeometricBounds=' '.join(map(str, frame['bounds'])),
-                            ItemTransform='1 0 0 1 0 0')
+                            ItemTransform=item_transform)
         
         # Properties с PathGeometry
         props = ET.SubElement(rect, 'Properties')
         path_geo = ET.SubElement(props, 'PathGeometry')
         geo_path = ET.SubElement(path_geo, 'GeometryPathType', PathOpen='false')
-        path_points = ET.SubElement(geo_path, 'PathPointArray')
+        path_points_array = ET.SubElement(geo_path, 'PathPointArray')
         
-        # Добавляем 4 точки прямоугольника
-        y1, x1, y2, x2 = frame['bounds']
-        corners = [
-            (y1, x1), (y1, x2), (y2, x2), (y2, x1)
-        ]
-        for y, x in corners:
-            anchor = f'{y} {x}'
-            ET.SubElement(path_points, 'PathPointType',
+        # Используем path_points из утилиты (относительные к центру)
+        for x, y in path_points:
+            anchor = f'{x} {y}'
+            ET.SubElement(path_points_array, 'PathPointType',
                          Anchor=anchor,
                          LeftDirection=anchor,
                          RightDirection=anchor)
