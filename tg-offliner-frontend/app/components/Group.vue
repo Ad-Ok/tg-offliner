@@ -32,7 +32,7 @@
             :key="index"
             class="gallery-item absolute"
             :style="getCellStyle(cell)"
-            v-show="cell && cell.image_index !== undefined && cell.image_index < postsWithMedia.length && postsWithMedia[cell.image_index]"
+            v-if="cell && cell.image_index !== undefined && cell.image_index < postsWithMedia.length && postsWithMedia[cell.image_index]"
           >
             <PostEditor :post="postsWithMedia[cell.image_index]" @hiddenStateChanged="(state) => onHiddenStateChanged(postsWithMedia[cell.image_index], state)"/>
             <PostMedia
@@ -206,11 +206,13 @@ export default {
     initializeHiddenStates()
     
     const getPostHiddenState = (post) => {
+      if (!post || !post.channel_id || !post.telegram_id) return false
       const key = `${post.channel_id}:${post.telegram_id}`
       return hiddenStates.value.get(key) || false
     }
     
     const onHiddenStateChanged = (post, newHiddenState) => {
+      if (!post || !post.channel_id || !post.telegram_id) return
       const key = `${post.channel_id}:${post.telegram_id}`
       hiddenStates.value.set(key, newHiddenState)
     }
