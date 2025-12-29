@@ -31,30 +31,31 @@
 
       <div class="media-grid mt-2">
         <!-- If there's a layout, use it for positioning -->
-        <div v-show="layoutData" class="gallery-container relative" :style="galleryContainerStyle">
+        <div v-if="layoutData" class="gallery-container relative" :style="galleryContainerStyle">
           <div
             v-for="(cell, index) in layoutData?.cells || []"
             :key="index"
             class="gallery-item absolute"
             :style="getCellStyle(cell)"
-            v-if="cell && cell.image_index !== undefined && cell.image_index < postsWithMedia.length && postsWithMedia[cell.image_index]"
           >
-            <PostEditor :post="postsWithMedia[cell.image_index]" @hiddenStateChanged="(state) => onHiddenStateChanged(postsWithMedia[cell.image_index], state)"/>
-            <PostMedia
-              :mediaUrl="postsWithMedia[cell.image_index]?.thumb_url"
-              :fullMediaUrl="postsWithMedia[cell.image_index]?.media_url"
-              :mediaType="postsWithMedia[cell.image_index]?.media_type"
-              :mimeType="postsWithMedia[cell.image_index]?.mime_type"
-              :isGallery="true"
-              :class="[
-                { 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode }, 
-                'w-full h-full border-transparent',
-                borderClass
-              ]"
-              :imgClass="'object-cover w-full h-full'"
-              :caption="getMediaCaption(postsWithMedia[cell.image_index])"
-              :useFancybox="!!layoutData"
-            />
+            <template v-if="cell.image_index !== undefined && cell.image_index < postsWithMedia.length && postsWithMedia[cell.image_index]">
+              <PostEditor :post="postsWithMedia[cell.image_index]" @hiddenStateChanged="(state) => onHiddenStateChanged(postsWithMedia[cell.image_index], state)"/>
+              <PostMedia
+                :mediaUrl="postsWithMedia[cell.image_index].thumb_url"
+                :fullMediaUrl="postsWithMedia[cell.image_index].media_url"
+                :mediaType="postsWithMedia[cell.image_index].media_type"
+                :mimeType="postsWithMedia[cell.image_index].mime_type"
+                :isGallery="true"
+                :class="[
+                  { 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode }, 
+                  'w-full h-full border-transparent',
+                  borderClass
+                ]"
+                :imgClass="'object-cover w-full h-full'"
+                :caption="getMediaCaption(postsWithMedia[cell.image_index])"
+                :useFancybox="!!layoutData"
+              />
+            </template>
           </div>
         </div>
         <!-- Fallback: обычная grid -->
