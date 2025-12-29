@@ -255,25 +255,19 @@ class IDMLBuilder:
         
         return [y1, x1, y2, x2]
     
-    def add_image_frame(self, image_path, bounds, link_in_package=True, page_index=None, relative_path=None):
+    def add_image_frame(self, image_path, bounds, page_index=None):
         """
         Добавляет фрейм с изображением
         
-        :param image_path: путь к изображению (относительный или абсолютный)
+        :param image_path: абсолютный путь к изображению
         :param bounds: [y1, x1, y2, x2]
-        :param link_in_package: если True, копирует файл в IDML пакет
         :param page_index: индекс страницы (0-based), если None - текущая страница
-        :param relative_path: относительный путь для Links (channel_id/media/file.jpg)
         """
         frame_id = self.next_id('frame_')
         link_id = self.next_id('link_')
         
-        # Используем relative_path если передан, иначе только имя файла
-        if relative_path:
-            link_path = f"Links/{relative_path}"
-        else:
-            image_filename = os.path.basename(image_path)
-            link_path = f"Links/{image_filename}"
+        # Используем абсолютный путь к файлу
+        absolute_path = os.path.abspath(image_path)
         
         frame = {
             'id': frame_id,
@@ -281,7 +275,7 @@ class IDMLBuilder:
             'bounds': bounds,
             'image': {
                 'link_id': link_id,
-                'path': link_path  # Путь внутри IDML пакета
+                'path': absolute_path  # Абсолютный путь к файлу
             }
         }
         
@@ -297,15 +291,8 @@ class IDMLBuilder:
         # Добавляем ссылку в список
         self.links.append({
             'id': link_id,
-            'path': link_path
+            'path': absolute_path
         })
-        
-        # Добавляем файл для копирования в пакет
-        if link_in_package and os.path.exists(image_path):
-            self.media_files.append({
-                'source': image_path,
-                'dest': link_path  # Полный путь с Links/ префиксом
-            })
         
         return frame_id
     
@@ -461,15 +448,21 @@ class IDMLBuilder:
                 # Путь к изображению из базы (channel_id/media/file.jpg)
                 image_path = os.path.join('/app/downloads', post.media_url)
                 
-                # Добавляем image frame с относительным путем
+                # Пропускаем webp - InDesign не поддерживает этот формат
+                if image_path.lower().endswith('.webp'):
+                    print(f"⏭️ Skipping webp format (not supported by InDesign): {image_path}")
+                    continue
+                
+                # Добавляем image frame с абсолютным путем
                 if os.path.exists(image_path):
-                    # relative_path сохраняет структуру: channel_id/media/file.jpg
+                    print(f"✅ Adding image: {image_path}")
                     self.add_image_frame(
                         image_path, 
                         media_frame_bounds, 
-                        page_index=page_number - 1,
-                        relative_path=post.media_url  # channel_id/media/file.jpg
+                        page_index=page_number - 1
                     )
+                else:
+                    print(f"⚠️ Image not found: {image_path}")
     
     def save(self, output_path):
         """
@@ -493,19 +486,8 @@ class IDMLBuilder:
             self._generate_spreads(temp_dir)
             self._generate_stories(temp_dir)
             
-            # Копируем медиа-файлы в папку Links с сохранением структуры
-            if self.media_files:
-                for media in self.media_files:
-                    source_path = media['source']
-                    # dest уже содержит Links/ префикс
-                    dest_relative = media['dest']  # Links/channel_id/media/file.jpg
-                    dest_path = os.path.join(temp_dir, dest_relative)
-                    
-                    # Создаем подпапки если нужно
-                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                    
-                    if os.path.exists(source_path):
-                        shutil.copy2(source_path, dest_path)
+            # Медиа-файлы используют абсолютные пути, копировать не нужно
+            print(f"\n📎 Using {len(self.links)} external image links")
             
             # Создаем ZIP архив (IDML)
             with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as idml_zip:
@@ -791,7 +773,10 @@ class IDMLBuilder:
         rect = ET.SubElement(parent, 'Rectangle',
                             Self=frame['id'],
                             GeometricBounds=' '.join(map(str, frame['bounds'])),
-                            ItemTransform=item_transform)
+                            ItemTransform=item_transform,
+                            FillColor='Color/None',
+                            StrokeWeight='0',
+                            ContentType='GraphicType')
         
         # Properties с PathGeometry
         props = ET.SubElement(rect, 'Properties')
@@ -807,13 +792,26 @@ class IDMLBuilder:
                          LeftDirection=anchor,
                          RightDirection=anchor)
         
+        # FrameFittingOption идет после Properties (на уровне Rectangle, не Image!)
+        ET.SubElement(rect, 'FrameFittingOption',
+                     AutoFit='true',
+                     LeftCrop='0',
+                     TopCrop='0',
+                     RightCrop='0',
+                     BottomCrop='0',
+                     FittingOnEmptyFrame='FillProportionally',
+                     FittingAlignment='CenterAnchor')
+        
         # Добавляем Image
         if 'image' in frame:
-            image = ET.SubElement(rect, 'Image', Self=self.next_id('image_'))
-            # Используем относительный путь внутри IDML пакета
+            image = ET.SubElement(rect, 'Image',
+                                 Self=self.next_id('image_'),
+                                 ItemTransform='1 0 0 1 0 0')
+            
+            # Link с абсолютным путем
             link = ET.SubElement(image, 'Link',
                                Self=frame['image']['link_id'],
-                               LinkResourceURI=f"file:{frame['image']['path']}")
+                               LinkResourceURI=f"file://{frame['image']['path']}")
         
         return rect
     
