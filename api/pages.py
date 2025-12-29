@@ -245,3 +245,105 @@ def _auto_generate_pages(channel_id):
     db.session.commit()
     
     return created_pages
+
+
+@pages_bp.route('/pages/<channel_id>', methods=['POST'])
+def save_frozen_layout(channel_id):
+    """
+    Сохраняет frozen layout для канала.
+    Удаляет все существующие страницы канала и создает новые с frozen координатами.
+    
+    Ожидаемые данные:
+    {
+        "channel_id": "str",
+        "pages": [
+            {
+                "page_number": 1,
+                "posts": [
+                    {
+                        "telegram_id": 123,
+                        "channel_id": "llamasass",
+                        "type": "post",
+                        "bounds": {"top": 20, "left": 20, "width": 170, "height": 80},
+                        "elements": [...]
+                    }
+                ]
+            }
+        ]
+    }
+    """
+    data = request.get_json()
+    
+    if not data or 'pages' not in data:
+        return jsonify({"error": "pages array is required"}), 400
+    
+    frozen_pages = data['pages']
+    
+    try:
+        # Удаляем все существующие страницы канала
+        Page.query.filter_by(channel_id=channel_id).delete()
+        
+        # Создаем новые страницы с frozen layout
+        created_pages = []
+        for frozen_page in frozen_pages:
+            json_data = {
+                "version": "frozen_1.0",
+                "type": "frozen_layout",
+                "created_at": datetime.utcnow().isoformat(),
+                "page_number": frozen_page.get('page_number', 1),
+                "posts": frozen_page.get('posts', [])
+            }
+            
+            new_page = Page(
+                channel_id=channel_id,
+                json_data=json_data
+            )
+            
+            db.session.add(new_page)
+            created_pages.append(new_page)
+        
+        # Сохраняем все страницы одной транзакцией
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Saved {len(created_pages)} frozen pages for channel {channel_id}",
+            "pages_count": len(created_pages)
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "error": "Failed to save frozen layout",
+            "details": str(e)
+        }), 500
+
+
+@pages_bp.route('/pages/<channel_id>/frozen', methods=['GET'])
+def get_frozen_layout(channel_id):
+    """
+    Получить frozen layout для канала.
+    Возвращает только страницы с type="frozen_layout".
+    """
+    pages = Page.query.filter_by(channel_id=channel_id).all()
+    
+    # Фильтруем только frozen layout страницы
+    frozen_pages = [
+        page for page in pages 
+        if page.json_data.get('type') == 'frozen_layout'
+    ]
+    
+    if not frozen_pages:
+        return jsonify({
+            "error": "No frozen layout found for this channel",
+            "channel_id": channel_id
+        }), 404
+    
+    # Сортируем по номеру страницы
+    frozen_pages.sort(key=lambda p: p.json_data.get('page_number', 0))
+    
+    return jsonify({
+        "channel_id": channel_id,
+        "pages_count": len(frozen_pages),
+        "pages": [page.json_data for page in frozen_pages]
+    })

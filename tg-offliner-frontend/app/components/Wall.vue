@@ -10,6 +10,8 @@
           :posts="item.posts" 
           :original-post="item.originalPost"
           :comments-count="item.discussionComments ? item.discussionComments.length : 0"
+          :data-post-id="item.posts[0].telegram_id"
+          :data-channel-id="item.posts[0].channel_id"
         />
       </template>
       

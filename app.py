@@ -25,7 +25,13 @@ logging.basicConfig(
 )
 
 app = create_app()
-CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})  # Разрешаем CORS для фронтенда
+CORS(app, resources={
+    r"/*": {
+        "origins": "http://localhost:3000",
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})  # Разрешаем CORS для фронтенда
 init_db(app)
 
 # Регистрация blueprints

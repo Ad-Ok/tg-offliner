@@ -10,7 +10,7 @@
     
     <!-- Основная область с preview -->
     <div class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900" ref="previewContainer" :style="previewContainerStyle">
-      <div class="mx-auto py-8" :class="pageFormatClass" style="width: var(--preview-width); padding-top: var(--preview-padding-top); padding-left: var(--preview-padding-left); padding-right: var(--preview-padding-right);">
+      <div class="mx-auto" :class="pageFormatClass" style="width: var(--preview-width);  padding-left: var(--preview-padding-left); padding-right: var(--preview-padding-right);">
         <!-- Информация о канале -->
         <ChannelCover 
           v-if="channelInfo" 
@@ -40,7 +40,7 @@ import Wall from '~/components/Wall.vue'
 import ChannelCover from '~/components/ChannelCover.vue'
 import PrintSettingsSidebar from '~/components/system/PrintSettingsSidebar.vue'
 import { api } from '~/services/api'
-import { PAGE_SIZES, mmToPx } from '~/utils/units'
+import { PAGE_SIZES, mmToPx, pxToMm } from '~/utils/units'
 import { useEditModeStore } from '~/stores/editMode'
 
 const route = useRoute()
@@ -65,10 +65,119 @@ const recalculatePages = () => {
   calculatePageBreaks()
 }
 
-// Экспортируем функцию для внешнего использования
-defineExpose({ recalculatePages })
+// TODO: Функция для freeze layout - извлечение координат из текущей пагинации
+const freezeCurrentLayout = async () => {
+  if (!previewContainer.value || !sidebarRef.value?.settings) {
+    console.error('Preview container or settings not available')
+    return
+  }
+  
+  console.log('🔒 Starting freeze layout...')
+  
+  // Этап 1: Найти все page-break маркеры
+  const contentContainer = previewContainer.value.querySelector('.mx-auto')
+  if (!contentContainer) {
+    console.error('Content container not found')
+    return
+  }
+  
+  const pageBreaks = Array.from(contentContainer.querySelectorAll('.page-break'))
+  console.log(`Found ${pageBreaks.length} page breaks`)
+  
+  if (pageBreaks.length === 0) {
+    console.error('No page breaks found - run calculatePageBreaks() first')
+    return
+  }
+  
+  // Этап 2: Для каждой страницы извлечь посты и их координаты
+  const frozenPages = []
+  const containerRect = contentContainer.getBoundingClientRect()
+  
+  pageBreaks.forEach((pageBreak, pageIndex) => {
+    const pageNumber = pageIndex + 1
+    console.log(`\n📄 Processing page ${pageNumber}...`)
+    
+    // Координаты начала страницы (относительно контейнера)
+    const pageBreakRect = pageBreak.getBoundingClientRect()
+    const pageTop = pageBreakRect.bottom // После page-break начинается контент страницы
+    const pageLeft = containerRect.left
+    
+    // Найти все посты между этим и следующим page-break
+    const nextPageBreak = pageBreaks[pageIndex + 1]
+    const postsOnPage = findPostsBetweenMarkers(pageBreak, nextPageBreak, contentContainer)
+    
+    console.log(`  Found ${postsOnPage.length} posts on page ${pageNumber}`)
+    
+    // Извлечь координаты каждого поста
+    const frozenPosts = postsOnPage.map(postElement => {
+      const postRect = postElement.getBoundingClientRect()
+      
+      // Координаты относительно начала СТРАНИЦЫ
+      const bounds = {
+        top: pxToMm(postRect.top - pageTop),
+        left: pxToMm(postRect.left - pageLeft),
+        width: pxToMm(postRect.width),
+        height: pxToMm(postRect.height)
+      }
+      
+      const telegram_id = postElement.dataset.postId
+      const channel_id = postElement.dataset.channelId
+      
+      console.log(`    Post ${telegram_id}: top=${bounds.top.toFixed(2)}mm, left=${bounds.left.toFixed(2)}mm`)
+      
+      return {
+        telegram_id: parseInt(telegram_id),
+        channel_id: channel_id,
+        type: postElement.dataset.isComment === 'true' ? 'comment' : 'post',
+        bounds: bounds,
+        elements: [] // TODO: Извлечь вложенные элементы
+      }
+    })
+    
+    frozenPages.push({
+      page_number: pageNumber,
+      posts: frozenPosts
+    })
+  })
+  
+  console.log(`\n✅ Freeze complete: ${frozenPages.length} pages processed`)
+  
+  // Этап 3 и 4: Сохранить в БД через API
+  try {
+    await api.post(`/api/pages/${channelId}`, {
+      channel_id: channelId,
+      pages: frozenPages
+    })
+    console.log('💾 Saved to database')
+  } catch (error) {
+    console.error('Error saving frozen layout:', error)
+  }
+  
+  return frozenPages
+}
 
-// Сохраняем ссылку на функцию в window для доступа из Navbar
+// Вспомогательная функция: найти посты между двумя page-break маркерами
+const findPostsBetweenMarkers = (startMarker, endMarker, container) => {
+  const allPosts = Array.from(container.querySelectorAll('[data-post-id]'))
+  
+  const startRect = startMarker.getBoundingClientRect()
+  const endRect = endMarker ? endMarker.getBoundingClientRect() : { top: Infinity }
+  
+  // Фильтруем посты, которые находятся между маркерами
+  return allPosts.filter(post => {
+    const postRect = post.getBoundingClientRect()
+    return postRect.top >= startRect.bottom && postRect.top < endRect.top
+  })
+}
+
+// Экспортируем функции для внешнего использования
+defineExpose({ recalculatePages, freezeCurrentLayout })
+
+// Сохраняем ссылку на функцию в window для доступа из Navbar и Sidebar
+if (typeof window !== 'undefined') {
+  window.__previewRecalculatePages = recalculatePages
+  window.__previewFreeze = freezeCurrentLayout
+}
 if (typeof window !== 'undefined') {
   window.__previewRecalculatePages = recalculatePages
 }
@@ -189,11 +298,18 @@ const totalCommentsCount = computed(() => {
 // Функция для создания визуального индикатора разрыва страницы
 const createPageBreak = (pageNumber) => {
   const pageBreak = document.createElement('div')
-  pageBreak.className = 'page-break border-t-4 border-dashed border-blue-400 my-8 relative'
+  pageBreak.className = 'page-break relative'
+  
+  // Добавляем padding-top для всех, кроме первой страницы
+  if (pageNumber > 1) {
+    pageBreak.style.paddingTop = 'var(--preview-padding-bottom)'
+  }
+  
+  pageBreak.style.paddingBottom = 'var(--preview-padding-top)'
   pageBreak.innerHTML = `
-    <div class="absolute -top-6 left-0 bg-blue-500 text-white px-3 py-1 rounded text-xs font-semibold">
+    <div class="absolute left-0 w-full border-t-4 border-dashed border-blue-400"> <div class="absolute left-0 bottom-0 bg-blue-500 text-white px-3 py-1 rounded text-xs font-semibold">
       Страница ${pageNumber}
-    </div>
+    </div></div>
   `
   return pageBreak
 }
@@ -330,6 +446,13 @@ onMounted(() => {
   nextTick(() => {
     calculatePageBreaks()
   })
+})
+
+// Cleanup при unmount
+onUnmounted(() => {
+  if (process.client) {
+    cleanup()
+  }
 })
 
 // Пересчитываем при изменении настроек печати
