@@ -129,18 +129,26 @@ const freezeCurrentLayout = async () => {
       const mediaElements = []
       
       // Одиночные изображения (контейнер .post-media.single-image)
+      // Фильтруем только photo и image/*, исключаем MessageMediaWebPage
       const singleImageContainers = postElement.querySelectorAll('.post-media.single-image')
       singleImageContainers.forEach(container => {
-        const containerRect = container.getBoundingClientRect()
-        mediaElements.push({
-          type: 'image',
-          bounds: {
-            top: pxToMm(containerRect.top - pageTop),
-            left: pxToMm(containerRect.left - pageLeft),
-            width: pxToMm(containerRect.width),
-            height: pxToMm(containerRect.height)
-          }
-        })
+        const mediaType = container.dataset.mediaType
+        const mimeType = container.dataset.mimeType
+        
+        // Только MessageMediaPhoto или MessageMediaDocument с image/*
+        if (mediaType === 'MessageMediaPhoto' || 
+            (mediaType === 'MessageMediaDocument' && mimeType && mimeType.startsWith('image/'))) {
+          const containerRect = container.getBoundingClientRect()
+          mediaElements.push({
+            type: 'image',
+            bounds: {
+              top: pxToMm(containerRect.top - pageTop),
+              left: pxToMm(containerRect.left - pageLeft),
+              width: pxToMm(containerRect.width),
+              height: pxToMm(containerRect.height)
+            }
+          })
+        }
       })
       
       return {

@@ -255,7 +255,7 @@ class IDMLBuilder:
         
         return [y1, x1, y2, x2]
     
-    def add_image_frame(self, image_path, bounds, link_in_package=True, page_index=None):
+    def add_image_frame(self, image_path, bounds, link_in_package=True, page_index=None, relative_path=None):
         """
         Добавляет фрейм с изображением
         
@@ -263,13 +263,17 @@ class IDMLBuilder:
         :param bounds: [y1, x1, y2, x2]
         :param link_in_package: если True, копирует файл в IDML пакет
         :param page_index: индекс страницы (0-based), если None - текущая страница
+        :param relative_path: относительный путь для Links (channel_id/media/file.jpg)
         """
         frame_id = self.next_id('frame_')
         link_id = self.next_id('link_')
         
-        # Имя файла для ссылки в IDML
-        image_filename = os.path.basename(image_path)
-        link_path = f"Links/{image_filename}"
+        # Используем relative_path если передан, иначе только имя файла
+        if relative_path:
+            link_path = f"Links/{relative_path}"
+        else:
+            image_filename = os.path.basename(image_path)
+            link_path = f"Links/{image_filename}"
         
         frame = {
             'id': frame_id,
@@ -300,7 +304,7 @@ class IDMLBuilder:
         if link_in_package and os.path.exists(image_path):
             self.media_files.append({
                 'source': image_path,
-                'dest': link_path
+                'dest': link_path  # Полный путь с Links/ префиксом
             })
         
         return frame_id
@@ -434,6 +438,10 @@ class IDMLBuilder:
         media_elements = post_data.get('media', [])
         for media_elem in media_elements:
             if media_elem['type'] == 'image' and post.media_url:
+                # Проверяем media_type - только фото, не веб-страницы
+                if post.media_type not in ['MessageMediaPhoto', 'MessageMediaDocument']:
+                    continue
+                
                 # Координаты медиа в миллиметрах
                 media_bounds_mm = media_elem['bounds']
                 
@@ -450,12 +458,18 @@ class IDMLBuilder:
                     media_left_pt + media_width_pt
                 ]
                 
-                # Путь к изображению из базы
-                image_path = os.path.join('/app', post.media_url.lstrip('/'))
+                # Путь к изображению из базы (channel_id/media/file.jpg)
+                image_path = os.path.join('/app/downloads', post.media_url)
                 
-                # Добавляем image frame
+                # Добавляем image frame с относительным путем
                 if os.path.exists(image_path):
-                    self.add_image_frame(image_path, media_frame_bounds, page_index=page_number - 1)
+                    # relative_path сохраняет структуру: channel_id/media/file.jpg
+                    self.add_image_frame(
+                        image_path, 
+                        media_frame_bounds, 
+                        page_index=page_number - 1,
+                        relative_path=post.media_url  # channel_id/media/file.jpg
+                    )
     
     def save(self, output_path):
         """
@@ -479,15 +493,16 @@ class IDMLBuilder:
             self._generate_spreads(temp_dir)
             self._generate_stories(temp_dir)
             
-            # Копируем медиа-файлы в папку Links
+            # Копируем медиа-файлы в папку Links с сохранением структуры
             if self.media_files:
-                links_dir = os.path.join(temp_dir, 'Links')
-                os.makedirs(links_dir, exist_ok=True)
-                
                 for media in self.media_files:
                     source_path = media['source']
-                    dest_filename = os.path.basename(media['dest'])
-                    dest_path = os.path.join(links_dir, dest_filename)
+                    # dest уже содержит Links/ префикс
+                    dest_relative = media['dest']  # Links/channel_id/media/file.jpg
+                    dest_path = os.path.join(temp_dir, dest_relative)
+                    
+                    # Создаем подпапки если нужно
+                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                     
                     if os.path.exists(source_path):
                         shutil.copy2(source_path, dest_path)
