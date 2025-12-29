@@ -983,7 +983,7 @@ npm run build
 ### Node.js зависимости (package.json)
 
 **Ключевые:**
-- `nuxt: ^4.0.0` - Framework
+- `nuxt: ^4.0.0` - Framework (ESM modules, НЕ CommonJS)
 - `vue: ^3.5.17` - UI library
 - `pinia: ^3.0.3` - State management
 - `@fancyapps/ui: ^6.0.34` - Lightbox
@@ -991,6 +991,44 @@ npm run build
 - `tailwindcss: ^3.4.17` - CSS framework
 - `daisyui: ^5.0.50` - UI компоненты
 
+**ВАЖНО:** Nuxt 4 использует ESM (ES Modules):
+- ✅ ПРАВИЛЬНО: `import Wall from '~/components/Wall.vue'` или `const Wall = (await import('~/components/Wall.vue')).default`
+- ❌ НЕПРАВИЛЬНО: `const Wall = require('~/components/Wall.vue')` - это CommonJS, не работает!
+
+### ⚠️ ЧАСТЫЕ СИНТАКСИЧЕСКИЕ ОШИБКИ
+
+**При редактировании кода ВСЕГДА проверяй:**
+
+1. **Пропущенные точки с запятой или переводы строк:**
+   ```javascript
+   // ❌ НЕПРАВИЛЬНО:
+   function foo() {
+     return 42
+   }const bar = 123  // Missing semicolon or newline!
+   
+   // ✅ ПРАВИЛЬНО:
+   function foo() {
+     return 42
+   }
+   const bar = 123
+   ```
+
+2. **Незакрытые скобки в computed/watch:**
+   ```javascript
+   // ❌ НЕПРАВИЛЬНО:
+   const computed1 = computed(() => {
+     return value
+   }
+   const computed2 = computed(() => {  // Missing closing paren!
+   
+   // ✅ ПРАВИЛЬНО:
+   const computed1 = computed(() => {
+     return value
+   })
+   const computed2 = computed(() => {
+     return value2
+   })
+   ```
 ---
 
 ## 🔐 БЕЗОПАСНОСТЬ
