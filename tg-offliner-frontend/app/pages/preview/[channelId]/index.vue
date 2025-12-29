@@ -65,31 +65,6 @@ const recalculatePages = () => {
   calculatePageBreaks()
 }
 
-// Функция для извлечения текстового контента из поста
-const extractPostText = (postElement) => {
-  const content = {}
-  
-  // Заголовок (автор и дата)
-  const headerElement = postElement.querySelector('.post-header')
-  if (headerElement) {
-    content.header = headerElement.innerText || headerElement.textContent
-  }
-  
-  // Основной текст
-  const bodyElement = postElement.querySelector('.post-body')
-  if (bodyElement) {
-    content.body = bodyElement.innerHTML // Сохраняем HTML для форматирования
-  }
-  
-  // Дата
-  const dateElement = postElement.querySelector('.post-date')
-  if (dateElement) {
-    content.date = dateElement.innerText || dateElement.textContent
-  }
-  
-  return content
-}
-
 // TODO: Функция для freeze layout - извлечение координат из текущей пагинации
 const freezeCurrentLayout = async () => {
   if (!previewContainer.value || !sidebarRef.value?.settings) {
@@ -150,16 +125,11 @@ const freezeCurrentLayout = async () => {
       
       console.log(`    Post ${telegram_id}: top=${bounds.top.toFixed(2)}mm, left=${bounds.left.toFixed(2)}mm`)
       
-      // Извлекаем текстовый контент поста
-      const textContent = extractPostText(postElement)
-      
       return {
         telegram_id: parseInt(telegram_id),
         channel_id: channel_id,
         type: postElement.dataset.isComment === 'true' ? 'comment' : 'post',
-        bounds: bounds,
-        content: textContent, // Текстовый контент
-        elements: [] // TODO: Извлечь медиа элементы
+        bounds: bounds
       }
     })
     

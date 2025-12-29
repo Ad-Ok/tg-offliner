@@ -54,18 +54,12 @@
               class="frozen-post absolute bg-white dark:bg-gray-800 overflow-hidden"
               :style="getPostStyle(post)"
             >
-              <!-- Заголовок поста (автор/дата) -->
-              <div v-if="post.content?.header" class="post-header text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                {{ post.content.header }}
-              </div>
-              
-              <!-- Основной текст -->
-              <div v-if="post.content?.body" class="post-body text-sm text-gray-900 dark:text-gray-100" v-html="post.content.body"></div>
-              
-              <!-- Дата -->
-              <div v-if="post.content?.date" class="post-date text-xs text-gray-500 dark:text-gray-400 mt-2">
-                {{ post.content.date }}
-              </div>
+              <!-- Текст из базы Posts с HTML форматированием -->
+              <div 
+                v-if="getPostFromDb(post.telegram_id, post.channel_id)"
+                class="post-body text-sm text-gray-900 dark:text-gray-100" 
+                v-html="getPostFromDb(post.telegram_id, post.channel_id).message"
+              ></div>
               
               <!-- Debug info (временно) -->
               <div class="text-xs font-mono text-gray-400 mt-2 opacity-50">
@@ -101,6 +95,30 @@ const { data: frozenData, pending, error } = await useAsyncData(
   `frozen-${channelId}`,
   () => api.get(`/api/pages/${channelId}/frozen`).then(res => res.data)
 )
+
+// Загрузка постов из базы для отображения текста
+const { data: postsData } = await useAsyncData(
+  `posts-${channelId}`,
+  () => api.get(`/api/posts?channel_id=${channelId}`).then(res => res.data)
+)
+
+// Создаем мапу постов для быстрого доступа
+const postsMap = computed(() => {
+  if (!postsData.value) return {}
+  
+  const map = {}
+  postsData.value.forEach(post => {
+    const key = `${post.channel_id}-${post.telegram_id}`
+    map[key] = post
+  })
+  return map
+})
+
+// Функция для получения поста из базы
+const getPostFromDb = (telegram_id, channel_id) => {
+  const key = `${channel_id}-${telegram_id}`
+  return postsMap.value[key]
+}
 
 // Стили для страницы (A4 по умолчанию)
 const pageStyle = computed(() => ({

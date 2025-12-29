@@ -402,26 +402,20 @@ class IDMLBuilder:
             left_pt + width_pt       # x2 (right)
         ]
         
-        # Получаем текстовый контент из frozen данных
-        content = post_data.get('content', {})
+        # Получаем telegram_id и channel_id для запроса из БД
+        telegram_id = post_data.get('telegram_id')
+        channel_id = post_data.get('channel_id')
         
-        # Собираем текст поста
-        text_parts = []
-        if content.get('header'):
-            text_parts.append(content['header'])
-        if content.get('body'):
-            # Убираем HTML теги для InDesign
-            import re
-            clean_text = re.sub(r'<[^>]+>', '', content['body'])
-            text_parts.append(clean_text)
-        if content.get('date'):
-            text_parts.append(content['date'])
+        # Загружаем пост из базы данных
+        from models import Post
+        post = Post.query.filter_by(
+            telegram_id=telegram_id,
+            channel_id=channel_id
+        ).first()
         
-        full_text = '\n'.join(text_parts)
-        
-        # Создаем story и frame с точными координатами
-        if full_text:
-            story_id = self.add_text_story(full_text, 'PostBody')
+        if post and post.message:
+            # Используем исходный текст из базы (с HTML форматированием)
+            story_id = self.add_text_story(post.message, 'PostBody')
             self.add_text_frame(story_id, frame_bounds, page_index=page_number - 1)
     
     def save(self, output_path):
@@ -785,17 +779,72 @@ class IDMLBuilder:
         para_range = ET.SubElement(root, 'ParagraphStyleRange',
                                    AppliedParagraphStyle=f'ParagraphStyle/{story["style"]}')
         
-        # CharacterStyleRange
-        char_range = ET.SubElement(para_range, 'CharacterStyleRange',
-                                   AppliedCharacterStyle='CharacterStyle/$ID/[No character style]')
-        
-        # Content
-        content_elem = ET.SubElement(char_range, 'Content')
-        content_elem.text = story['content']
+        # Парсим HTML и создаем CharacterStyleRange для каждого фрагмента
+        self._add_formatted_content(para_range, story['content'])
         
         tree = ET.ElementTree(root)
         ET.indent(tree, space='  ')
         return ET.tostring(tree, pretty_print=True, xml_declaration=True, encoding='UTF-8')
+    
+    def _add_formatted_content(self, parent, html_content):
+        """
+        Парсит HTML контент и добавляет CharacterStyleRange с форматированием
+        Поддерживает теги: strong (bold), em (italic), del (strikethrough)
+        """
+        from bs4 import BeautifulSoup
+        
+        # Парсим HTML
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Рекурсивно обходим элементы
+        self._process_element(parent, soup)
+    
+    def _process_element(self, parent, element):
+        """Рекурсивно обрабатывает элементы и добавляет CharacterStyleRange"""
+        from bs4 import NavigableString
+        
+        # Если это текстовый узел
+        if isinstance(element, NavigableString):
+            text = str(element)
+            if text.strip():  # Игнорируем пустые текстовые узлы
+                self._add_character_range(parent, text, {})
+            return
+        
+        # Определяем стиль на основе тега
+        properties = {}
+        
+        if element.name == 'strong' or element.name == 'b':
+            properties['FontStyle'] = 'Bold'
+        elif element.name == 'em' or element.name == 'i':
+            properties['FontStyle'] = 'Italic'
+        elif element.name == 'del' or element.name == 's':
+            properties['StrikeThru'] = 'true'
+        
+        # Если есть свойства форматирования, оборачиваем в CharacterStyleRange
+        if properties:
+            # Получаем весь текст внутри элемента (включая вложенные теги)
+            text = element.get_text()
+            if text.strip():
+                self._add_character_range(parent, text, properties)
+        else:
+            # Иначе обрабатываем дочерние элементы
+            for child in element.children:
+                self._process_element(parent, child)
+    
+    def _add_character_range(self, parent, text, properties):
+        """Добавляет CharacterStyleRange с заданными свойствами"""
+        char_range = ET.SubElement(parent, 'CharacterStyleRange',
+                                   AppliedCharacterStyle='CharacterStyle/$ID/[No character style]')
+        
+        # Добавляем Properties если есть форматирование
+        if properties:
+            props_elem = ET.SubElement(char_range, 'Properties')
+            for key, value in properties.items():
+                ET.SubElement(props_elem, key).text = value
+        
+        # Content
+        content_elem = ET.SubElement(char_range, 'Content')
+        content_elem.text = text
     
     def _generate_meta_inf(self, temp_dir):
         """Создает META-INF/container.xml и metadata.xml"""
