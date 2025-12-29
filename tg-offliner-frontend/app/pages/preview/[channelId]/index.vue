@@ -125,11 +125,30 @@ const freezeCurrentLayout = async () => {
       
       console.log(`    Post ${telegram_id}: top=${bounds.top.toFixed(2)}mm, left=${bounds.left.toFixed(2)}mm`)
       
+      // Извлекаем координаты медиа элементов внутри поста
+      const mediaElements = []
+      
+      // Одиночные изображения (контейнер .post-media.single-image)
+      const singleImageContainers = postElement.querySelectorAll('.post-media.single-image')
+      singleImageContainers.forEach(container => {
+        const containerRect = container.getBoundingClientRect()
+        mediaElements.push({
+          type: 'image',
+          bounds: {
+            top: pxToMm(containerRect.top - pageTop),
+            left: pxToMm(containerRect.left - pageLeft),
+            width: pxToMm(containerRect.width),
+            height: pxToMm(containerRect.height)
+          }
+        })
+      })
+      
       return {
         telegram_id: parseInt(telegram_id),
         channel_id: channel_id,
         type: postElement.dataset.isComment === 'true' ? 'comment' : 'post',
-        bounds: bounds
+        bounds: bounds,
+        media: mediaElements
       }
     })
     

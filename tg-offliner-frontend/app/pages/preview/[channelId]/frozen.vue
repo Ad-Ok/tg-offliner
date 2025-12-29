@@ -66,6 +66,23 @@
                 #{{ post.telegram_id }} • {{ post.bounds.width.toFixed(1) }}×{{ post.bounds.height.toFixed(1) }}mm
               </div>
             </div>
+            
+            <!-- Media elements (images) with absolute positioning -->
+            <template v-for="post in page.posts" :key="`media-${post.channel_id}-${post.telegram_id}`">
+              <div
+                v-for="(media, mediaIndex) in post.media"
+                :key="`${post.channel_id}-${post.telegram_id}-media-${mediaIndex}`"
+                class="frozen-media absolute"
+                :style="getMediaStyle(media)"
+              >
+                <img
+                  v-if="media.type === 'image' && getPostFromDb(post.telegram_id, post.channel_id)?.media_url"
+                  :src="getMediaUrl(getPostFromDb(post.telegram_id, post.channel_id))"
+                  class="w-full h-full object-cover"
+                  alt="Post media"
+                />
+              </div>
+            </template>
           </div>
         </div>
 
@@ -85,7 +102,7 @@
 
 <script setup>
 import { useRoute } from 'vue-router'
-import { api } from '~/services/api'
+import { api, mediaBase } from '~/services/api'
 
 const route = useRoute()
 const channelId = route.params.channelId
@@ -138,6 +155,23 @@ const getPostStyle = (post) => ({
   padding: '8px',
   border: '1px solid #e5e7eb'
 })
+
+// Стили для медиа элементов с абсолютным позиционированием
+const getMediaStyle = (media) => ({
+  top: `${media.bounds.top}mm`,
+  left: `${media.bounds.left}mm`,
+  width: `${media.bounds.width}mm`,
+  height: `${media.bounds.height}mm`,
+  border: '1px solid #3b82f6'
+})
+
+// Функция для получения URL медиа файла
+const getMediaUrl = (post) => {
+  if (!post?.media_url) return ''
+  // media_url в базе: channel_id/media/file.jpg
+  // Добавляем downloads/ и mediaBase
+  return `${mediaBase}/downloads/${post.media_url}`
+}
 </script>
 
 <style scoped>

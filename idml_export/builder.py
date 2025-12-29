@@ -255,13 +255,14 @@ class IDMLBuilder:
         
         return [y1, x1, y2, x2]
     
-    def add_image_frame(self, image_path, bounds, link_in_package=True):
+    def add_image_frame(self, image_path, bounds, link_in_package=True, page_index=None):
         """
         Добавляет фрейм с изображением
         
         :param image_path: путь к изображению (относительный или абсолютный)
         :param bounds: [y1, x1, y2, x2]
         :param link_in_package: если True, копирует файл в IDML пакет
+        :param page_index: индекс страницы (0-based), если None - текущая страница
         """
         frame_id = self.next_id('frame_')
         link_id = self.next_id('link_')
@@ -280,7 +281,14 @@ class IDMLBuilder:
             }
         }
         
-        self.current_page['frames'].append(frame)
+        # Добавляем на указанную или текущую страницу
+        if page_index is not None:
+            all_pages = self.get_all_pages()
+            target_page = all_pages[page_index]
+        else:
+            target_page = self.current_page
+            
+        target_page['frames'].append(frame)
         
         # Добавляем ссылку в список
         self.links.append({
@@ -413,10 +421,41 @@ class IDMLBuilder:
             channel_id=channel_id
         ).first()
         
-        if post and post.message:
+        if not post:
+            return
+        
+        # Добавляем текст если есть
+        if post.message:
             # Используем исходный текст из базы (с HTML форматированием)
             story_id = self.add_text_story(post.message, 'PostBody')
             self.add_text_frame(story_id, frame_bounds, page_index=page_number - 1)
+        
+        # Добавляем медиа элементы
+        media_elements = post_data.get('media', [])
+        for media_elem in media_elements:
+            if media_elem['type'] == 'image' and post.media_url:
+                # Координаты медиа в миллиметрах
+                media_bounds_mm = media_elem['bounds']
+                
+                # Конвертируем в points (с учетом margins)
+                media_top_pt = mm_to_points(media_bounds_mm['top']) + top_margin_pt
+                media_left_pt = mm_to_points(media_bounds_mm['left'])
+                media_width_pt = mm_to_points(media_bounds_mm['width'])
+                media_height_pt = mm_to_points(media_bounds_mm['height'])
+                
+                media_frame_bounds = [
+                    media_top_pt,
+                    media_left_pt,
+                    media_top_pt + media_height_pt,
+                    media_left_pt + media_width_pt
+                ]
+                
+                # Путь к изображению из базы
+                image_path = os.path.join('/app', post.media_url.lstrip('/'))
+                
+                # Добавляем image frame
+                if os.path.exists(image_path):
+                    self.add_image_frame(image_path, media_frame_bounds, page_index=page_number - 1)
     
     def save(self, output_path):
         """
