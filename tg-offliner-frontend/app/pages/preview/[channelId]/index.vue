@@ -11,13 +11,13 @@
     <!-- Основная область с preview -->
     <div class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900" ref="previewContainer" :style="previewContainerStyle">
       <div class="mx-auto" :class="pageFormatClass" style="width: var(--preview-width);  padding-left: var(--preview-padding-left); padding-right: var(--preview-padding-right);">
-        <!-- Информация о канале -->
-        <ChannelCover 
+        <!-- Информация о канале - скрыто в preview -->
+        <!-- <ChannelCover 
           v-if="channelInfo" 
           :channel="channelInfo" 
           :postsCount="realPostsCount"
           :commentsCount="totalCommentsCount"
-        />
+        /> -->
         
         <!-- Лента постов в режиме preview с разрывами страниц -->
         <div ref="wallContainer">
@@ -42,10 +42,12 @@ import PrintSettingsSidebar from '~/components/system/PrintSettingsSidebar.vue'
 import { api } from '~/services/api'
 import { PAGE_SIZES, mmToPx, pxToMm } from '~/utils/units'
 import { useEditModeStore } from '~/stores/editMode'
+import { usePostFiltering } from '~/composables/usePostFiltering'
 
 const route = useRoute()
 const channelId = route.params.channelId
 const editModeStore = useEditModeStore()
+const { applyFilters } = usePostFiltering()
 
 // Refs
 const sidebarRef = ref(null)
@@ -245,6 +247,9 @@ const { data: posts, pending } = await useAsyncData(
         post.isHidden = editState ? editState.hidden : false;
       });
       
+      // Применяем фильтры для определения скрытых медиа и постов
+      allPosts = applyFilters(allPosts);
+      
     } catch (error) {
       console.error('Error loading hidden states:', error);
     }
@@ -403,15 +408,10 @@ const calculatePageBreaks = async () => {
   let pageCount = 1
   const pagesData = [{ page: 1, posts: [] }] // Структура: [{ page: 1, posts: [{telegram_id, channel_id}] }]
   
-  // Учитываем высоту channel-cover в расчетах
-  const channelCoverElement = previewContainer.value?.querySelector('.channel-cover')
-  if (channelCoverElement) {
-    currentPageHeight = channelCoverElement.offsetHeight
-  }
-  
-  // Добавляем индикатор страницы 1 в самое начало (перед channel-cover)
-  if (contentContainer && channelCoverElement) {
-    contentContainer.insertBefore(createPageBreak(1), channelCoverElement)
+  // Добавляем индикатор страницы 1 в самое начало contentContainer
+  if (contentContainer) {
+    const firstChild = contentContainer.firstChild
+    contentContainer.insertBefore(createPageBreak(1), firstChild)
   }
   
   posts.forEach((post, index) => {

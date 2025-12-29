@@ -816,9 +816,14 @@ def export_channel_to_idml(channel_id):
         
         # Создаем IDML builder из frozen layout
         from idml_export.builder import IDMLBuilder
+        from utils.post_filtering import should_hide_post
+        from models import Edit
         
         builder = IDMLBuilder(channel, print_settings)
         builder.create_document()
+        
+        # Получаем все edits для канала для фильтрации
+        all_edits = Edit.query.filter_by(channel_id=channel_id).all()
         
         # Добавляем страницы из frozen layout
         for page in frozen_pages:
@@ -830,6 +835,24 @@ def export_channel_to_idml(channel_id):
             
             # Добавляем каждый пост с его координатами и контентом
             for post_data in posts:
+                # Загружаем пост из БД для проверки фильтров
+                from models import Post
+                telegram_id = post_data.get('telegram_id')
+                post_channel_id = post_data.get('channel_id')
+                
+                post = Post.query.filter_by(
+                    telegram_id=telegram_id,
+                    channel_id=post_channel_id
+                ).first()
+                
+                if not post:
+                    continue
+                
+                # Проверяем, нужно ли скрыть пост
+                if should_hide_post(post, all_edits):
+                    current_app.logger.info(f"Пропускаем скрытый пост {telegram_id}")
+                    continue
+                
                 builder.add_frozen_post(post_data, page_number)
         
         # Сохраняем IDML

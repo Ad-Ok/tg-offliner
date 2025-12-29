@@ -422,11 +422,14 @@ class IDMLBuilder:
             self.add_text_frame(story_id, frame_bounds, page_index=page_number - 1)
         
         # Добавляем медиа элементы
+        from utils.post_filtering import should_hide_media
+        
         media_elements = post_data.get('media', [])
         for media_elem in media_elements:
             if media_elem['type'] == 'image' and post.media_url:
-                # Проверяем media_type - только фото, не веб-страницы
-                if post.media_type not in ['MessageMediaPhoto', 'MessageMediaDocument']:
+                # Применяем фильтр медиа
+                if should_hide_media(post):
+                    print(f"⏭️ Skipping unsupported media type: {post.media_type} ({post.media_url})")
                     continue
                 
                 # Координаты медиа в миллиметрах
@@ -447,11 +450,6 @@ class IDMLBuilder:
                 
                 # Путь к изображению из базы (channel_id/media/file.jpg)
                 image_path = os.path.join('/app/downloads', post.media_url)
-                
-                # Пропускаем webp - InDesign не поддерживает этот формат
-                if image_path.lower().endswith('.webp'):
-                    print(f"⏭️ Skipping webp format (not supported by InDesign): {image_path}")
-                    continue
                 
                 # Добавляем image frame с абсолютным путем
                 if os.path.exists(image_path):

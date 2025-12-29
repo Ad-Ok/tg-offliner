@@ -74,7 +74,7 @@ export default {
   },
   setup(props) {
     const editModeStore = useEditModeStore()
-    const isHidden = ref(props.post.hidden || false)
+    const isHidden = ref(props.post.hidden || props.post._shouldHide || false)
     
     const onHiddenStateChanged = (newHiddenState) => {
       isHidden.value = newHiddenState
@@ -82,7 +82,10 @@ export default {
     
     // Вычисляем классы для post-container в зависимости от режима
     const postContainerClasses = computed(() => {
-      if (!isHidden.value) return {}
+      // Используем _shouldHide если доступен, иначе isHidden
+      const shouldHide = props.post._shouldHide !== undefined ? props.post._shouldHide : isHidden.value
+      
+      if (!shouldHide) return {}
       
       // /preview (любой режим) → hidden
       if (editModeStore.isPreviewPage) {
