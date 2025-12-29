@@ -17,7 +17,9 @@
     </div>
 
     <!-- Текст поста -->
-    <p v-if="message" v-html="message" class="font-sans text-base print:text-sm leading-relaxed print:leading-normal print:text-black print:tracking-normal"></p>
+    <ClientOnly>
+      <p v-if="message" v-html="message" class="font-sans text-base print:text-sm leading-relaxed print:leading-normal print:text-black print:tracking-normal"></p>
+    </ClientOnly>
   </div>
 </template>
 

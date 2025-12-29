@@ -11,7 +11,7 @@
         <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
           <!-- Export buttons for mobile -->
           <li v-if="isChannelPage && route.params.channelId" class="p-2">
-            <ChannelExports 
+            <SystemChannelExports 
               :channelId="route.params.channelId"
             />
           </li>
@@ -37,7 +37,7 @@
           <!-- Print/Export buttons - показываем только на странице постов -->
           <div class="flex gap-2">
             <NuxtLink 
-              :to="`/${route.params.channelId}/preview`"
+              :to="`/preview/${route.params.channelId}`"
               class="btn btn-sm btn-outline btn-primary"
             >
               <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

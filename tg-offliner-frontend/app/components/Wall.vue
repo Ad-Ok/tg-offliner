@@ -89,7 +89,6 @@ export default {
           groups[post.grouped_id].push(post);
         }
       });
-      console.log('groupedPosts:', Object.keys(groups));
       return groups;
     },
     
@@ -147,8 +146,6 @@ export default {
           originalPost: originalPost
         });
       });
-      
-      console.log('organizedPosts result:', result.map(item => ({type: item.type, key: item.key})));
       
       // Сортируем все по дате с учетом sortOrder
       return result.sort((a, b) => {

@@ -55,12 +55,16 @@ export default {
   methods: {
     formatDate(dateString) {
       const date = new Date(dateString);
-      return date.toLocaleDateString('ru-RU', {
-        day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      
+      const months = ['янв.', 'фев.', 'мар.', 'апр.', 'мая', 'июн.', 'июл.', 'авг.', 'сен.', 'окт.', 'ноя.', 'дек.'];
+      
+      // Используем UTC для избежания hydration mismatch
+      const day = date.getUTCDate();
+      const month = months[date.getUTCMonth()];
+      const hours = String(date.getUTCHours()).padStart(2, '0');
+      const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+      
+      return `${day} ${month}, ${hours}:${minutes}`;
     },
     
     truncateMessage(message) {

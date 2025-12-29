@@ -20,14 +20,13 @@ export function formatMessageDate(messageDate) {
   
     const date = new Date(messageDate);
   
-    // Форматируем дату
-    const day = date.getDate();
-    const month = months[date.getMonth() + 1]; // Месяцы в JavaScript начинаются с 0
-    const year = date.getFullYear();
-    const time = date.toLocaleTimeString("ru-RU", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    // Форматируем дату используя UTC для избежания hydration mismatch
+    const day = date.getUTCDate();
+    const month = months[date.getUTCMonth() + 1]; // Месяцы в JavaScript начинаются с 0
+    const year = date.getUTCFullYear();
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    const time = `${hours}:${minutes}`;
   
     return `${day} ${month} ${year} ${time}`;
   }
