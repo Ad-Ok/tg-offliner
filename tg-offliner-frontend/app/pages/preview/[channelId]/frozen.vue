@@ -51,19 +51,25 @@
             <div 
               v-for="post in page.posts" 
               :key="`${post.channel_id}-${post.telegram_id}`"
-              class="frozen-post absolute border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-2 rounded"
+              class="frozen-post absolute bg-white dark:bg-gray-800 overflow-hidden"
               :style="getPostStyle(post)"
             >
-              <div class="text-xs font-mono text-gray-600 dark:text-gray-400 mb-1">
-                {{ post.type }} #{{ post.telegram_id }}
-              </div>
-              <div class="text-xs text-gray-500 dark:text-gray-500">
-                {{ post.bounds.width.toFixed(1) }}×{{ post.bounds.height.toFixed(1) }}mm
+              <!-- Заголовок поста (автор/дата) -->
+              <div v-if="post.content?.header" class="post-header text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                {{ post.content.header }}
               </div>
               
-              <!-- Elements preview -->
-              <div v-if="post.elements && post.elements.length > 0" class="mt-2 text-xs text-gray-400">
-                {{ post.elements.length }} element(s)
+              <!-- Основной текст -->
+              <div v-if="post.content?.body" class="post-body text-sm text-gray-900 dark:text-gray-100" v-html="post.content.body"></div>
+              
+              <!-- Дата -->
+              <div v-if="post.content?.date" class="post-date text-xs text-gray-500 dark:text-gray-400 mt-2">
+                {{ post.content.date }}
+              </div>
+              
+              <!-- Debug info (временно) -->
+              <div class="text-xs font-mono text-gray-400 mt-2 opacity-50">
+                #{{ post.telegram_id }} • {{ post.bounds.width.toFixed(1) }}×{{ post.bounds.height.toFixed(1) }}mm
               </div>
             </div>
           </div>
@@ -110,7 +116,9 @@ const getPostStyle = (post) => ({
   top: `${post.bounds.top}mm`,
   left: `${post.bounds.left}mm`,
   width: `${post.bounds.width}mm`,
-  height: `${post.bounds.height}mm`
+  height: `${post.bounds.height}mm`,
+  padding: '8px',
+  border: '1px solid #e5e7eb'
 })
 </script>
 
@@ -121,6 +129,28 @@ const getPostStyle = (post) => ({
 
 .frozen-post {
   overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+.post-body :deep(strong) {
+  font-weight: 600;
+}
+
+.post-body :deep(em) {
+  font-style: italic;
+}
+
+.post-body :deep(code) {
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.post-body :deep(a) {
+  color: #3b82f6;
+  text-decoration: underline;
 }
 
 /* Для печати */
