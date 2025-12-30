@@ -1,4 +1,6 @@
 /** @type {import('tailwindcss').Config} */
+const plugin = require('tailwindcss/plugin')
+
 module.exports = {
   content: [
     "./app/components/**/*.{vue,js,ts}",
@@ -33,6 +35,18 @@ module.exports = {
   },
   plugins: [
     require("daisyui"),
+    
+    // Кастомные варианты для режимов отображения
+    plugin(function({ addVariant }) {
+      // paper: - для PDF preview + браузерная печать (@media print)
+      addVariant('paper', [
+        '[data-mode="paper"] &',
+        '@media print'
+      ])
+      
+      // minimal: - для IDML preview (минимум стилей)
+      addVariant('minimal', '[data-mode="minimal"] &')
+    })
   ],
   daisyui: {
     themes: ["light", "dark", "cupcake", "bumblebee", "emerald", "corporate", "synthwave", "retro", "cyberpunk", "valentine", "halloween", "garden", "forest", "aqua", "lofi", "pastel", "fantasy", "wireframe", "black", "luxury", "dracula", "cmyk", "autumn", "business", "acid", "lemonade", "night", "coffee", "winter", "dim", "nord", "sunset"],

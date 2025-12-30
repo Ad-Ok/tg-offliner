@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div :data-mode="currentMode">
     <link v-if="$route.query.pdf === '1'" rel="stylesheet" href="/styles.css" />
     <ClientOnly>
       <SystemAlert
@@ -32,7 +32,10 @@ import { eventBus } from '~/eventBus'
 import SystemAlert from '~/components/system/SystemAlert.vue'
 import ConfirmDialog from '~/components/system/ConfirmDialog.vue'
 import { useConfirmDialog } from '~/composables/useConfirmDialog'
+import { useDisplayMode } from '~/composables/useDisplayMode'
 import { ClientOnly } from '#components'
+
+const { currentMode } = useDisplayMode()
 
 const alertMessage = computed(() => eventBus.alertMessage)
 const alertType = computed(() => eventBus.alertType)
