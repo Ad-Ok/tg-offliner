@@ -474,6 +474,13 @@ onMounted(() => {
   })
 })
 
+// Cleanup function to remove window references
+const cleanup = () => {
+  if (typeof window !== 'undefined') {
+    delete window.__previewRecalculatePages
+    delete window.__previewFreeze
+  }
+}
 // Cleanup при unmount
 onUnmounted(() => {
   if (process.client) {
