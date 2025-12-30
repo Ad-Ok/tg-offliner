@@ -36,14 +36,8 @@ module.exports = {
   plugins: [
     require("daisyui"),
     
-    // Кастомные варианты для режимов отображения
+    // Кастомный вариант для IDML режима
     plugin(function({ addVariant }) {
-      // paper: - для PDF preview + браузерная печать (@media print)
-      addVariant('paper', [
-        '[data-mode="paper"] &',
-        '@media print'
-      ])
-      
       // minimal: - для IDML preview (минимум стилей)
       addVariant('minimal', '[data-mode="minimal"] &')
     })
