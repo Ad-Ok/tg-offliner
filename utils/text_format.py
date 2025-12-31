@@ -203,24 +203,113 @@ class CustomHtmlParser:
 from typing import List
 from telethon.types import TypeMessageEntity
 from .text_format import CustomHtmlParser
+import re
 
-def parse_entities_to_html(text: str, entities: List[TypeMessageEntity]) -> str:
+
+def parse_text_with_paragraphs(text: str) -> str:
     """
-    Преобразует текст и сущности Telegram в HTML.
-
-    :param text: Исходный текст сообщения.
-    :param entities: Список сущностей (например, жирный текст, ссылки и т.д.).
-    :return: Текст, преобразованный в HTML.
+    Обрабатывает текст, заменяя двойные переносы строк на абзацы <p>.
+    Одиночные переносы заменяются на <br>.
+    
+    :param text: Исходный текст.
+    :return: HTML с абзацами.
     """
     if not text:
         return ""
+    
+    # Разбиваем на абзацы по двойным переносам
+    paragraphs = text.split('\n\n')
+    
+    # Обрабатываем каждый абзац
+    processed_paragraphs = []
+    for para in paragraphs:
+        if para.strip():  # Пропускаем пустые абзацы
+            # Внутри абзаца одиночные переносы заменяем на <br>
+            para_with_br = para.replace('\n', '<br>')
+            processed_paragraphs.append(f'<p>{para_with_br}</p>')
+    
+    return ''.join(processed_paragraphs)
+
+
+def parse_entities_to_html(text: str, entities: List[TypeMessageEntity]) -> str:
+    """
+    Преобразует текст и сущности Telegram в HTML с поддержкой абзацев.
+
+    :param text: Исходный текст сообщения.
+    :param entities: Список сущностей (например, жирный текст, ссылки и т.д.).
+    :return: Текст, преобразованный в HTML с абзацами.
+    """
+    import logging
+    
+    logging.info(f"[PARSE_ENTITIES] Вход: text_len={len(text) if text else 0}, entities_count={len(entities) if entities else 0}")
+    if text:
+        para_count = len(text.split('\n\n'))
+        logging.info(f"[PARSE_ENTITIES] Абзацев в исходном тексте (по \\n\\n): {para_count}")
+        logging.info(f"[PARSE_ENTITIES] Первые 100 символов: {text[:100]}")
+    
+    if not text:
+        logging.info("[PARSE_ENTITIES] Пустой текст, возврат пустой строки")
+        return ""
+    
     if not entities:
-        return text.replace("\n", "<br>")  # Заменяем \n на <br> для разбиения на строки
-
-    # Используем CustomHtmlParser.unparse для преобразования в HTML
-    html = CustomHtmlParser.unparse(text, entities)
-
-    # Декодируем экранированный HTML
-    html = unescape(html)
-
-    return html
+        # Если нет entities, просто обрабатываем абзацы
+        logging.info("[PARSE_ENTITIES] Нет entities, используем parse_text_with_paragraphs")
+        result = parse_text_with_paragraphs(text)
+        logging.info(f"[PARSE_ENTITIES] Результат: {result.count('<p>')} абзацев, первые 100 символов: {result[:100]}")
+        return result
+    
+    # Сначала разбиваем на абзацы по исходному тексту
+    paragraphs = text.split('\n\n')
+    logging.info(f"[PARSE_ENTITIES] Разбили на {len(paragraphs)} абзацев (с entities)")
+    
+    # Обрабатываем каждый абзац отдельно
+    processed_paragraphs = []
+    current_offset = 0
+    
+    for para in paragraphs:
+        if not para.strip():
+            current_offset += len(para) + 2  # +2 для \n\n
+            continue
+        
+        # Определяем entities, которые относятся к этому абзацу
+        para_start = current_offset
+        para_end = current_offset + len(para)
+        
+        # Фильтруем entities для этого абзаца
+        para_entities = []
+        for entity in entities:
+            entity_start = entity.offset
+            entity_end = entity.offset + entity.length
+            
+            # Entity попадает в абзац (полностью или частично)
+            if entity_start < para_end and entity_end > para_start:
+                # Создаем копию entity с скорректированным offset
+                import copy
+                para_entity = copy.copy(entity)
+                para_entity.offset = max(0, entity_start - para_start)
+                # Обрезаем длину если entity выходит за границы абзаца
+                if entity_end > para_end:
+                    para_entity.length = para_end - max(entity_start, para_start)
+                elif entity_start < para_start:
+                    para_entity.length = min(entity_end, para_end) - para_start
+                para_entities.append(para_entity)
+        
+        # Применяем форматирование к абзацу
+        if para_entities:
+            para_html = CustomHtmlParser.unparse(para, para_entities)
+            para_html = unescape(para_html)
+        else:
+            para_html = para
+        
+        # Заменяем одиночные \n на <br> внутри абзаца
+        para_html = para_html.replace('\n', '<br>')
+        
+        # Оборачиваем в <p>
+        processed_paragraphs.append(f'<p>{para_html}</p>')
+        
+        # Двигаем offset на длину абзаца + \n\n
+        current_offset = para_end + 2
+    
+    result = ''.join(processed_paragraphs)
+    logging.info(f"[PARSE_ENTITIES] Итоговый результат: {result.count('<p>')} абзацев")
+    return result

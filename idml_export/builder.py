@@ -824,7 +824,7 @@ class IDMLBuilder:
                 f.write(story_xml)
     
     def _create_story_xml(self, story):
-        """Создает XML для одной Story"""
+        """Создает XML для одной Story с поддержкой параграфов"""
         root = ET.Element('Story',
                          Self=story['id'],
                          AppliedTOCStyle='n',
@@ -836,29 +836,46 @@ class IDMLBuilder:
                      OpticalMarginAlignment='false',
                      OpticalMarginSize='12')
         
-        # ParagraphStyleRange
-        para_range = ET.SubElement(root, 'ParagraphStyleRange',
-                                   AppliedParagraphStyle=f'ParagraphStyle/{story["style"]}')
-        
-        # Парсим HTML и создаем CharacterStyleRange для каждого фрагмента
-        self._add_formatted_content(para_range, story['content'])
+        # Парсим HTML и создаем ParagraphStyleRange для каждого параграфа
+        self._add_formatted_content(root, story['content'], story['style'])
         
         tree = ET.ElementTree(root)
         ET.indent(tree, space='  ')
         return ET.tostring(tree, pretty_print=True, xml_declaration=True, encoding='UTF-8')
     
-    def _add_formatted_content(self, parent, html_content):
+    def _add_formatted_content(self, parent, html_content, style='PostBody'):
         """
-        Парсит HTML контент и добавляет CharacterStyleRange с форматированием
-        Поддерживает теги: strong (bold), em (italic), del (strikethrough)
+        Парсит HTML контент и добавляет ParagraphStyleRange для каждого параграфа
+        Поддерживает теги: <p> (параграфы), strong (bold), em (italic), del (strikethrough), br (перенос)
         """
         from bs4 import BeautifulSoup
+        import logging
         
         # Парсим HTML
         soup = BeautifulSoup(html_content, 'html.parser')
         
-        # Рекурсивно обходим элементы
-        self._process_element(parent, soup)
+        # Ищем все параграфы <p>
+        paragraphs = soup.find_all('p')
+        
+        if paragraphs:
+            # Есть параграфы - обрабатываем каждый отдельно
+            logging.info(f"[IDML] Найдено {len(paragraphs)} параграфов в HTML")
+            for para in paragraphs:
+                # Создаем ParagraphStyleRange для каждого параграфа
+                para_range = ET.SubElement(parent, 'ParagraphStyleRange',
+                                          AppliedParagraphStyle=f'ParagraphStyle/{style}')
+                
+                # Обрабатываем содержимое параграфа
+                self._process_element(para_range, para)
+                
+                # Добавляем символ конца параграфа (перенос)
+                self._add_paragraph_break(para_range)
+        else:
+            # Нет параграфов - обрабатываем как один блок (обратная совместимость)
+            logging.info(f"[IDML] Нет параграфов <p>, обрабатываем как единый текст")
+            para_range = ET.SubElement(parent, 'ParagraphStyleRange',
+                                      AppliedParagraphStyle=f'ParagraphStyle/{style}')
+            self._process_element(para_range, soup)
     
     def _process_element(self, parent, element):
         """Рекурсивно обрабатывает элементы и добавляет CharacterStyleRange"""
@@ -869,6 +886,18 @@ class IDMLBuilder:
             text = str(element)
             if text.strip():  # Игнорируем пустые текстовые узлы
                 self._add_character_range(parent, text, {})
+            return
+        
+        # Пропускаем обработку тега <p> (он обрабатывается на уровень выше)
+        if element.name == 'p':
+            # Обрабатываем дочерние элементы параграфа
+            for child in element.children:
+                self._process_element(parent, child)
+            return
+        
+        # Обработка <br> - добавляем перенос строки
+        if element.name == 'br':
+            self._add_line_break(parent)
             return
         
         # Определяем стиль на основе тега
@@ -906,6 +935,19 @@ class IDMLBuilder:
         # Content
         content_elem = ET.SubElement(char_range, 'Content')
         content_elem.text = text
+    
+    def _add_line_break(self, parent):
+        """Добавляет перенос строки (Br)"""
+        char_range = ET.SubElement(parent, 'CharacterStyleRange',
+                                   AppliedCharacterStyle='CharacterStyle/$ID/[No character style]')
+        ET.SubElement(char_range, 'Br')
+    
+    def _add_paragraph_break(self, parent):
+        """Добавляет конец параграфа"""
+        char_range = ET.SubElement(parent, 'CharacterStyleRange',
+                                   AppliedCharacterStyle='CharacterStyle/$ID/[No character style]')
+        content_elem = ET.SubElement(char_range, 'Content')
+        content_elem.text = '\r'  # Символ конца параграфа в IDML
     
     def _generate_meta_inf(self, temp_dir):
         """Создает META-INF/container.xml и metadata.xml"""

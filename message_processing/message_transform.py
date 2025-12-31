@@ -254,13 +254,24 @@ def build_message_text(post, sticker_emoji: Optional[str]) -> str:
 	if sticker_emoji:
 		message_text = f"{message_text} {sticker_emoji}" if message_text else sticker_emoji
 
-	if message_text and getattr(post, "entities", None):
+	# Всегда применяем парсинг (для обработки абзацев и форматирования)
+	if message_text:
 		try:
-			formatted = parse_entities_to_html(message_text, post.entities)
+			post_id = getattr(post, "id", "?")
+			entities = getattr(post, "entities", None)
+			logging.info(f"[BUILD_MESSAGE_TEXT] Пост {post_id}: перед парсингом text_len={len(message_text)}, entities={len(entities) if entities else 0}")
+			logging.info(f"[BUILD_MESSAGE_TEXT] Пост {post_id}: первые 150 символов: {message_text[:150]}")
+			
+			formatted = parse_entities_to_html(message_text, entities or [])
 			if formatted:
+				logging.info(f"[BUILD_MESSAGE_TEXT] Пост {post_id}: после парсинга - {formatted.count('<p>')} абзацев")
 				message_text = formatted
+			else:
+				logging.warning(f"[BUILD_MESSAGE_TEXT] Пост {post_id}: parse_entities_to_html вернул пустую строку!")
 		except Exception as exc:  # pragma: no cover - formatting errors are non-critical
 			logging.warning("Failed to apply formatting to message %s: %s", getattr(post, "id", "?"), exc)
+			import traceback
+			logging.warning(traceback.format_exc())
 
 	return message_text
 

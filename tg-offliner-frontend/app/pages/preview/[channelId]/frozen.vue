@@ -57,9 +57,13 @@
               <!-- Текст из базы Posts с HTML форматированием -->
               <div 
                 v-if="getPostFromDb(post.telegram_id, post.channel_id)"
-                class="post-body text-sm text-gray-900 dark:text-gray-100" 
+                class="post-body" 
+              >
+                <div 
+                class="post-message text-sm text-gray-900 dark:text-gray-100" 
                 v-html="getPostFromDb(post.telegram_id, post.channel_id).message"
-              ></div>
+                ></div>
+              </div>
               
               <!-- Debug info (временно) -->
               <div class="text-xs font-mono text-gray-400 mt-2 opacity-50">

@@ -12,6 +12,7 @@
 - Работа с Docker → используй `docker compose`, НЕ `docker-compose`
 - Подключение к Telegram → используй `telegram_client.py`, НЕ создавай новые клиенты
 - API endpoints → смотри существующие blueprints в `api/`
+- **Изменил Python код → ПЕРЕЗАПУСТИ Flask: `docker compose restart app`**
 
 ---
 
@@ -149,6 +150,35 @@ docker compose run --rm app python authorize_telegram.py
 ```
 
 **ВАЖНО:** Flask backend работает на порту 5000, Nuxt frontend на порту 3000. Frontend проксирует API запросы на backend через Nitro devProxy.
+
+### ⚠️ КРИТИЧЕСКИ ВАЖНО: Перезагрузка после изменений кода
+
+**После изменения Python кода (backend) ВСЕГДА перезапускай Flask контейнер!**
+
+```bash
+# После изменения любых Python файлов
+docker compose restart app
+
+# Проверь, что контейнер запустился
+docker compose ps
+
+# Проверь логи на ошибки
+docker compose logs app
+```
+
+**Почему это важно:**
+- Flask не перезагружается автоматически в Docker (нет hot-reload)
+- Старый код остается в памяти контейнера
+- Импорт канала будет использовать старую версию кода
+- Изменения в `utils/`, `message_processing/`, `api/` не применятся без перезапуска
+
+**Симптомы, что нужна перезагрузка:**
+- ❌ Новые функции не работают
+- ❌ Изменения в логике обработки не применяются
+- ❌ Debug логи не появляются
+- ❌ Исправленные баги все еще воспроизводятся
+
+**Frontend (Nuxt) имеет hot-reload** - изменения применяются автоматически, перезагрузка не нужна.
 
 ---
 
@@ -840,41 +870,58 @@ def should_stop_import(channel_id):
 
 1. **Docker:**
    - ❌ `docker-compose up` → ✅ `docker compose up`
+   - ❌ Забывать перезапускать Flask после изменений Python кода → ✅ `docker compose restart app`
 
-2. **Tailwind CSS:**
+2. **Перезагрузка после изменений:**
+   - ❌ Изменил код → сразу тестируешь импорт канала → не работает → "Баг!"
+   - ✅ Изменил код → `docker compose restart app` → проверил логи → тестируешь
+
+3. **Tailwind CSS:**
    - ❌ Редактировать `public/styles.css` → ✅ Редактировать `assets/tailwind.css` и пересобрать
    - ❌ Редактировать `public/styles-pdf.css` → ✅ Редактировать `assets/tailwind.css` и пересобрать
    - ❌ Забывать пересобирать CSS → ✅ `docker compose exec ssr sh -c "cd /app && npm run build:pdf-css"`
 
-3. **Telegram клиент:**
+4. **Telegram клиент:**
    - ❌ Создавать новый TelegramClient → ✅ Использовать `connect_to_telegram()`
    - ❌ Выдумывать API_ID/API_HASH → ✅ Читать из `.env`
 
-3. **База данных:**
+5. **База данных:**
    - ❌ Выдумывать имена таблиц → ✅ Использовать модели из `models.py`
    - ❌ Прямые SQL запросы → ✅ Использовать SQLAlchemy ORM
 
-4. **API:**
+6. **API:**
    - ❌ Создавать дубликаты endpoints → ✅ Проверять существующие blueprints
    - ❌ Выдумывать URL схемы → ✅ Смотреть в `api/*.py`
 
-5. **Пути:**
+7. **Пути:**
    - ❌ Хардкодить пути → ✅ Использовать `DOWNLOADS_DIR`, `os.path.join()`
    - ❌ Выдумывать структуру папок → ✅ Следовать `downloads/{channel_id}/{avatars|media|thumbs}/`
 
-6. **Frontend:**
+8. **Frontend:**
    - ❌ Создавать дубликаты stores/services → ✅ Использовать существующие
    - ❌ Забывать про два Tailwind конфига → ✅ Помнить о `tailwind.config.js` и `tailwind.pdf.config.js`
 
 ### ✅ ВСЕГДА делай так:
 
-1. **Перед работой с Docker:**
+1. **После изменения Python кода (САМОЕ ВАЖНОЕ!):**
+   ```bash
+   # Изменил любой .py файл в проекте?
+   docker compose restart app
+   
+   # Убедись что контейнер запустился
+   docker compose ps
+   
+   # Проверь логи если что-то не работает
+   docker compose logs -f app
+   ```
+
+2. **Перед работой с Docker:**
    ```bash
    cd /Users/adoknov/work/tg/tg-offliner
    docker compose up
    ```
 
-2. **Для Telegram клиента:**
+3. **Для Telegram клиента:**
    ```python
    from telegram_client import connect_to_telegram
    client = connect_to_telegram()

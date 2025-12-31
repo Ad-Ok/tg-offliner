@@ -10,6 +10,12 @@
 }
 
 @layer components {
+  .post-message {
+    p:not(:last-child) {
+      margin-bottom: 1em;
+    }
+  }
+
   .post-media.single-image img {
     max-width: 100%;
     width: auto;
