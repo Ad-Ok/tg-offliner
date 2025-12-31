@@ -49,7 +49,8 @@
                 :mimeType="postsWithMedia[cell.image_index].mime_type"
                 :isGallery="true"
                 :class="[
-                  { 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode }, 
+                  { 'opacity-25 print:hidden': getPostHiddenState(postsWithMedia[cell.image_index]) && !editModeStore.isExportMode },
+                  { 'minimal:hidden': postsWithMedia[cell.image_index].media_type === 'MessageMediaDocument' || postsWithMedia[cell.image_index].media_type === 'MessageMediaWebPage' },
                   'w-full h-full border-transparent',
                   borderClass
                 ]"
@@ -76,7 +77,10 @@
               :mediaType="post.media_type"
               :mimeType="post.mime_type"
               :isGallery="true"
-              :class="{ 'opacity-25 print:hidden': getPostHiddenState(post) && !editModeStore.isExportMode }"
+              :class="[
+                { 'opacity-25 print:hidden': getPostHiddenState(post) && !editModeStore.isExportMode },
+                { 'minimal:hidden': post.media_type === 'MessageMediaDocument' || post.media_type === 'MessageMediaWebPage' }
+              ]"
               :caption="getMediaCaption(post)"
               :useFancybox="!layoutData"
             />

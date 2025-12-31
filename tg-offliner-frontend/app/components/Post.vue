@@ -24,7 +24,7 @@
           :repost-author-link="post.repost_author_link"
         />
 
-        <div v-if="post.media_url && post.media_type" class="mt-2 pl-11">
+        <div v-if="post.media_url && post.media_type" class="mt-2 pl-11" :class="{ 'minimal:hidden': post.media_type === 'MessageMediaDocument' || post.media_type === 'MessageMediaWebPage' }">
           <PostMedia
             :mediaUrl="post.media_url"
             :mediaType="post.media_type"
