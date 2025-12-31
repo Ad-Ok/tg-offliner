@@ -64,11 +64,6 @@
                 v-html="getPostFromDb(post.telegram_id, post.channel_id).message"
                 ></div>
               </div>
-              
-              <!-- Debug info (временно) -->
-              <div class="text-xs font-mono text-gray-400 mt-2 opacity-50">
-                #{{ post.telegram_id }} • {{ post.bounds.width.toFixed(1) }}×{{ post.bounds.height.toFixed(1) }}mm
-              </div>
             </div>
             
             <!-- Media elements (images) with absolute positioning -->

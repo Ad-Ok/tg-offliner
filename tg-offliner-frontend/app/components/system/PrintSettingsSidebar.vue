@@ -220,23 +220,13 @@ const handleFreezeLayout = async () => {
     if (typeof window !== 'undefined' && window.__previewFreeze) {
       await window.__previewFreeze()
       
-      // Показываем успех с ссылкой на frozen preview
-      const result = confirm(
-        '✅ Layout frozen successfully!\n\n' +
-        'Would you like to view the frozen preview now?'
-      )
-      
-      if (result) {
-        // Переходим на страницу frozen preview
-        window.location.href = `/preview/${props.channelId}/frozen`
-      }
+      // Автоматически переходим на страницу frozen preview
+      window.location.href = `/preview/${props.channelId}/frozen`
     } else {
       console.error('Preview freeze function not available')
-      alert('❌ Error: Preview page not ready')
     }
   } catch (error) {
     console.error('Error freezing layout:', error)
-    alert('❌ Error freezing layout: ' + error.message)
   } finally {
     isFreezing.value = false
   }

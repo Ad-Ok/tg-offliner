@@ -12,6 +12,8 @@
           :comments-count="item.discussionComments ? item.discussionComments.length : 0"
           :data-post-id="item.posts[0].telegram_id"
           :data-channel-id="item.posts[0].channel_id"
+          :channel-id="channelId"
+          :discussion-group-id="discussionGroupId"
         />
       </template>
       
@@ -23,6 +25,8 @@
           :data-post-id="item.post.telegram_id"
           :data-channel-id="item.post.channel_id"
           :comments-count="item.discussionComments ? item.discussionComments.length : 0"
+          :channel-id="channelId"
+          :discussion-group-id="discussionGroupId"
         />
       </template>
       

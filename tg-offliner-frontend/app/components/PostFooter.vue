@@ -1,5 +1,5 @@
 <template>
-  <div class="post-footer flex justify-between py-2 px-4 text-sm text-gray-500 dark:text-gray-400">
+  <div class="post-footer flex justify-between py-2 px-4 text-sm text-gray-500 minimal:hidden">
     <PostReactions v-if="reactions" :reactions="reactions" />
     <div v-if="commentsCount > 0" class="ml-auto">
       <span class="">

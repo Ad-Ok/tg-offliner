@@ -11,6 +11,8 @@
         :author-avatar="firstPost.author_avatar"
         :author-link="firstPost.author_link"
         :date="firstPost.date"
+        :is-owner="isOwner"
+        :is-comment="isComment"
       />
       <PostBody
         :original-post="originalPost"
@@ -115,6 +117,14 @@ export default {
       type: Number,
       default: 0,
     },
+    channelId: {
+      type: String,
+      required: false,
+    },
+    discussionGroupId: {
+      type: String,
+      required: false,
+    },
   },
   components: {
     PostHeader,
@@ -140,6 +150,42 @@ export default {
     },
     galleryLayout() {
       return this.layoutData;
+    },
+    // Определяем, является ли группа от имени самого канала или группы обсуждения
+    isOwner() {
+      const firstPost = this.posts[0] || {}
+      const authorLink = firstPost.author_link
+      if (!authorLink) return false
+      
+      // Проверяем совпадение с каналом по username
+      if (this.channelId && authorLink === `https://t.me/${this.channelId}`) {
+        return true
+      }
+      
+      // Проверяем совпадение с каналом по числовому ID (с префиксом channel_)
+      if (this.channelId && this.channelId.startsWith('channel_')) {
+        const numericId = this.channelId.replace('channel_', '')
+        if (authorLink === `https://t.me/c/${numericId}`) {
+          return true
+        }
+      }
+      
+      // Проверяем совпадение с каналом по чистому числовому ID (без префикса)
+      if (this.channelId && /^\d+$/.test(this.channelId) && authorLink === `https://t.me/c/${this.channelId}`) {
+        return true
+      }
+      
+      // Проверяем совпадение с группой обсуждения
+      if (this.discussionGroupId && authorLink === `https://t.me/c/${this.discussionGroupId}`) {
+        return true
+      }
+      
+      return false
+    },
+    // Определяем, является ли группа комментарием (ответом на другой пост)
+    isComment() {
+      const firstPost = this.posts[0] || {}
+      return !!firstPost.reply_to
     }
   },
   setup(props) {

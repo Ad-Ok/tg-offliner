@@ -6,12 +6,14 @@
     <PostEditor :post="post" @hiddenStateChanged="onHiddenStateChanged" />
     
     <div class="post w-full font-sans print:text-sm">
-      <div class="post-wrap p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm print:shadow-none print:border print:border-gray-300 print:p-3">
+      <div class="post-wrap p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg overflow-hidden shadow-sm print:shadow-none print:border print:border-gray-300 print:p-3 minimal:p-0 minimal:shadow-none minimal:border-0">
         <PostHeader
           :author-name="post.author_name"
           :author-avatar="post.author_avatar"
           :author-link="post.author_link"
           :date="post.date"
+          :is-owner="isOwner"
+          :is-comment="isComment"
         />
 
         <PostBody
@@ -64,6 +66,14 @@ export default {
       type: Object,
       default: null,
     },
+    channelId: {
+      type: String,
+      required: false,
+    },
+    discussionGroupId: {
+      type: String,
+      required: false,
+    },
   },
   components: {
     PostHeader,
@@ -75,6 +85,42 @@ export default {
   setup(props) {
     const editModeStore = useEditModeStore()
     const isHidden = ref(props.post.hidden || props.post._shouldHide || false)
+    
+    // Определяем, является ли пост от имени самого канала или группы обсуждения
+    const isOwner = computed(() => {
+      const authorLink = props.post.author_link
+      if (!authorLink) return false
+      
+      // Проверяем совпадение с каналом по username
+      if (props.channelId && authorLink === `https://t.me/${props.channelId}`) {
+        return true
+      }
+      
+      // Проверяем совпадение с каналом по числовому ID (с префиксом channel_)
+      if (props.channelId && props.channelId.startsWith('channel_')) {
+        const numericId = props.channelId.replace('channel_', '')
+        if (authorLink === `https://t.me/c/${numericId}`) {
+          return true
+        }
+      }
+      
+      // Проверяем совпадение с каналом по чистому числовому ID (без префикса)
+      if (props.channelId && /^\d+$/.test(props.channelId) && authorLink === `https://t.me/c/${props.channelId}`) {
+        return true
+      }
+      
+      // Проверяем совпадение с группой обсуждения
+      if (props.discussionGroupId && authorLink === `https://t.me/c/${props.discussionGroupId}`) {
+        return true
+      }
+      
+      return false
+    })
+    
+    // Определяем, является ли пост комментарием (ответом на другой пост)
+    const isComment = computed(() => {
+      return !!props.post.reply_to
+    })
     
     const onHiddenStateChanged = (newHiddenState) => {
       isHidden.value = newHiddenState
@@ -127,7 +173,9 @@ export default {
       isHidden,
       onHiddenStateChanged,
       postContainerClasses,
-      mediaCaption
+      mediaCaption,
+      isOwner,
+      isComment
     }
   }
 };
