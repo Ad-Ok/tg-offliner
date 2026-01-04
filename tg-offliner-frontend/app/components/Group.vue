@@ -3,6 +3,7 @@
     class="group w-full" 
     :data-grouped-id="groupedId"
     :data-post-id="$attrs['data-post-id']"
+    :data-telegram-id="$attrs['data-telegram-id']"
     :data-channel-id="$attrs['data-channel-id']"
   >
     <div class="p-4 bg-white dark:bg-black border tweet-border rounded-lg sm:rounded-lg shadow-sm">

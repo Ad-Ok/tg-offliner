@@ -499,8 +499,9 @@ const calculatePageBreaks = async () => {
   // Высота контентной области страницы в пикселях
   const pageHeight = mmToPx(pageSize.height - topMargin - bottomMargin)
   
-  // Находим все посты
-  const posts = wallContainer.value.querySelectorAll('[data-post-id]')
+  // Находим все посты и галереи как топ-левел элементы
+  // wall-item - это семантический класс для top-level элементов в Wall.vue
+  const items = wallContainer.value.querySelectorAll('.wall-item > .post-container, .wall-item > .group')
   
   // Удаляем старые разрывы страниц и классы из всего контейнера
   const contentContainer = previewContainer.value?.querySelector('.mx-auto')
@@ -509,9 +510,9 @@ const calculatePageBreaks = async () => {
     oldBreaks.forEach(br => br.remove())
   }
   
-  // Удаляем класс break-before-page со всех постов
-  posts.forEach(post => {
-    post.classList.remove('break-before-page')
+  // Удаляем класс break-before-page со всех элементов
+  items.forEach(item => {
+    item.classList.remove('break-before-page')
   })
   
   let currentPageHeight = 0
@@ -524,32 +525,34 @@ const calculatePageBreaks = async () => {
     contentContainer.insertBefore(createPageBreak(1), firstChild)
   }
   
-  posts.forEach((post, index) => {
-    const postHeight = post.offsetHeight
-    const postId = post.getAttribute('data-post-id')
-    const postChannelId = post.getAttribute('data-channel-id')
+  items.forEach((item, index) => {
+    const itemHeight = item.offsetHeight
     
-    // Если добавление этого поста превысит высоту страницы
-    if (currentPageHeight + postHeight > pageHeight && currentPageHeight > 0) {
-      // Добавляем класс break-before-page к текущему посту (первому на новой странице)
-      post.classList.add('break-before-page')
+    // Для галереи берем data-telegram-id, для поста - data-post-id
+    const telegramId = item.getAttribute('data-telegram-id') || item.getAttribute('data-post-id')
+    const channelId = item.getAttribute('data-channel-id')
+    
+    // Если добавление этого элемента превысит высоту страницы
+    if (currentPageHeight + itemHeight > pageHeight && currentPageHeight > 0) {
+      // Добавляем класс break-before-page к текущему элементу (первому на новой странице)
+      item.classList.add('break-before-page')
       
-      // Вставляем визуальный индикатор разрыва страницы перед постом
+      // Вставляем визуальный индикатор разрыва страницы перед элементом
       pageCount++
-      post.parentNode.insertBefore(createPageBreak(pageCount), post)
+      item.parentNode.insertBefore(createPageBreak(pageCount), item)
       
       // Сбрасываем счетчик высоты
-      currentPageHeight = postHeight
+      currentPageHeight = itemHeight
       pagesData.push({ page: pageCount, posts: [] })
     } else {
-      currentPageHeight += postHeight
+      currentPageHeight += itemHeight
     }
     
-    // Добавляем пост на текущую страницу
-    if (postId && postChannelId) {
+    // Добавляем элемент на текущую страницу
+    if (telegramId && channelId) {
       pagesData[pagesData.length - 1].posts.push({
-        telegram_id: parseInt(postId),
-        channel_id: postChannelId
+        telegram_id: parseInt(telegramId),
+        channel_id: channelId
       })
     }
   })

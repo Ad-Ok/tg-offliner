@@ -3,7 +3,7 @@
     <div class="loading">Загрузка...</div>
   </ClientOnly>
   <div v-else>
-    <div v-for="item in organizedPostsWithDiscussion" :key="item.key" class="mb-6">
+    <div v-for="item in organizedPostsWithDiscussion" :key="item.key" class="wall-item mb-6">
       <!-- Группа -->
       <template v-if="item.type === 'group'">
         <Group 
@@ -12,6 +12,7 @@
           :comments-count="item.discussionComments ? item.discussionComments.length : 0"
           :data-post-id="item.posts[0].telegram_id"
           :data-channel-id="item.posts[0].channel_id"
+          :data-telegram-id="item.posts[0].telegram_id"
           :channel-id="channelId"
           :discussion-group-id="discussionGroupId"
         />
