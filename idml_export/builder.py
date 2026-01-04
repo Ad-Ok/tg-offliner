@@ -173,13 +173,14 @@ class IDMLBuilder:
         self.stories.append(story)
         return story_id
     
-    def add_text_frame(self, story_id, bounds, page_index=None):
+    def add_text_frame(self, story_id, bounds, page_index=None, vertical_justification='TopAlign'):
         """
         Добавляет текстовый фрейм на страницу
         
         :param story_id: ID Story
         :param bounds: [y1, x1, y2, x2]
         :param page_index: индекс страницы (0-based), если None - текущая страница
+        :param vertical_justification: вертикальное выравнивание ('TopAlign', 'CenterAlign', 'BottomAlign')
         """
         frame_id = self.next_id('frame_')
         
@@ -187,7 +188,8 @@ class IDMLBuilder:
             'id': frame_id,
             'type': 'TextFrame',
             'story_id': story_id,
-            'bounds': bounds
+            'bounds': bounds,
+            'vertical_justification': vertical_justification
         }
         
         # Добавляем на указанную или текущую страницу
@@ -255,7 +257,7 @@ class IDMLBuilder:
         
         return [y1, x1, y2, x2]
     
-    def add_image_frame(self, image_path, bounds, page_index=None, stroke_weight=0):
+    def add_image_frame(self, image_path, bounds, page_index=None, stroke_weight=0, corner_radius=0):
         """
         Добавляет фрейм с изображением
         
@@ -263,6 +265,7 @@ class IDMLBuilder:
         :param bounds: [y1, x1, y2, x2]
         :param page_index: индекс страницы (0-based), если None - текущая страница
         :param stroke_weight: толщина рамки в points (0 = без рамки)
+        :param corner_radius: радиус скругления углов в points (0 = без скругления)
         """
         frame_id = self.next_id('frame_')
         link_id = self.next_id('link_')
@@ -275,6 +278,7 @@ class IDMLBuilder:
             'type': 'Rectangle',
             'bounds': bounds,
             'stroke_weight': stroke_weight,  # Толщина рамки в points
+            'corner_radius': corner_radius,  # Радиус скругления углов в points
             'image': {
                 'link_id': link_id,
                 'path': absolute_path  # Абсолютный путь к файлу
@@ -416,6 +420,90 @@ class IDMLBuilder:
         
         if not post:
             return
+        
+        # Проверяем условия для показа автора (аватар + имя)
+        # Показываем только для комментариев от сторонних авторов (не канал/discussion group)
+        should_show_author = False
+        if post.reply_to:  # Это комментарий
+            author_link = post.author_link
+            if author_link:
+                # Проверяем что автор НЕ является каналом или discussion group
+                is_owner = False
+                
+                # Проверяем совпадение с каналом по username
+                if channel_id and author_link == f"https://t.me/{channel_id}":
+                    is_owner = True
+                
+                # Проверяем совпадение с каналом по числовому ID (с префиксом channel_)
+                if not is_owner and channel_id and channel_id.startswith('channel_'):
+                    numeric_id = channel_id.replace('channel_', '')
+                    if author_link == f"https://t.me/c/{numeric_id}":
+                        is_owner = True
+                
+                # Проверяем совпадение с каналом по чистому числовому ID
+                if not is_owner and channel_id and channel_id.isdigit() and author_link == f"https://t.me/c/{channel_id}":
+                    is_owner = True
+                
+                # Проверяем совпадение с discussion group
+                if not is_owner and self.channel.discussion_group_id:
+                    if author_link == f"https://t.me/c/{self.channel.discussion_group_id}":
+                        is_owner = True
+                
+                should_show_author = not is_owner
+        
+        # Вычисляем размеры и позицию для элементов автора
+        # Аватар: 32x32px = ~11.3x11.3mm = ~32x32pt
+        # Отступ между элементами: 5mm = ~14.17pt
+        if should_show_author and post.author_name:
+            from .constants import mm_to_points
+            
+            avatar_size_pt = 32  # 32pt = ~11.3mm
+            author_spacing_pt = mm_to_points(5)  # 5mm между аватаром и именем
+            author_block_height_pt = avatar_size_pt + mm_to_points(2)  # +2mm отступ снизу
+            
+            # Аватар: слева от текста, в начале поста
+            avatar_bounds = [
+                top_pt,  # y1
+                left_pt,  # x1
+                top_pt + avatar_size_pt,  # y2
+                left_pt + avatar_size_pt  # x2
+            ]
+            
+            # Имя автора: справа от аватара
+            author_name_left_pt = left_pt + avatar_size_pt + author_spacing_pt
+            author_name_width_pt = width_pt - avatar_size_pt - author_spacing_pt
+            author_name_bounds = [
+                top_pt,  # y1
+                author_name_left_pt,  # x1
+                top_pt + avatar_size_pt,  # y2 (той же высоты что аватар)
+                author_name_left_pt + author_name_width_pt  # x2
+            ]
+            
+            # Добавляем аватар если есть
+            if post.author_avatar:
+                avatar_path = os.path.join('/app/downloads', post.author_avatar)
+                if os.path.exists(avatar_path):
+                    print(f"✅ Adding author avatar: {avatar_path}")
+                    self.add_image_frame(
+                        avatar_path,
+                        avatar_bounds,
+                        page_index=page_number - 1,
+                        stroke_weight=0,
+                        corner_radius=16  # Полное скругление (половина от 32pt)
+                    )
+                else:
+                    print(f"⚠️ Author avatar not found: {avatar_path}")
+            
+            # Добавляем имя автора с вертикальным центрированием
+            author_story_id = self.add_text_story(f'<p style="Author">{post.author_name}</p>', 'Author')
+            self.add_text_frame(author_story_id, author_name_bounds, page_index=page_number - 1, vertical_justification='CenterAlign')
+            print(f"✅ Added author name: {post.author_name}")
+            
+            # Сдвигаем верхнюю границу текста вниз, чтобы он начинался после автора
+            frame_bounds[0] += author_block_height_pt  # top
+            # И уменьшаем высоту на ту же величину
+            height_pt -= author_block_height_pt
+            frame_bounds[2] = frame_bounds[0] + height_pt  # bottom (пересчитываем)
         
         # Добавляем текст с датой если есть
         if post.message:
@@ -772,6 +860,9 @@ class IDMLBuilder:
         # Используем утилиту для вычисления позиции
         item_transform, path_points = self._calculate_item_transform(frame['bounds'], page)
         
+        # Получаем vertical_justification из данных фрейма (по умолчанию TopAlign)
+        vertical_justification = frame.get('vertical_justification', 'TopAlign')
+        
         text_frame = ET.SubElement(parent, 'TextFrame',
                                    Self=frame['id'],
                                    ParentStory=frame['story_id'],
@@ -779,8 +870,15 @@ class IDMLBuilder:
                                    ItemTransform=item_transform,
                                    ContentType='TextType')
         
-        # Properties с PathGeometry (обязательно для InDesign)
+        # Properties с PathGeometry и TextFramePreference
         props = ET.SubElement(text_frame, 'Properties')
+        
+        # TextFramePreference для вертикального выравнивания
+        text_frame_pref = ET.SubElement(props, 'TextFramePreference')
+        ET.SubElement(text_frame_pref, 'Properties')
+        text_frame_pref.set('VerticalJustification', vertical_justification)
+        
+        # PathGeometry (обязательно для InDesign)
         path_geo = ET.SubElement(props, 'PathGeometry')
         geo_path = ET.SubElement(path_geo, 'GeometryPathType', PathOpen='false')
         path_points_array = ET.SubElement(geo_path, 'PathPointArray')
@@ -804,6 +902,9 @@ class IDMLBuilder:
         # Используем Color/Borders для белого цвета рамки
         stroke_color = 'Color/Borders' if stroke_weight > 0 else 'Swatch/None'
         
+        # Получаем corner_radius из данных фрейма (в points)
+        corner_radius = frame.get('corner_radius', 0)
+        
         # Атрибуты Rectangle
         rect_attrs = {
             'Self': frame['id'],
@@ -818,6 +919,18 @@ class IDMLBuilder:
         # Добавляем StrokeAlignment для имитации CSS border (inside)
         if stroke_weight > 0:
             rect_attrs['StrokeAlignment'] = 'InsideAlignment'
+        
+        # Добавляем CornerRadius для скругления углов
+        if corner_radius > 0:
+            # CornerOption - правильный способ задать скругление в IDML
+            rect_attrs['TopLeftCornerOption'] = 'RoundedCorner'
+            rect_attrs['TopRightCornerOption'] = 'RoundedCorner'
+            rect_attrs['BottomLeftCornerOption'] = 'RoundedCorner'
+            rect_attrs['BottomRightCornerOption'] = 'RoundedCorner'
+            rect_attrs['TopLeftCornerRadius'] = str(corner_radius)
+            rect_attrs['TopRightCornerRadius'] = str(corner_radius)
+            rect_attrs['BottomLeftCornerRadius'] = str(corner_radius)
+            rect_attrs['BottomRightCornerRadius'] = str(corner_radius)
         
         rect = ET.SubElement(parent, 'Rectangle', **rect_attrs)
         

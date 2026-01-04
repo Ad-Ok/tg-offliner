@@ -59,6 +59,17 @@
                 v-if="getPostFromDb(post.telegram_id, post.channel_id)"
                 class="post-body" 
               >
+                <!-- Автор (аватар + имя) - только для комментариев от сторонних авторов -->
+                <div v-if="shouldShowAuthor(post)" class="post-author flex items-center gap-2 mb-2">
+                  <img 
+                    v-if="getPostFromDb(post.telegram_id, post.channel_id)?.author_avatar" 
+                    :src="getAuthorAvatarUrl(getPostFromDb(post.telegram_id, post.channel_id).author_avatar)"
+                    class="author-avatar w-8 h-8 rounded-full object-cover"
+                    alt="Author avatar"
+                  />
+                  <span class="author-name text-sm font-bold text-gray-900">{{ getPostFromDb(post.telegram_id, post.channel_id)?.author_name }}</span>
+                </div>
+                
                 <!-- Дата поста (только для постов, не для комментариев) -->
                 <div v-if="post.date && post.type !== 'comment'" class="post-date text-xs text-gray-400 mb-2">{{ post.date }}</div>
                 
@@ -108,6 +119,12 @@ import { api, mediaBase } from '~/services/api'
 
 const route = useRoute()
 const channelId = route.params.channelId
+
+// Загрузка информации о канале
+const { data: channelInfo } = await useAsyncData(
+  `channel-info-${channelId}`,
+  () => api.get(`/api/channels/${channelId}`).then(res => res.data)
+)
 
 // Загрузка frozen layout
 const { data: frozenData, pending, error } = await useAsyncData(
@@ -216,6 +233,50 @@ const getMediaUrl = (media, post) => {
   // media_url в базе: channel_id/media/file.jpg
   // Добавляем downloads/ и mediaBase
   return url
+}
+
+// Функция для получения URL аватара автора
+const getAuthorAvatarUrl = (avatarPath) => {
+  return `${mediaBase}/downloads/${avatarPath}`
+}
+
+// Функция для определения нужно ли показывать автора (аватар + имя)
+const shouldShowAuthor = (post) => {
+  const dbPost = getPostFromDb(post.telegram_id, post.channel_id)
+  if (!dbPost) return false
+  
+  // Это комментарий?
+  const isComment = !!dbPost.reply_to
+  if (!isComment) return false
+  
+  // Проверяем, не является ли автор владельцем канала или discussion group
+  const authorLink = dbPost.author_link
+  if (!authorLink) return false
+  
+  // Проверяем совпадение с каналом по username
+  if (channelId && authorLink === `https://t.me/${channelId}`) {
+    return false
+  }
+  
+  // Проверяем совпадение с каналом по числовому ID (с префиксом channel_)
+  if (channelId && channelId.startsWith('channel_')) {
+    const numericId = channelId.replace('channel_', '')
+    if (authorLink === `https://t.me/c/${numericId}`) {
+      return false
+    }
+  }
+  
+  // Проверяем совпадение с каналом по чистому числовому ID (без префикса)
+  if (channelId && /^\d+$/.test(channelId) && authorLink === `https://t.me/c/${channelId}`) {
+    return false
+  }
+  
+  // Проверяем совпадение с группой обсуждения
+  if (channelInfo.value?.discussion_group_id && authorLink === `https://t.me/c/${channelInfo.value.discussion_group_id}`) {
+    return false
+  }
+  
+  return true
 }
 </script>
 

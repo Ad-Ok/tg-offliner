@@ -61,6 +61,16 @@ def _create_character_styles(parent):
     ET.SubElement(props, 'AppliedFont', type='string').text = FONTS['body']
     ET.SubElement(props, 'PointSize', type='double').text = '12'
     ET.SubElement(props, 'FillColor', type='string').text = 'Color/Black'
+    
+    # Author - стиль для имени автора (13pt bold)
+    author_style = ET.SubElement(parent, 'CharacterStyle',
+                                 Self='CharacterStyle/Author',
+                                 Name='Author')
+    props = ET.SubElement(author_style, 'Properties')
+    ET.SubElement(props, 'AppliedFont', type='string').text = FONTS['body']
+    ET.SubElement(props, 'FontStyle', type='string').text = 'Bold'
+    ET.SubElement(props, 'PointSize', type='double').text = '13'
+    ET.SubElement(props, 'FillColor', type='string').text = 'Color/Black'
 
 
 def _create_paragraph_styles(parent):
@@ -83,6 +93,13 @@ def _create_paragraph_styles(parent):
                   Self='ParagraphStyle/PostBody',
                   Name='PostBody',
                   SpaceAfter='12',
+                  Justification='LeftAlign')
+    
+    # Author - имя автора
+    ET.SubElement(parent, 'ParagraphStyle',
+                  Self='ParagraphStyle/Author',
+                  Name='Author',
+                  SpaceAfter='4',
                   Justification='LeftAlign')
 
 
