@@ -91,6 +91,39 @@ const freezeCurrentLayout = async () => {
     return
   }
   
+  // Этап 1.5: Предварительно загружаем все layouts галерей для получения border_width
+  console.log('📦 Preloading gallery layouts...')
+  const galleryLayouts = new Map() // grouped_id -> layout
+  const allGalleryContainers = contentContainer.querySelectorAll('[data-grouped-id]')
+  const uniqueGroupedIds = new Set()
+  
+  allGalleryContainers.forEach(container => {
+    const groupedId = container.dataset.groupedId
+    const channelId = container.dataset.channelId
+    if (groupedId && channelId) {
+      uniqueGroupedIds.add(`${groupedId}:${channelId}`)
+    }
+  })
+  
+  // Загружаем все layouts параллельно
+  await Promise.all(
+    Array.from(uniqueGroupedIds).map(async (key) => {
+      const [groupedId, channel_id] = key.split(':')
+      try {
+        const layoutResponse = await api.get(`/api/layouts/${groupedId}?channel_id=${encodeURIComponent(channel_id)}`)
+        const layout = layoutResponse.data
+        if (layout) {
+          galleryLayouts.set(groupedId, layout)
+          console.log(`  ✅ Loaded layout for gallery ${groupedId}: border_width=${layout.border_width || '0'}`)
+        }
+      } catch (error) {
+        console.warn(`  ⚠️ Failed to load layout for gallery ${groupedId}`, error)
+      }
+    })
+  )
+  
+  console.log(`📦 Preloaded ${galleryLayouts.size} gallery layouts`)
+  
   // Этап 2: Для каждой страницы извлечь посты и их координаты
   const frozenPages = []
   const containerRect = contentContainer.getBoundingClientRect()
@@ -156,6 +189,18 @@ const freezeCurrentLayout = async () => {
       // Галереи (группы постов) - ищем .gallery-container с .gallery-item элементами
       const galleryContainer = postElement.querySelector('.gallery-container')
       if (galleryContainer) {
+        // Получаем grouped_id из data-grouped-id контейнера группы
+        const groupElement = postElement.closest('[data-grouped-id]')
+        const groupedId = groupElement ? groupElement.dataset.groupedId : null
+        
+        // Получаем border_width из предзагруженного layout
+        let galleryBorderWidth = '0'
+        if (groupedId && galleryLayouts.has(groupedId)) {
+          const layout = galleryLayouts.get(groupedId)
+          galleryBorderWidth = layout.border_width || '0'
+          console.log(`    Gallery ${groupedId}: using border_width=${galleryBorderWidth}`)
+        }
+        
         const galleryItems = galleryContainer.querySelectorAll('.gallery-item')
         console.log(`    Found ${galleryItems.length} gallery items`)
         
@@ -192,7 +237,8 @@ const freezeCurrentLayout = async () => {
                 left: pxToMm(itemRect.left - pageLeft),
                 width: pxToMm(itemRect.width),
                 height: pxToMm(itemRect.height)
-              }
+              },
+              border_width: galleryBorderWidth  // Сохраняем border_width для этого изображения
             }
             
             mediaElements.push(mediaItem)

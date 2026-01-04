@@ -6,10 +6,53 @@ from lxml import etree as ET
 
 
 def generate_graphic_xml():
-    """Генерирует пустой Graphic.xml"""
-    root = ET.Element('GraphicList', nsmap={
+    """Генерирует Graphic.xml с цветами и свотчами"""
+    nsmap = {
+        'idPkg': 'http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging',
         None: 'http://ns.adobe.com/AdobeInDesign/4.0/'
-    })
+    }
+    idPkg_ns = '{http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging}'
+    
+    root = ET.Element(f'{idPkg_ns}Graphic', nsmap=nsmap, DOMVersion='17.0')
+    
+    # Стандартные цвета InDesign
+    # Black
+    ET.SubElement(root, 'Color',
+                  Self='Color/Black',
+                  Model='Process',
+                  Space='CMYK',
+                  ColorValue='0 0 0 100',
+                  Name='Black',
+                  ColorEditable='false',
+                  ColorRemovable='false')
+    
+    # Borders (белый цвет для рамок галерей)
+    ET.SubElement(root, 'Color',
+                  Self='Color/Borders',
+                  Model='Process',
+                  Space='CMYK',
+                  ColorValue='0 0 0 0',  # CMYK белый = 0 0 0 0
+                  Name='Borders',
+                  ColorEditable='true',
+                  ColorRemovable='true')
+    
+    # Paper (белый цвет фона)
+    ET.SubElement(root, 'Color',
+                  Self='Color/Paper',
+                  Model='Process',
+                  Space='CMYK',
+                  ColorValue='0 0 0 0',
+                  Name='Paper',
+                  ColorEditable='false',
+                  ColorRemovable='false')
+    
+    # None swatch
+    ET.SubElement(root, 'Swatch',
+                  Self='Swatch/None',
+                  Name='None',
+                  ColorEditable='false',
+                  ColorRemovable='false')
+    
     return ET.tostring(root, pretty_print=True, xml_declaration=True, encoding='UTF-8')
 
 

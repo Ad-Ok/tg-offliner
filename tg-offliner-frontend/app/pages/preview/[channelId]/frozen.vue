@@ -178,13 +178,19 @@ const getPostStyle = (post) => ({
 })
 
 // Стили для медиа элементов с абсолютным позиционированием
-const getMediaStyle = (media) => ({
-  top: `${media.bounds.top}mm`,
-  left: `${media.bounds.left}mm`,
-  width: `${media.bounds.width}mm`,
-  height: `${media.bounds.height}mm`,
-  border: '1px solid #3b82f6'
-})
+const getMediaStyle = (media) => {
+  // Используем border_width из данных медиа (для галерей)
+  const borderWidth = media.border_width || '0'
+  const borderStyle = borderWidth !== '0' ? `${borderWidth}px solid white` : 'none'
+  
+  return {
+    top: `${media.bounds.top}mm`,
+    left: `${media.bounds.left}mm`,
+    width: `${media.bounds.width}mm`,
+    height: `${media.bounds.height}mm`,
+    border: borderStyle
+  }
+}
 
 // Функция для получения URL медиа файла
 const getMediaUrl = (media, post) => {

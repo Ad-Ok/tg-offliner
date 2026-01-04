@@ -255,13 +255,14 @@ class IDMLBuilder:
         
         return [y1, x1, y2, x2]
     
-    def add_image_frame(self, image_path, bounds, page_index=None):
+    def add_image_frame(self, image_path, bounds, page_index=None, stroke_weight=0):
         """
         Добавляет фрейм с изображением
         
         :param image_path: абсолютный путь к изображению
         :param bounds: [y1, x1, y2, x2]
         :param page_index: индекс страницы (0-based), если None - текущая страница
+        :param stroke_weight: толщина рамки в points (0 = без рамки)
         """
         frame_id = self.next_id('frame_')
         link_id = self.next_id('link_')
@@ -273,6 +274,7 @@ class IDMLBuilder:
             'id': frame_id,
             'type': 'Rectangle',
             'bounds': bounds,
+            'stroke_weight': stroke_weight,  # Толщина рамки в points
             'image': {
                 'link_id': link_id,
                 'path': absolute_path  # Абсолютный путь к файлу
@@ -446,6 +448,12 @@ class IDMLBuilder:
                     print(f"⏭️ Skipping unsupported media type: {media_post.media_type} ({media_post.media_url})")
                     continue
                 
+                # Получаем border_width из frozen данных (для галерей)
+                # border_width приходит как строка с пикселями ('2', '4', etc.)
+                from .constants import px_to_points
+                border_width_px = float(media_elem.get('border_width', 0))
+                border_width_pt = px_to_points(border_width_px) if border_width_px > 0 else 0
+                
                 # Координаты медиа в миллиметрах
                 media_bounds_mm = media_elem['bounds']
                 
@@ -465,13 +473,14 @@ class IDMLBuilder:
                 # Путь к изображению из базы (channel_id/media/file.jpg)
                 image_path = os.path.join('/app/downloads', media_post.media_url)
                 
-                # Добавляем image frame с абсолютным путем
+                # Добавляем image frame с абсолютным путем и border_width
                 if os.path.exists(image_path):
-                    print(f"✅ Adding image: {image_path}")
+                    print(f"✅ Adding image: {image_path} (border: {border_width_px}px = {border_width_pt:.2f}pt)")
                     self.add_image_frame(
                         image_path, 
                         media_frame_bounds, 
-                        page_index=page_number - 1
+                        page_index=page_number - 1,
+                        stroke_weight=border_width_pt
                     )
                 else:
                     print(f"⚠️ Image not found: {image_path}")
@@ -782,13 +791,27 @@ class IDMLBuilder:
         # Используем ту же утилиту для вычисления позиции
         item_transform, path_points = self._calculate_item_transform(frame['bounds'], page)
         
-        rect = ET.SubElement(parent, 'Rectangle',
-                            Self=frame['id'],
-                            GeometricBounds=' '.join(map(str, frame['bounds'])),
-                            ItemTransform=item_transform,
-                            FillColor='Color/None',
-                            StrokeWeight='0',
-                            ContentType='GraphicType')
+        # Получаем stroke_weight из данных фрейма (в points)
+        stroke_weight = frame.get('stroke_weight', 0)
+        # Используем Color/Borders для белого цвета рамки
+        stroke_color = 'Color/Borders' if stroke_weight > 0 else 'Swatch/None'
+        
+        # Атрибуты Rectangle
+        rect_attrs = {
+            'Self': frame['id'],
+            'GeometricBounds': ' '.join(map(str, frame['bounds'])),
+            'ItemTransform': item_transform,
+            'FillColor': 'Swatch/None',
+            'StrokeWeight': str(stroke_weight),
+            'StrokeColor': stroke_color,
+            'ContentType': 'GraphicType'
+        }
+        
+        # Добавляем StrokeAlignment для имитации CSS border (inside)
+        if stroke_weight > 0:
+            rect_attrs['StrokeAlignment'] = 'InsideAlignment'
+        
+        rect = ET.SubElement(parent, 'Rectangle', **rect_attrs)
         
         # Properties с PathGeometry
         props = ET.SubElement(rect, 'Properties')
