@@ -417,10 +417,18 @@ class IDMLBuilder:
         if not post:
             return
         
-        # Добавляем текст если есть
+        # Добавляем текст с датой если есть
         if post.message:
-            # Используем исходный текст из базы (с HTML форматированием)
-            story_id = self.add_text_story(post.message, 'PostBody')
+            # Формируем текст с датой в начале (если дата есть)
+            full_text = post.message
+            if post_data.get('date'):
+                # Вставляем дату в начало того же блока с переводом строки
+                date_paragraph = f'<p style="PostDate">{post_data["date"]}</p>\n'
+                full_text = date_paragraph + post.message
+                print(f"✅ Added date: {post_data['date']}")
+            
+            # Используем исходный текст из базы (с HTML форматированием) + дата
+            story_id = self.add_text_story(full_text, 'PostBody')
             self.add_text_frame(story_id, frame_bounds, page_index=page_number - 1)
         
         # Добавляем медиа элементы
@@ -898,9 +906,12 @@ class IDMLBuilder:
             # Есть параграфы - обрабатываем каждый отдельно
             logging.info(f"[IDML] Найдено {len(paragraphs)} параграфов в HTML")
             for para in paragraphs:
+                # Проверяем атрибут style у параграфа (для переопределения стиля)
+                para_style = para.get('style', style)
+                
                 # Создаем ParagraphStyleRange для каждого параграфа
                 para_range = ET.SubElement(parent, 'ParagraphStyleRange',
-                                          AppliedParagraphStyle=f'ParagraphStyle/{style}')
+                                          AppliedParagraphStyle=f'ParagraphStyle/{para_style}')
                 
                 # Обрабатываем содержимое параграфа
                 self._process_element(para_range, para)

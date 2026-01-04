@@ -157,8 +157,21 @@ const freezeCurrentLayout = async () => {
       
       const telegram_id = postElement.dataset.postId
       const channel_id = postElement.dataset.channelId
+      const isComment = postElement.dataset.isComment === 'true'
       
-      console.log(`    Post ${telegram_id}: top=${bounds.top.toFixed(2)}mm, left=${bounds.left.toFixed(2)}mm`)
+      // Извлекаем дату из data-атрибута или из .post-date (только для постов, не для комментариев)
+      let post_date = ''
+      if (!isComment) {
+        post_date = postElement.dataset.date || ''
+        if (!post_date) {
+          const dateElement = postElement.querySelector('.post-date')
+          if (dateElement) {
+            post_date = dateElement.textContent.trim()
+          }
+        }
+      }
+      
+      console.log(`    Post ${telegram_id}: top=${bounds.top.toFixed(2)}mm, left=${bounds.left.toFixed(2)}mm, date=${post_date}, isComment=${isComment}`)
       
       // Извлекаем координаты медиа элементов внутри поста
       const mediaElements = []
@@ -252,6 +265,7 @@ const freezeCurrentLayout = async () => {
       return {
         telegram_id: parseInt(telegram_id),
         channel_id: channel_id,
+        date: post_date,
         type: postElement.dataset.isComment === 'true' ? 'comment' : 'post',
         bounds: bounds,
         media: mediaElements

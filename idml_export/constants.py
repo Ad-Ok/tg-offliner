@@ -63,6 +63,12 @@ ENTITY_TO_CHAR_STYLE = {
 
 # Paragraph Styles
 PARAGRAPH_STYLES = {
+    'PostDate': {
+        'font': FONTS['body'],
+        'size': 9,
+        'color': 'Color/Gray',
+        'space_after': 4,
+    },
     'PostHeader': {
         'font': FONTS['body'],
         'size': 9,

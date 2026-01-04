@@ -59,6 +59,9 @@
                 v-if="getPostFromDb(post.telegram_id, post.channel_id)"
                 class="post-body" 
               >
+                <!-- Дата поста (только для постов, не для комментариев) -->
+                <div v-if="post.date && post.type !== 'comment'" class="post-date text-xs text-gray-400 mb-2">{{ post.date }}</div>
+                
                 <div 
                 class="post-message text-sm text-gray-900 dark:text-gray-100" 
                 v-html="getPostFromDb(post.telegram_id, post.channel_id).message"

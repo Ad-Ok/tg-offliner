@@ -107,6 +107,17 @@ def _create_paragraph_styles(parent):
                   Self='ParagraphStyle/$ID/[No paragraph style]',
                   Name='$ID/[No paragraph style]')
     
+    # PostDate - дата поста
+    date_style = ET.SubElement(parent, 'ParagraphStyle',
+                               Self='ParagraphStyle/PostDate',
+                               Name='PostDate')
+    props = ET.SubElement(date_style, 'Properties')
+    ET.SubElement(props, 'AppliedFont', type='string').text = PARAGRAPH_STYLES['PostDate']['font']
+    ET.SubElement(props, 'PointSize', type='double').text = str(PARAGRAPH_STYLES['PostDate']['size'])
+    ET.SubElement(props, 'FillColor', type='string').text = PARAGRAPH_STYLES['PostDate']['color']
+    ET.SubElement(props, 'SpaceAfter', type='double').text = str(PARAGRAPH_STYLES['PostDate']['space_after'])
+    ET.SubElement(props, 'Justification', type='enumeration').text = 'RightAlign'
+    
     # PostHeader - автор и дата
     header_style = ET.SubElement(parent, 'ParagraphStyle',
                                   Self='ParagraphStyle/PostHeader',
