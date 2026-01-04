@@ -33,15 +33,8 @@ def process_poll(message):
                 if total_votes > 0:
                     percentage = (votes / total_votes) * 100
                 
-                # Формируем HTML для каждого варианта ответа
-                poll_html += f"""
-                <div class="poll-option mb-2">
-                    <div class="mb-1">
-                        <strong>{percentage:.1f}%</strong> - {answer_text} ({votes})
-                    </div>
-                    <progress max="100" value="{percentage:.1f}" class="progress w-full"></progress>
-                </div>
-                """
+                # Формируем HTML для каждого варианта ответа (используем minimal:hidden для скрытия progress в печати)
+                poll_html += f"<div class='poll-option mb-2'><div class='mb-1'><strong>{percentage:.1f}%</strong> - {answer_text} ({votes})</div><progress max='100' value='{percentage:.1f}' class='progress w-full minimal:hidden'></progress></div>"
             
             poll_html += "</div>"
             logging.info(f"Голосование успешно обработано: {poll_question}")
