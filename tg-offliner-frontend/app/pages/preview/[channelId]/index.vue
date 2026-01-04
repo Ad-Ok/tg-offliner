@@ -153,6 +153,56 @@ const freezeCurrentLayout = async () => {
         }
       })
       
+      // Галереи (группы постов) - ищем .gallery-container с .gallery-item элементами
+      const galleryContainer = postElement.querySelector('.gallery-container')
+      if (galleryContainer) {
+        const galleryItems = galleryContainer.querySelectorAll('.gallery-item')
+        console.log(`    Found ${galleryItems.length} gallery items`)
+        
+        galleryItems.forEach((item, idx) => {
+          // Telegram ID находится в атрибуте самого .gallery-item
+          const galleryPostId = item.dataset.postId
+          console.log(`      Gallery item ${idx}: postId=${galleryPostId}`)
+          
+          if (!galleryPostId) {
+            console.warn(`      Gallery item ${idx}: missing postId, skipping`)
+            return
+          }
+          
+          // Внутри каждого .gallery-item есть PostMedia с data-media-type
+          const mediaElement = item.querySelector('[data-media-type]')
+          if (!mediaElement) {
+            console.warn(`      Gallery item ${idx}: no media element found`)
+            return
+          }
+          
+          const mediaType = mediaElement.dataset.mediaType
+          const mimeType = mediaElement.dataset.mimeType
+          
+          // Только MessageMediaPhoto или MessageMediaDocument с image/*
+          if (mediaType === 'MessageMediaPhoto' || 
+              (mediaType === 'MessageMediaDocument' && mimeType && mimeType.startsWith('image/'))) {
+            const itemRect = item.getBoundingClientRect()
+            
+            const mediaItem = {
+              type: 'image',
+              telegram_id: parseInt(galleryPostId),
+              bounds: {
+                top: pxToMm(itemRect.top - pageTop),
+                left: pxToMm(itemRect.left - pageLeft),
+                width: pxToMm(itemRect.width),
+                height: pxToMm(itemRect.height)
+              }
+            }
+            
+            mediaElements.push(mediaItem)
+            console.log(`      ✅ Added gallery image: telegram_id=${galleryPostId}, bounds=${JSON.stringify(mediaItem.bounds)}`)
+          } else {
+            console.log(`      ⏭️ Skipping non-image media: ${mediaType}`)
+          }
+        })
+      }
+      
       return {
         telegram_id: parseInt(telegram_id),
         channel_id: channel_id,

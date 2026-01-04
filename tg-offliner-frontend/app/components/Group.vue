@@ -39,6 +39,7 @@
             :key="index"
             class="gallery-item absolute"
             :style="getCellStyle(cell)"
+            :data-post-id="getPostIdByIndex(cell.image_index)"
           >
             <template v-if="cell.image_index !== undefined && cell.image_index < postsWithMedia.length && postsWithMedia[cell.image_index]">
               <PostEditor :post="postsWithMedia[cell.image_index]" @hiddenStateChanged="(state) => onHiddenStateChanged(postsWithMedia[cell.image_index], state)"/>
@@ -190,6 +191,16 @@ export default {
     isComment() {
       const firstPost = this.posts[0] || {}
       return !!firstPost.reply_to
+    }
+  },
+  methods: {
+    // Получить telegram_id поста по индексу в галерее
+    getPostIdByIndex(imageIndex) {
+      if (imageIndex === undefined || imageIndex >= this.postsWithMedia.length) {
+        return null
+      }
+      const post = this.postsWithMedia[imageIndex]
+      return post ? post.telegram_id : null
     }
   },
   setup(props) {

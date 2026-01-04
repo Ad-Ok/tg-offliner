@@ -75,8 +75,8 @@
                 :style="getMediaStyle(media)"
               >
                 <img
-                  v-if="media.type === 'image' && getPostFromDb(post.telegram_id, post.channel_id)?.media_url"
-                  :src="getMediaUrl(getPostFromDb(post.telegram_id, post.channel_id))"
+                  v-if="media.type === 'image'"
+                  :src="getMediaUrl(media, post)"
                   class="w-full h-full object-cover"
                   alt="Post media"
                 />
@@ -115,7 +115,29 @@ const { data: frozenData, pending, error } = await useAsyncData(
 // Загрузка постов из базы для отображения текста
 const { data: postsData } = await useAsyncData(
   `posts-${channelId}`,
-  () => api.get(`/api/posts?channel_id=${channelId}`).then(res => res.data)
+  async () => {
+    // Загружаем посты канала
+    const mainPosts = await api.get(`/api/posts?channel_id=${channelId}`).then(res => res.data)
+    
+    // Проверяем наличие discussion group
+    const channelInfo = await api.get(`/api/channels/${channelId}`).then(res => res.data)
+    
+    let allPosts = mainPosts
+    
+    // Если есть discussion group, загружаем и его посты
+    if (channelInfo?.discussion_group_id) {
+      const discussionPosts = await api.get(`/api/posts?channel_id=${channelInfo.discussion_group_id}`).then(res => res.data)
+      
+      // Объединяем посты, удаляя дубликаты
+      allPosts = [...mainPosts, ...discussionPosts]
+      const uniquePosts = allPosts.filter((post, index, array) => 
+        array.findIndex(p => p.id === post.id) === index
+      )
+      allPosts = uniquePosts
+    }
+    
+    return allPosts
+  }
 )
 
 // Создаем мапу постов для быстрого доступа
@@ -165,11 +187,27 @@ const getMediaStyle = (media) => ({
 })
 
 // Функция для получения URL медиа файла
-const getMediaUrl = (post) => {
-  if (!post?.media_url) return ''
+const getMediaUrl = (media, post) => {
+  // Для галерей: media.telegram_id содержит ID отдельной картинки
+  // Для одиночных изображений: используем post.telegram_id
+  const telegram_id = media.telegram_id || post.telegram_id
+  const channel_id = post.channel_id
+  
+  console.log(`getMediaUrl: telegram_id=${telegram_id} (media.telegram_id=${media.telegram_id}, post.telegram_id=${post.telegram_id}), channel_id=${channel_id}`)
+  
+  // Получаем пост с медиа из базы
+  const mediaPost = getPostFromDb(telegram_id, channel_id)
+  if (!mediaPost?.media_url) {
+    console.warn(`getMediaUrl: media post not found for telegram_id=${telegram_id}, channel_id=${channel_id}`)
+    return ''
+  }
+  
+  const url = `${mediaBase}/downloads/${mediaPost.media_url}`
+  console.log(`getMediaUrl: returning ${url}`)
+  
   // media_url в базе: channel_id/media/file.jpg
   // Добавляем downloads/ и mediaBase
-  return `${mediaBase}/downloads/${post.media_url}`
+  return url
 }
 </script>
 

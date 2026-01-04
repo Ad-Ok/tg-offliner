@@ -426,10 +426,24 @@ class IDMLBuilder:
         
         media_elements = post_data.get('media', [])
         for media_elem in media_elements:
-            if media_elem['type'] == 'image' and post.media_url:
+            if media_elem['type'] == 'image':
+                # Для галерей: media_elem['telegram_id'] содержит ID отдельной картинки
+                # Для одиночных изображений: используем telegram_id поста
+                media_telegram_id = media_elem.get('telegram_id', telegram_id)
+                
+                # Загружаем пост с этим медиа из базы
+                media_post = Post.query.filter_by(
+                    telegram_id=media_telegram_id,
+                    channel_id=channel_id
+                ).first()
+                
+                if not media_post or not media_post.media_url:
+                    print(f"⚠️ Media post not found: {media_telegram_id}")
+                    continue
+                
                 # Применяем фильтр медиа
-                if should_hide_media(post):
-                    print(f"⏭️ Skipping unsupported media type: {post.media_type} ({post.media_url})")
+                if should_hide_media(media_post):
+                    print(f"⏭️ Skipping unsupported media type: {media_post.media_type} ({media_post.media_url})")
                     continue
                 
                 # Координаты медиа в миллиметрах
@@ -449,7 +463,7 @@ class IDMLBuilder:
                 ]
                 
                 # Путь к изображению из базы (channel_id/media/file.jpg)
-                image_path = os.path.join('/app/downloads', post.media_url)
+                image_path = os.path.join('/app/downloads', media_post.media_url)
                 
                 # Добавляем image frame с абсолютным путем
                 if os.path.exists(image_path):
