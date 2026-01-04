@@ -4,7 +4,7 @@
 """
 
 from lxml import etree as ET
-from .constants import FONTS, PARAGRAPH_STYLES, ENTITY_TO_CHAR_STYLE
+from .constants import FONTS
 
 
 def generate_styles_xml():
@@ -37,66 +37,30 @@ def generate_styles_xml():
 
 
 def _create_character_styles(parent):
-    """Создает Character Styles для Telegram форматирования"""
+    """Создает Character Styles"""
     
     # Default [No character style]
     ET.SubElement(parent, 'CharacterStyle',
                   Self='CharacterStyle/$ID/[No character style]',
                   Name='$ID/[No character style]')
     
-    # Bold
-    bold_style = ET.SubElement(parent, 'CharacterStyle',
-                               Self='CharacterStyle/TelegramBold',
-                               Name='TelegramBold')
-    ET.SubElement(bold_style, 'Properties')
-    props = ET.SubElement(bold_style, 'Properties')
+    # PostDate - стиль для даты (10pt)
+    post_date_style = ET.SubElement(parent, 'CharacterStyle',
+                                    Self='CharacterStyle/PostDate',
+                                    Name='PostDate')
+    props = ET.SubElement(post_date_style, 'Properties')
     ET.SubElement(props, 'AppliedFont', type='string').text = FONTS['body']
-    ET.SubElement(props, 'FontStyle', type='string').text = 'Bold'
+    ET.SubElement(props, 'PointSize', type='double').text = '10'
+    ET.SubElement(props, 'FillColor', type='string').text = 'Color/Gray'
     
-    # Italic
-    italic_style = ET.SubElement(parent, 'CharacterStyle',
-                                 Self='CharacterStyle/TelegramItalic',
-                                 Name='TelegramItalic')
-    props = ET.SubElement(italic_style, 'Properties')
+    # PostBody - стиль для текста (12pt)
+    post_body_style = ET.SubElement(parent, 'CharacterStyle',
+                                    Self='CharacterStyle/PostBody',
+                                    Name='PostBody')
+    props = ET.SubElement(post_body_style, 'Properties')
     ET.SubElement(props, 'AppliedFont', type='string').text = FONTS['body']
-    ET.SubElement(props, 'FontStyle', type='string').text = 'Italic'
-    
-    # Code (monospace)
-    code_style = ET.SubElement(parent, 'CharacterStyle',
-                               Self='CharacterStyle/TelegramCode',
-                               Name='TelegramCode')
-    props = ET.SubElement(code_style, 'Properties')
-    ET.SubElement(props, 'AppliedFont', type='string').text = FONTS['code']
-    ET.SubElement(props, 'PointSize', type='double').text = str(FONTS['code_size'])
-    
-    # Link (blue + underline)
-    link_style = ET.SubElement(parent, 'CharacterStyle',
-                               Self='CharacterStyle/TelegramLink',
-                               Name='TelegramLink')
-    props = ET.SubElement(link_style, 'Properties')
-    ET.SubElement(props, 'FillColor', type='string').text = 'Color/Blue'
-    ET.SubElement(props, 'Underline', type='boolean').text = 'true'
-    
-    # Mention
-    mention_style = ET.SubElement(parent, 'CharacterStyle',
-                                  Self='CharacterStyle/TelegramMention',
-                                  Name='TelegramMention')
-    props = ET.SubElement(mention_style, 'Properties')
-    ET.SubElement(props, 'FillColor', type='string').text = 'Color/Blue'
-    
-    # Strikethrough
-    strike_style = ET.SubElement(parent, 'CharacterStyle',
-                                 Self='CharacterStyle/TelegramStrike',
-                                 Name='TelegramStrike')
-    props = ET.SubElement(strike_style, 'Properties')
-    ET.SubElement(props, 'StrikeThru', type='boolean').text = 'true'
-    
-    # Underline
-    underline_style = ET.SubElement(parent, 'CharacterStyle',
-                                    Self='CharacterStyle/TelegramUnderline',
-                                    Name='TelegramUnderline')
-    props = ET.SubElement(underline_style, 'Properties')
-    ET.SubElement(props, 'Underline', type='boolean').text = 'true'
+    ET.SubElement(props, 'PointSize', type='double').text = '12'
+    ET.SubElement(props, 'FillColor', type='string').text = 'Color/Black'
 
 
 def _create_paragraph_styles(parent):
@@ -108,56 +72,18 @@ def _create_paragraph_styles(parent):
                   Name='$ID/[No paragraph style]')
     
     # PostDate - дата поста
-    date_style = ET.SubElement(parent, 'ParagraphStyle',
-                               Self='ParagraphStyle/PostDate',
-                               Name='PostDate')
-    props = ET.SubElement(date_style, 'Properties')
-    ET.SubElement(props, 'AppliedFont', type='string').text = PARAGRAPH_STYLES['PostDate']['font']
-    ET.SubElement(props, 'PointSize', type='double').text = str(PARAGRAPH_STYLES['PostDate']['size'])
-    ET.SubElement(props, 'FillColor', type='string').text = PARAGRAPH_STYLES['PostDate']['color']
-    ET.SubElement(props, 'SpaceAfter', type='double').text = str(PARAGRAPH_STYLES['PostDate']['space_after'])
-    ET.SubElement(props, 'Justification', type='enumeration').text = 'RightAlign'
-    
-    # PostHeader - автор и дата
-    header_style = ET.SubElement(parent, 'ParagraphStyle',
-                                  Self='ParagraphStyle/PostHeader',
-                                  Name='PostHeader')
-    props = ET.SubElement(header_style, 'Properties')
-    ET.SubElement(props, 'AppliedFont', type='string').text = PARAGRAPH_STYLES['PostHeader']['font']
-    ET.SubElement(props, 'PointSize', type='double').text = str(PARAGRAPH_STYLES['PostHeader']['size'])
-    ET.SubElement(props, 'FillColor', type='string').text = PARAGRAPH_STYLES['PostHeader']['color']
-    ET.SubElement(props, 'SpaceAfter', type='double').text = str(PARAGRAPH_STYLES['PostHeader']['space_after'])
+    ET.SubElement(parent, 'ParagraphStyle',
+                  Self='ParagraphStyle/PostDate',
+                  Name='PostDate',
+                  SpaceAfter='4',
+                  Justification='RightAlign')
     
     # PostBody - основной текст
-    body_style = ET.SubElement(parent, 'ParagraphStyle',
-                               Self='ParagraphStyle/PostBody',
-                               Name='PostBody')
-    props = ET.SubElement(body_style, 'Properties')
-    ET.SubElement(props, 'AppliedFont', type='string').text = PARAGRAPH_STYLES['PostBody']['font']
-    ET.SubElement(props, 'PointSize', type='double').text = str(PARAGRAPH_STYLES['PostBody']['size'])
-    ET.SubElement(props, 'SpaceAfter', type='double').text = str(PARAGRAPH_STYLES['PostBody']['space_after'])
-    ET.SubElement(props, 'Justification', type='enumeration').text = 'LeftAlign'
-    
-    # PostQuote - цитата
-    quote_style = ET.SubElement(parent, 'ParagraphStyle',
-                                Self='ParagraphStyle/PostQuote',
-                                Name='PostQuote')
-    props = ET.SubElement(quote_style, 'Properties')
-    ET.SubElement(props, 'AppliedFont', type='string').text = PARAGRAPH_STYLES['PostQuote']['font']
-    ET.SubElement(props, 'PointSize', type='double').text = str(PARAGRAPH_STYLES['PostQuote']['size'])
-    ET.SubElement(props, 'FillColor', type='string').text = PARAGRAPH_STYLES['PostQuote']['color']
-    ET.SubElement(props, 'LeftIndent', type='double').text = str(PARAGRAPH_STYLES['PostQuote']['left_indent'])
-    ET.SubElement(props, 'SpaceAfter', type='double').text = str(PARAGRAPH_STYLES['PostQuote']['space_after'])
-    
-    # PostFooter - реакции и views
-    footer_style = ET.SubElement(parent, 'ParagraphStyle',
-                                  Self='ParagraphStyle/PostFooter',
-                                  Name='PostFooter')
-    props = ET.SubElement(footer_style, 'Properties')
-    ET.SubElement(props, 'AppliedFont', type='string').text = PARAGRAPH_STYLES['PostFooter']['font']
-    ET.SubElement(props, 'PointSize', type='double').text = str(PARAGRAPH_STYLES['PostFooter']['size'])
-    ET.SubElement(props, 'FillColor', type='string').text = PARAGRAPH_STYLES['PostFooter']['color']
-    ET.SubElement(props, 'SpaceAfter', type='double').text = str(PARAGRAPH_STYLES['PostFooter']['space_after'])
+    ET.SubElement(parent, 'ParagraphStyle',
+                  Self='ParagraphStyle/PostBody',
+                  Name='PostBody',
+                  SpaceAfter='12',
+                  Justification='LeftAlign')
 
 
 def _create_object_styles(parent):

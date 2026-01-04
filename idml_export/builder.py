@@ -10,7 +10,7 @@ from lxml import etree as ET
 from datetime import datetime
 from PIL import Image
 
-from .constants import PAGE_SIZES, DEFAULT_PRINT_SETTINGS, DEFAULT_POST_SETTINGS, mm_to_points
+from .constants import PAGE_SIZES, DEFAULT_PRINT_SETTINGS, DEFAULT_POST_SETTINGS, mm_to_points, FONTS
 from .styles import generate_styles_xml
 from .coordinates import calculate_text_frame_bounds
 from .resources import generate_fonts_xml, generate_graphic_xml, generate_preferences_xml
@@ -913,8 +913,8 @@ class IDMLBuilder:
                 para_range = ET.SubElement(parent, 'ParagraphStyleRange',
                                           AppliedParagraphStyle=f'ParagraphStyle/{para_style}')
                 
-                # Обрабатываем содержимое параграфа
-                self._process_element(para_range, para)
+                # Обрабатываем содержимое параграфа, передаем para_style как char_style
+                self._process_element(para_range, para, char_style=para_style)
                 
                 # Добавляем символ конца параграфа (перенос)
                 self._add_paragraph_break(para_range)
@@ -923,9 +923,9 @@ class IDMLBuilder:
             logging.info(f"[IDML] Нет параграфов <p>, обрабатываем как единый текст")
             para_range = ET.SubElement(parent, 'ParagraphStyleRange',
                                       AppliedParagraphStyle=f'ParagraphStyle/{style}')
-            self._process_element(para_range, soup)
+            self._process_element(para_range, soup, char_style=style)
     
-    def _process_element(self, parent, element):
+    def _process_element(self, parent, element, char_style='PostBody'):
         """Рекурсивно обрабатывает элементы и добавляет CharacterStyleRange"""
         from bs4 import NavigableString
         
@@ -933,14 +933,14 @@ class IDMLBuilder:
         if isinstance(element, NavigableString):
             text = str(element)
             if text.strip():  # Игнорируем пустые текстовые узлы
-                self._add_character_range(parent, text, {})
+                self._add_character_range(parent, text, {}, char_style)
             return
         
         # Пропускаем обработку тега <p> (он обрабатывается на уровень выше)
         if element.name == 'p':
             # Обрабатываем дочерние элементы параграфа
             for child in element.children:
-                self._process_element(parent, child)
+                self._process_element(parent, child, char_style)
             return
         
         # Обработка <br> - добавляем перенос строки
@@ -963,22 +963,29 @@ class IDMLBuilder:
             # Получаем весь текст внутри элемента (включая вложенные теги)
             text = element.get_text()
             if text.strip():
-                self._add_character_range(parent, text, properties)
+                self._add_character_range(parent, text, properties, char_style)
         else:
             # Иначе обрабатываем дочерние элементы
             for child in element.children:
-                self._process_element(parent, child)
+                self._process_element(parent, child, char_style)
     
-    def _add_character_range(self, parent, text, properties):
+    def _add_character_range(self, parent, text, properties, char_style='PostBody'):
         """Добавляет CharacterStyleRange с заданными свойствами"""
-        char_range = ET.SubElement(parent, 'CharacterStyleRange',
-                                   AppliedCharacterStyle='CharacterStyle/$ID/[No character style]')
-        
-        # Добавляем Properties если есть форматирование
-        if properties:
+        # Если нет форматирования, применяем Character Style
+        if not properties:
+            char_range = ET.SubElement(parent, 'CharacterStyleRange',
+                                       AppliedCharacterStyle=f'CharacterStyle/{char_style}')
+        else:
+            # Для форматированного текста - default + Properties
+            char_range = ET.SubElement(parent, 'CharacterStyleRange',
+                                       AppliedCharacterStyle='CharacterStyle/$ID/[No character style]')
+            # Добавляем Properties с форматированием + базовым шрифтом
             props_elem = ET.SubElement(char_range, 'Properties')
+            # Сначала добавляем базовый шрифт
+            ET.SubElement(props_elem, 'AppliedFont', type='string').text = FONTS['body']
+            # Потом форматирование (FontStyle будет "Bold", "Italic" и т.д.)
             for key, value in properties.items():
-                ET.SubElement(props_elem, key).text = value
+                ET.SubElement(props_elem, key, type='string').text = value
         
         # Content
         content_elem = ET.SubElement(char_range, 'Content')
