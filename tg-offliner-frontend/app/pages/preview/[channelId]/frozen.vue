@@ -1,15 +1,15 @@
 <template>
-  <div class="min-h-screen bg-gray-100 dark:bg-gray-900 py-8">
+  <div class="min-h-screen bg-gray-100 py-8">
     <div class="container mx-auto px-4">
       <!-- Header -->
       <div class="mb-8">
         <NuxtLink :to="`/preview/${channelId}`" class="btn btn-ghost mb-4">
           ← Back to Flow Preview
         </NuxtLink>
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
+        <h1 class="text-3xl font-bold text-gray-900">
           Frozen Layout Preview
         </h1>
-        <p class="text-gray-600 dark:text-gray-400 mt-2">
+        <p class="text-gray-600 mt-2">
           Channel: {{ channelId }} • {{ frozenData?.pages_count || 0 }} pages
         </p>
       </div>
@@ -39,7 +39,7 @@
           <div 
             v-for="page in frozenData.pages" 
             :key="page.page_number"
-            class="frozen-page bg-white dark:bg-gray-800 shadow-lg mx-auto"
+            class="frozen-page bg-white shadow-lg mx-auto"
             :style="pageStyle"
           >
             <!-- Page number badge -->
@@ -51,7 +51,7 @@
             <div 
               v-for="post in page.posts" 
               :key="`${post.channel_id}-${post.telegram_id}`"
-              class="frozen-post absolute bg-white dark:bg-gray-800 overflow-hidden"
+              class="frozen-post absolute bg-white overflow-hidden"
               :style="getPostStyle(post)"
             >
               <!-- Текст из базы Posts с HTML форматированием -->
@@ -63,7 +63,7 @@
                 <div v-if="post.date && post.type !== 'comment'" class="post-date text-xs text-gray-400 mb-2">{{ post.date }}</div>
                 
                 <div 
-                class="post-message text-sm text-gray-900 dark:text-gray-100" 
+                class="post-message text-gray-900" 
                 v-html="getPostFromDb(post.telegram_id, post.channel_id).message"
                 ></div>
               </div>
@@ -90,7 +90,7 @@
 
         <!-- Empty state -->
         <div v-else class="text-center py-20">
-          <p class="text-gray-500 dark:text-gray-400 text-lg">
+          <p class="text-gray-500 text-lg">
             No frozen layout available. Go to preview and click "Freeze Layout" first.
           </p>
           <NuxtLink :to="`/preview/${channelId}`" class="btn btn-primary mt-4">
@@ -176,7 +176,6 @@ const getPostStyle = (post) => ({
   left: `${post.bounds.left}mm`,
   width: `${post.bounds.width}mm`,
   height: `${post.bounds.height}mm`,
-  padding: '8px',
   border: '1px solid #e5e7eb'
 })
 
@@ -225,7 +224,7 @@ const getMediaUrl = (media, post) => {
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
 }
 
-.frozen-post {
+/* .frozen-post {
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   line-height: 1.5;
@@ -251,12 +250,11 @@ const getMediaUrl = (media, post) => {
   text-decoration: underline;
 }
 
-/* Для печати */
 @media print {
   .frozen-page {
     page-break-after: always;
     box-shadow: none;
     margin: 0;
   }
-}
+} */
 </style>

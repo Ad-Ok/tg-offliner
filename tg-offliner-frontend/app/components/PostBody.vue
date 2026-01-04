@@ -1,5 +1,5 @@
 <template>
-  <div class="post-body pl-11">
+  <div class="post-body pl-11 minimal:pl-0">
     <!-- Цитата оригинального поста для комментариев -->
     <PostQuote 
       v-if="originalPost"
@@ -8,7 +8,7 @@
     
     <!-- Информация о репосте -->
     <div v-if="repostAuthorName" class="repost-author flex items-center gap-4">
-      <span class="text-sm text-gray-600 dark:text-gray-400">Репост от:</span>
+      <span class="text-sm text-gray-600">Репост от:</span>
       <PostAuthor
         :name="repostAuthorName"
         :avatar="repostAuthorAvatar"
