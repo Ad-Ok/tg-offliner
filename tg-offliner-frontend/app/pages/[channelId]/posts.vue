@@ -59,7 +59,7 @@ const channelId = route.params.channelId
 const sortOrder = ref('desc')
 
 // Состояние для chunks
-const currentChunk = ref(null) // null = все посты
+const currentChunk = ref(0) // 0 = первый chunk по умолчанию
 const chunkLoading = ref(false)
 const chunkPosts = ref(null) // посты текущего chunk
 
@@ -70,6 +70,10 @@ editModeStore.checkAndSetExportMode()
 const toggleSortOrder = async () => {
   const newSortOrder = sortOrder.value === 'desc' ? 'asc' : 'desc'
   sortOrder.value = newSortOrder
+  
+  // Сбрасываем выбранный chunk при смене сортировки
+  currentChunk.value = null
+  chunkPosts.value = null
   
   try {
     const currentChanges = channelInfo.value?.changes || {}
@@ -86,6 +90,9 @@ const toggleSortOrder = async () => {
       channelInfo.value.changes = updatedChanges
     }
     
+    // Перезагружаем chunks с новой сортировкой
+    await refreshChunksInfo()
+    
     console.log(`Порядок сортировки изменен на: ${newSortOrder}`)
   } catch (error) {
     console.error('Ошибка при сохранении порядка сортировки:', error)
@@ -94,7 +101,7 @@ const toggleSortOrder = async () => {
 }
 
 // Загружаем информацию о chunks
-const { data: chunksInfo } = await useAsyncData(
+const { data: chunksInfo, refresh: refreshChunksInfo } = await useAsyncData(
   'chunksInfo',
   async () => {
     try {
@@ -261,6 +268,17 @@ const displayPosts = computed(() => {
   }
   return allPosts.value || []
 })
+
+// Автозагрузка первого chunk при наличии chunks
+watch(chunksInfo, (info) => {
+  if (info && info.total_chunks > 1 && currentChunk.value === 0 && !chunkPosts.value) {
+    // Загружаем первый chunk автоматически
+    onChunkSelected(0)
+  } else if (!info || info.total_chunks <= 1) {
+    // Если только 1 chunk или нет chunks - показываем все
+    currentChunk.value = null
+  }
+}, { immediate: true })
 
 // Вычисляем класс формата страницы для CSS правил
 const pageFormatClass = computed(() => {
