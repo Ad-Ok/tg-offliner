@@ -27,7 +27,9 @@
     "textColumns": 1,
     "columnGutter": 5,
     "masterPageEnabled": true,
-    "includeHeadersFooters": true
+    "includeHeadersFooters": true,
+    "itemsPerChunk": 50,
+    "overflowThreshold": 0.2
   },
   "defaultPostSettings": {
     "textColumns": null,

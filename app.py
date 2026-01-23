@@ -42,6 +42,7 @@ from api.media import media_bp
 from api.edits import edits_bp
 from api.layouts import layouts_bp
 from api.pages import pages_bp
+from api.chunks import chunks_bp
 
 app.register_blueprint(posts_bp, url_prefix='/api')
 app.register_blueprint(channels_bp, url_prefix='/api')
@@ -50,6 +51,7 @@ app.register_blueprint(media_bp)  # Без префикса, так как пу�
 app.register_blueprint(edits_bp)  # Без префикса, так как пути уже начинаются с /api
 app.register_blueprint(layouts_bp, url_prefix='/api')
 app.register_blueprint(pages_bp, url_prefix='/api')
+app.register_blueprint(chunks_bp, url_prefix='/api')
 
 # Глобальные переменные для управления загрузкой
 download_status = {}  # Статус загрузки для каждого канала

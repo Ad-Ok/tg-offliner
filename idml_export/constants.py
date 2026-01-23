@@ -27,6 +27,8 @@ DEFAULT_PRINT_SETTINGS = {
     'column_gutter': _config['defaultPrintSettings']['columnGutter'],
     'master_page_enabled': _config['defaultPrintSettings']['masterPageEnabled'],
     'include_headers_footers': _config['defaultPrintSettings']['includeHeadersFooters'],
+    'items_per_chunk': _config['defaultPrintSettings'].get('itemsPerChunk', 50),
+    'overflow_threshold': _config['defaultPrintSettings'].get('overflowThreshold', 0.2),
 }
 
 # Дефолтные настройки для постов - из конфига
