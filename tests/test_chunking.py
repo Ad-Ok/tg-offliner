@@ -386,11 +386,18 @@ class ChunksAPITests(unittest.TestCase):
     """Тесты для API chunks"""
     
     def setUp(self):
-        from app import app
-        
-        self.app = app
+        # Создаем отдельное тестовое приложение с in-memory БД
+        # НЕ импортируем app из app.py чтобы не затронуть production БД!
+        self.app = Flask(__name__)
         self.app.config['TESTING'] = True
         self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        
+        db.init_app(self.app)
+        
+        # Регистрируем blueprint для chunks API
+        from api.chunks import chunks_bp
+        self.app.register_blueprint(chunks_bp)
         
         self.client = self.app.test_client()
         

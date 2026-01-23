@@ -77,8 +77,12 @@ def get_channel_chunks(channel_id):
         DEFAULT_PRINT_SETTINGS['overflow_threshold']
     )
     
+    # Получаем сортировку из changes или из query param
+    changes = channel.changes or {}
+    sort_order = request.args.get('sort_order', changes.get('sortOrder', 'desc'))
+    
     # Вычисляем chunks
-    chunks = calculate_chunks(channel_id, items_per_chunk, overflow_threshold)
+    chunks = calculate_chunks(channel_id, items_per_chunk, overflow_threshold, sort_order)
     
     # Подсчитываем общие статистики
     total_posts = sum(c['posts_count'] for c in chunks)
@@ -126,8 +130,12 @@ def get_chunk_posts(channel_id, chunk_index):
     items_per_chunk = print_settings.get('items_per_chunk', DEFAULT_PRINT_SETTINGS['items_per_chunk'])
     overflow_threshold = print_settings.get('overflow_threshold', DEFAULT_PRINT_SETTINGS['overflow_threshold'])
     
+    # Получаем сортировку из changes или из query param
+    changes = channel.changes or {}
+    sort_order = request.args.get('sort_order', changes.get('sortOrder', 'desc'))
+    
     # Вычисляем chunks
-    chunks = calculate_chunks(channel_id, items_per_chunk, overflow_threshold)
+    chunks = calculate_chunks(channel_id, items_per_chunk, overflow_threshold, sort_order)
     
     if chunk_index >= len(chunks):
         return jsonify({"error": f"Chunk {chunk_index} not found. Total chunks: {len(chunks)}"}), 404

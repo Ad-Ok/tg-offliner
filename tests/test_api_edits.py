@@ -11,8 +11,11 @@ os.environ.setdefault("API_ID", "12345")
 os.environ.setdefault("API_HASH", "test_hash")
 os.environ.setdefault("PHONE", "+10000000000")
 
-from app import app
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+from flask import Flask
 from models import db, Edit, Channel
+from api.edits import edits_bp
 
 
 class TestEditsAPI(unittest.TestCase):
@@ -20,10 +23,15 @@ class TestEditsAPI(unittest.TestCase):
 
     def setUp(self):
         """Настройка тестового окружения"""
-        self.app = app
+        # Создаем отдельное тестовое приложение с in-memory БД
+        # НЕ импортируем app из app.py чтобы не затронуть production БД!
+        self.app = Flask(__name__)
         self.app.config['TESTING'] = True
         self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        
+        db.init_app(self.app)
+        self.app.register_blueprint(edits_bp)
         
         self.client = self.app.test_client()
         

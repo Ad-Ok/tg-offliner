@@ -41,6 +41,7 @@ import { apiBase } from '~/services/api'
  * @param {Object} options - Опции
  * @param {number} [options.itemsPerChunk] - Количество элементов на chunk
  * @param {number} [options.overflowThreshold] - Порог переполнения (0.0-1.0)
+ * @param {string} [options.sortOrder] - Порядок сортировки ('desc' или 'asc')
  * @returns {Promise<ChannelChunksResponse>}
  */
 export async function getChannelChunks(channelId, options = {}) {
@@ -52,6 +53,10 @@ export async function getChannelChunks(channelId, options = {}) {
   
   if (options.overflowThreshold !== undefined) {
     params.set('overflow_threshold', options.overflowThreshold)
+  }
+  
+  if (options.sortOrder !== undefined) {
+    params.set('sort_order', options.sortOrder)
   }
   
   const queryString = params.toString()
@@ -74,6 +79,7 @@ export async function getChannelChunks(channelId, options = {}) {
  * @param {Object} options - Опции
  * @param {number} [options.itemsPerChunk] - Количество элементов на chunk
  * @param {number} [options.overflowThreshold] - Порог переполнения
+ * @param {string} [options.sortOrder] - Порядок сортировки ('desc' или 'asc')
  * @returns {Promise<ChunkPostsResponse>}
  */
 export async function getChunkPosts(channelId, chunkIndex, options = {}) {
@@ -85,6 +91,10 @@ export async function getChunkPosts(channelId, chunkIndex, options = {}) {
   
   if (options.overflowThreshold !== undefined) {
     params.set('overflow_threshold', options.overflowThreshold)
+  }
+  
+  if (options.sortOrder !== undefined) {
+    params.set('sort_order', options.sortOrder)
   }
   
   const queryString = params.toString()

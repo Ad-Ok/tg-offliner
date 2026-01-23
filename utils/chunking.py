@@ -51,7 +51,7 @@ def get_comments_for_post(telegram_id, discussion_channel_id):
     ).all()
 
 
-def build_content_units(channel_id):
+def build_content_units(channel_id, sort_order='desc'):
     """
     Строит список ContentUnit из постов канала
     
@@ -66,6 +66,7 @@ def build_content_units(channel_id):
     
     Args:
         channel_id: ID канала
+        sort_order: 'desc' (новые первыми) или 'asc' (старые первыми)
         
     Returns:
         list[ContentUnit]: Список единиц контента, отсортированных по дате
@@ -123,13 +124,14 @@ def build_content_units(channel_id):
             'date': first_post.date
         })
     
-    # Сортируем по дате (новые первыми)
-    units.sort(key=lambda u: u['date'], reverse=True)
+    # Сортируем по дате
+    # desc = новые первыми (reverse=True), asc = старые первыми (reverse=False)
+    units.sort(key=lambda u: u['date'], reverse=(sort_order == 'desc'))
     
     return units
 
 
-def calculate_chunks(channel_id, items_per_chunk=50, overflow_threshold=0.2):
+def calculate_chunks(channel_id, items_per_chunk=50, overflow_threshold=0.2, sort_order='desc'):
     """
     Разбивает канал на chunks
     
@@ -137,6 +139,7 @@ def calculate_chunks(channel_id, items_per_chunk=50, overflow_threshold=0.2):
         channel_id: ID канала
         items_per_chunk: Целевое количество единиц на chunk (по умолчанию 50)
         overflow_threshold: Допустимое превышение (по умолчанию 0.2 = 20%)
+        sort_order: 'desc' (новые первыми) или 'asc' (старые первыми)
         
     Returns:
         list[Chunk]: Список chunks
@@ -151,7 +154,7 @@ def calculate_chunks(channel_id, items_per_chunk=50, overflow_threshold=0.2):
         'date_to': str             # Дата последнего поста
     }
     """
-    units = build_content_units(channel_id)
+    units = build_content_units(channel_id, sort_order)
     
     if not units:
         return []

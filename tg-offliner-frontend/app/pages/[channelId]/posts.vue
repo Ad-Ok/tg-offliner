@@ -49,7 +49,7 @@ import Wall from '~/components/Wall.vue'
 import ChannelCover from '~/components/ChannelCover.vue'
 import ChunkNavigation from '~/components/ChunkNavigation.vue'
 import { api } from '~/services/api'
-import { getChunkPosts } from '~/services/chunksService'
+import { getChannelChunks, getChunkPosts } from '~/services/chunksService'
 import { useEditModeStore } from '~/stores/editMode'
 
 const route = useRoute()
@@ -71,8 +71,7 @@ const toggleSortOrder = async () => {
   const newSortOrder = sortOrder.value === 'desc' ? 'asc' : 'desc'
   sortOrder.value = newSortOrder
   
-  // Сбрасываем выбранный chunk при смене сортировки
-  currentChunk.value = null
+  // Сбрасываем данные текущего chunk
   chunkPosts.value = null
   
   try {
@@ -93,6 +92,12 @@ const toggleSortOrder = async () => {
     // Перезагружаем chunks с новой сортировкой
     await refreshChunksInfo()
     
+    // Загружаем первый chunk с новой сортировкой
+    if (currentChunk.value !== null && chunksInfo.value?.total_chunks > 0) {
+      currentChunk.value = 0
+      await onChunkSelected(0)
+    }
+    
     console.log(`Порядок сортировки изменен на: ${newSortOrder}`)
   } catch (error) {
     console.error('Ошибка при сохранении порядка сортировки:', error)
@@ -105,8 +110,7 @@ const { data: chunksInfo, refresh: refreshChunksInfo } = await useAsyncData(
   'chunksInfo',
   async () => {
     try {
-      const response = await api.get(`/api/chunks/${channelId}`)
-      return response.data
+      return await getChannelChunks(channelId, { sortOrder: sortOrder.value })
     } catch (error) {
       console.warn('Failed to load chunks info:', error)
       return null
@@ -211,7 +215,7 @@ async function onChunkSelected(chunkIndex) {
   
   chunkLoading.value = true
   try {
-    const response = await getChunkPosts(channelId, chunkIndex)
+    const response = await getChunkPosts(channelId, chunkIndex, { sortOrder: sortOrder.value })
     
     // Объединяем посты и комментарии
     let posts = [...response.posts, ...response.comments]
