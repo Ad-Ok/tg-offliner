@@ -50,6 +50,14 @@ const props = defineProps({
   channelId: {
     type: String,
     required: true
+  },
+  currentChunk: {
+    type: Number,
+    default: null
+  },
+  sortOrder: {
+    type: String,
+    default: 'desc'
   }
 })
 
@@ -63,13 +71,29 @@ const handlePrintPdf = async () => {
   try {
     isLoadingPdf.value = true
     
-    const res = await fetch(`${apiBase}/api/channels/${props.channelId}/print`)
+    // Формируем URL с параметрами chunk и sort_order
+    let url = `${apiBase}/api/channels/${props.channelId}/print`
+    const params = new URLSearchParams()
+    
+    if (props.currentChunk !== null) {
+      params.set('chunk', String(props.currentChunk))
+    }
+    if (props.sortOrder) {
+      params.set('sort_order', props.sortOrder)
+    }
+    
+    if (params.toString()) {
+      url += '?' + params.toString()
+    }
+    
+    const res = await fetch(url)
     const contentType = res.headers.get('content-type')
     
     if (contentType && contentType.includes('application/json')) {
       const result = await res.json()
       if (result.success) {
-        const filePath = `downloads/${props.channelId}/${props.channelId}.pdf`;
+        const filename = result.filename || `${props.channelId}.pdf`
+        const filePath = `downloads/${props.channelId}/${filename}`;
         const fileUrl = `http://localhost:5000/${filePath}`;
         eventBus.showAlert(
           `PDF file for channel <strong>${props.channelId}</strong> successfully created: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,

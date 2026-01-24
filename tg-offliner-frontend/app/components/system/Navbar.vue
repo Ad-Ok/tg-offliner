@@ -193,13 +193,30 @@ const handleExportPdf = async () => {
   const channelId = route.params.channelId
   isExportingPdf.value = true
   try {
-    const res = await fetch(`${apiBase}/api/channels/${channelId}/print`)
+    // Формируем URL с параметрами chunk и sort_order
+    let url = `${apiBase}/api/channels/${channelId}/print`
+    const params = new URLSearchParams()
+    
+    // Если есть chunk в query - передаем его
+    if (route.query.chunk !== undefined) {
+      params.set('chunk', String(route.query.chunk))
+    }
+    if (route.query.sort_order) {
+      params.set('sort_order', String(route.query.sort_order))
+    }
+    
+    if (params.toString()) {
+      url += '?' + params.toString()
+    }
+    
+    const res = await fetch(url)
     const contentType = res.headers.get('content-type')
     
     if (contentType && contentType.includes('application/json')) {
       const result = await res.json()
       if (result.success) {
-        const filePath = `downloads/${channelId}/${channelId}.pdf`
+        const filename = result.filename || `${channelId}.pdf`
+        const filePath = `downloads/${channelId}/${filename}`
         const fileUrl = `http://localhost:5000/${filePath}`
         eventBus.showAlert(
           `PDF файл для канала <strong>${channelId}</strong> успешно создан: <a href="${fileUrl}" target="_blank" class="link link-info" rel="noopener">${filePath}</a>`,

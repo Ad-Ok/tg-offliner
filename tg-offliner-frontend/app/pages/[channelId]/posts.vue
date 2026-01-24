@@ -55,11 +55,15 @@ import { useEditModeStore } from '~/stores/editMode'
 const route = useRoute()
 const channelId = route.params.channelId
 
+// Читаем query параметры (для SSR/PDF экспорта)
+const queryChunk = route.query.chunk !== undefined ? parseInt(String(route.query.chunk)) : null
+const querySortOrder = route.query.sort_order ? String(route.query.sort_order) : null
+
 // Состояние для сортировки постов
-const sortOrder = ref('desc')
+const sortOrder = ref(querySortOrder || 'desc')
 
 // Состояние для chunks
-const currentChunk = ref(0) // 0 = первый chunk по умолчанию
+const currentChunk = ref(queryChunk !== null ? queryChunk : 0) // из query или первый chunk по умолчанию
 const chunkLoading = ref(false)
 const chunkPosts = ref(null) // посты текущего chunk
 
@@ -118,10 +122,45 @@ const { data: chunksInfo, refresh: refreshChunksInfo } = await useAsyncData(
   }
 )
 
+// Если есть queryChunk - загружаем посты из chunk API (для SSR/PDF)
+const { data: initialChunkPosts } = await useAsyncData(
+  'initialChunkPosts',
+  async () => {
+    if (queryChunk === null) return null
+    
+    try {
+      const response = await getChunkPosts(channelId, queryChunk, { sortOrder: sortOrder.value })
+      
+      // Объединяем посты и комментарии
+      let posts = [...response.posts, ...response.comments]
+      
+      // Убираем дубликаты
+      posts = posts.filter((post, index, array) =>
+        array.findIndex(p => p.id === post.id) === index
+      )
+      
+      return posts
+    } catch (error) {
+      console.warn('Failed to load chunk posts for SSR:', error)
+      return null
+    }
+  }
+)
+
+// Инициализируем chunkPosts из SSR данных
+if (initialChunkPosts.value) {
+  chunkPosts.value = initialChunkPosts.value
+}
+
 // Загружаем все посты (для режима "Все" или если мало постов)
 const { data: allPosts, pending } = await useAsyncData(
   'posts',
   async () => {
+    // Если есть queryChunk - не загружаем все посты, они уже в initialChunkPosts
+    if (queryChunk !== null) {
+      return []
+    }
+    
     const mainPosts = await api.get(`/api/posts?channel_id=${channelId}`).then(res => res.data)
     
     const channelInfoResp = await api.get(`/api/channels/${channelId}`).then(res => res.data)
@@ -205,11 +244,27 @@ const { data: channelInfo } = await useAsyncData(
   () => api.get(`/api/channels/${channelId}`).then(res => res.data)
 )
 
+const router = useRouter()
+
+// Обновление URL при изменении chunk (без перезагрузки страницы)
+function updateUrlWithChunk(chunkIndex) {
+  const query = { ...route.query }
+  if (chunkIndex !== null) {
+    query.chunk = String(chunkIndex)
+    query.sort_order = sortOrder.value
+  } else {
+    delete query.chunk
+    delete query.sort_order
+  }
+  router.replace({ query })
+}
+
 // Обработчик выбора chunk
 async function onChunkSelected(chunkIndex) {
   if (chunkIndex === null) {
     // Показать все посты
     chunkPosts.value = null
+    updateUrlWithChunk(null)
     return
   }
   
@@ -256,6 +311,7 @@ async function onChunkSelected(chunkIndex) {
     }
     
     chunkPosts.value = posts
+    updateUrlWithChunk(chunkIndex)
   } catch (error) {
     console.error('Error loading chunk posts:', error)
     chunkPosts.value = null
@@ -273,11 +329,16 @@ const displayPosts = computed(() => {
   return allPosts.value || []
 })
 
-// Автозагрузка первого chunk при наличии chunks
+// Автозагрузка chunk при наличии chunks (только на клиенте, не при SSR с queryChunk)
 watch(chunksInfo, (info) => {
-  if (info && info.total_chunks > 1 && currentChunk.value === 0 && !chunkPosts.value) {
-    // Загружаем первый chunk автоматически
-    onChunkSelected(0)
+  // Если данные уже загружены через SSR (queryChunk) - пропускаем
+  if (queryChunk !== null && chunkPosts.value) return
+  
+  if (info && info.total_chunks > 1) {
+    if (currentChunk.value !== null && currentChunk.value >= 0 && !chunkPosts.value) {
+      // Загружаем текущий chunk (по умолчанию 0)
+      onChunkSelected(currentChunk.value)
+    }
   } else if (!info || info.total_chunks <= 1) {
     // Если только 1 chunk или нет chunks - показываем все
     currentChunk.value = null
@@ -290,8 +351,11 @@ const pageFormatClass = computed(() => {
   return `page-format-${pageSize.toLowerCase()}`
 })
 
-// Инициализируем sortOrder из настроек канала
+// Инициализируем sortOrder из настроек канала (только если не задан через query)
 watch(channelInfo, (newChannelInfo) => {
+  // Query параметр имеет приоритет
+  if (querySortOrder) return
+  
   if (newChannelInfo?.changes?.sortOrder) {
     sortOrder.value = newChannelInfo.changes.sortOrder
   }

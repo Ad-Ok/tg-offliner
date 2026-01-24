@@ -553,8 +553,14 @@ def export_channel_to_html(channel_id):
         current_app.logger.error(f"Ошибка при экспорте HTML для канала {channel_id}: {str(e)}")
         return jsonify({"error": "Ошибка при экспорте HTML"}), 500
 
-def create_pdf_html(channel_id):
-    """Создает HTML специально для PDF с минимальным CSS."""
+def create_pdf_html(channel_id, chunk_index=None, sort_order='desc'):
+    """
+    Создает HTML специально для PDF с минимальным CSS.
+    
+    :param channel_id: ID канала
+    :param chunk_index: Индекс chunk (None = все посты)
+    :param sort_order: Порядок сортировки ('desc' или 'asc')
+    """
     try:
         # Получаем канал для доступа к preview_pages
         channel = Channel.query.filter_by(id=channel_id).first()
@@ -563,8 +569,12 @@ def create_pdf_html(channel_id):
             preview_pages = channel.changes.get('preview_pages', [])
             current_app.logger.info(f"Найдено {len(preview_pages)} страниц в preview_pages")
         
-        # Получаем HTML от SSR
+        # Формируем URL для SSR с учетом chunk
         ssr_url = f'http://ssr:3000/{channel_id}/posts'
+        if chunk_index is not None:
+            ssr_url += f'?chunk={chunk_index}&sort_order={sort_order}'
+            current_app.logger.info(f"Запрос PDF для chunk {chunk_index}")
+        
         response = requests.get(ssr_url)
         if response.status_code != 200:
             current_app.logger.error(f"SSR-сервер вернул ошибку: {response.status_code}")
@@ -718,19 +728,30 @@ def create_pdf_html(channel_id):
 
 @channels_bp.route('/channels/<channel_id>/print', methods=['GET'])
 def print_channel_to_pdf(channel_id):
-    """Экспортирует канал в PDF формат с минимальным CSS."""
+    """
+    Экспортирует канал в PDF формат с минимальным CSS.
+    
+    Query параметры:
+    - chunk: индекс chunk (опционально, по умолчанию все посты)
+    - sort_order: порядок сортировки ('desc' или 'asc')
+    """
     # Повышаем лимит рекурсии в самом начале
     import sys
     old_limit = sys.getrecursionlimit()
     sys.setrecursionlimit(50000)
     
     try:
+        # Получаем параметры
+        chunk_index = request.args.get('chunk', type=int)
+        sort_order = request.args.get('sort_order', 'desc')
+        
         current_app.logger.info(f"=== НАЧАЛО PDF ГЕНЕРАЦИИ для канала {channel_id} ===")
+        current_app.logger.info(f"Chunk: {chunk_index}, Sort order: {sort_order}")
         current_app.logger.info(f"Лимит рекурсии изменен с {old_limit} на 50000")
         
         # Создаем специальный HTML для PDF
         current_app.logger.info("Создание PDF HTML с минимальным CSS...")
-        pdf_html_path = create_pdf_html(channel_id)
+        pdf_html_path = create_pdf_html(channel_id, chunk_index, sort_order)
         
         if not pdf_html_path or not os.path.exists(pdf_html_path):
             current_app.logger.error("PDF HTML не был создан")
@@ -743,7 +764,12 @@ def print_channel_to_pdf(channel_id):
         from weasyprint import HTML
         
         channel_dir = os.path.join(DOWNLOADS_DIR, channel_id)
-        pdf_path = os.path.join(channel_dir, f"{channel_id}.pdf")
+        # Имя файла с номером chunk если указан
+        if chunk_index is not None:
+            pdf_filename = f"{channel_id}_chunk{chunk_index}.pdf"
+        else:
+            pdf_filename = f"{channel_id}.pdf"
+        pdf_path = os.path.join(channel_dir, pdf_filename)
         current_app.logger.info(f"Начинаем генерацию PDF: {pdf_path}")
         
         # Рендерим документ и сохраняем PDF
@@ -769,11 +795,16 @@ def print_channel_to_pdf(channel_id):
 
         current_app.logger.info(f"PDF для канала {channel_id} успешно создан: {pdf_path}")
         
-        return jsonify({
+        response_data = {
             "success": True, 
             "message": f"PDF файл создан и сохранен в папку downloads/{channel_id}/",
-            "path": pdf_path
-        }), 200
+            "path": pdf_path,
+            "filename": pdf_filename
+        }
+        if chunk_index is not None:
+            response_data["chunk"] = chunk_index
+        
+        return jsonify(response_data), 200
         
     except Exception as e:
         current_app.logger.exception(f"ОШИБКА при генерации PDF для канала {channel_id}")
