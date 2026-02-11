@@ -2,26 +2,47 @@
 API endpoints для работы с постами
 """
 from flask import Blueprint, jsonify, request
-from models import db, Post, Channel
+from models import db, Post, Channel, Layout
 
 posts_bp = Blueprint('posts', __name__)
+
+
+def _get_layouts_map(channel_id, discussion_group_id=None):
+    """Возвращает словарь {grouped_id: layout_json_data} для канала и его дискуссионной группы."""
+    channel_ids = [channel_id]
+    if discussion_group_id:
+        channel_ids.append(str(discussion_group_id))
+    
+    layouts = Layout.query.filter(Layout.channel_id.in_(channel_ids)).all()
+    return {layout.grouped_id: layout.json_data for layout in layouts}
+
 
 @posts_bp.route('/posts', methods=['GET'])
 def get_posts():
     """Возвращает список всех постов или постов из конкретного канала."""
     channel_id = request.args.get('channel_id')  # Получаем ID канала из параметров запроса
+    layouts_map = {}
+    
     if channel_id:
         # Получаем основные посты канала
         posts = Post.query.filter_by(channel_id=channel_id).all()
         
         # Получаем информацию о канале, чтобы найти связанную дискуссионную группу
         channel = Channel.query.filter_by(id=channel_id).first()
-        if channel and channel.discussion_group_id:
+        discussion_group_id = channel.discussion_group_id if channel else None
+        
+        if discussion_group_id:
             # Добавляем комментарии из дискуссионной группы
-            discussion_posts = Post.query.filter_by(channel_id=str(channel.discussion_group_id)).all()
+            discussion_posts = Post.query.filter_by(channel_id=str(discussion_group_id)).all()
             posts.extend(discussion_posts)
+        
+        # Загружаем layouts для всех групп
+        layouts_map = _get_layouts_map(channel_id, discussion_group_id)
     else:
         posts = Post.query.all()  # Возвращаем все посты
+        # Загружаем все layouts
+        all_layouts = Layout.query.all()
+        layouts_map = {layout.grouped_id: layout.json_data for layout in all_layouts}
 
     return jsonify([{
         "id": post.id,
@@ -41,7 +62,8 @@ def get_posts():
         "repost_author_link": post.repost_author_link,
         "reactions": post.reactions,
         "grouped_id": post.grouped_id,
-        "reply_to": post.reply_to
+        "reply_to": post.reply_to,
+        "layout": layouts_map.get(post.grouped_id) if post.grouped_id else None
     } for post in posts])
 
 @posts_bp.route('/posts/check', methods=['GET'])

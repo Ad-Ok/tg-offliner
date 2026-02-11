@@ -2,15 +2,19 @@
 API endpoints для работы с chunks (частями контента)
 """
 from flask import Blueprint, jsonify, request
-from models import Channel
+from models import Channel, Layout
 from utils.chunking import calculate_chunks, get_chunk_posts_and_comments
 from idml_export.constants import DEFAULT_PRINT_SETTINGS
 
 chunks_bp = Blueprint('chunks', __name__)
 
 
-def serialize_post(post):
+def serialize_post(post, layouts_map=None):
     """Сериализация Post для JSON"""
+    layout = None
+    if layouts_map and post.grouped_id:
+        layout = layouts_map.get(post.grouped_id)
+    
     return {
         "id": post.id,
         "telegram_id": post.telegram_id,
@@ -29,7 +33,8 @@ def serialize_post(post):
         "repost_author_link": post.repost_author_link,
         "reactions": post.reactions,
         "grouped_id": post.grouped_id,
-        "reply_to": post.reply_to
+        "reply_to": post.reply_to,
+        "layout": layout
     }
 
 
@@ -143,11 +148,17 @@ def get_chunk_posts(channel_id, chunk_index):
     chunk = chunks[chunk_index]
     posts, comments = get_chunk_posts_and_comments(chunk)
     
+    # Загружаем layouts для всех групп в этом chunk
+    all_posts = posts + comments
+    channel_ids = set(p.channel_id for p in all_posts)
+    layouts = Layout.query.filter(Layout.channel_id.in_(channel_ids)).all()
+    layouts_map = {layout.grouped_id: layout.json_data for layout in layouts}
+    
     return jsonify({
         "channel_id": channel_id,
         "chunk_index": chunk_index,
         "posts_count": len(posts),
         "comments_count": len(comments),
-        "posts": [serialize_post(p) for p in posts],
-        "comments": [serialize_post(c) for c in comments]
+        "posts": [serialize_post(p, layouts_map) for p in posts],
+        "comments": [serialize_post(c, layouts_map) for c in comments]
     })
