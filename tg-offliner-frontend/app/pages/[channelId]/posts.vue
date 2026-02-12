@@ -145,8 +145,10 @@ async function fetchPosts() {
       options.itemsPerChunk = parseInt(route.query.items_per_chunk, 10)
     }
     
-    // Всегда включаем комментарии
+    // Всегда включаем комментарии и скрытые посты
+    // (скрытые нужны для отображения в режиме редактирования с opacity)
     options.includeComments = true
+    options.includeHidden = true
     
     console.log('[posts.vue v2] Fetching posts with options:', options)
     
@@ -222,7 +224,8 @@ const { data: initialData } = await useAsyncData(
   `posts-${channelId}`,
   async () => {
     const options = {
-      includeComments: true
+      includeComments: true,
+      includeHidden: true
     }
     
     if (route.query.sort_order) {

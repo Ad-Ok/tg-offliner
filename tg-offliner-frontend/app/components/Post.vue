@@ -84,7 +84,7 @@ export default {
   },
   setup(props) {
     const editModeStore = useEditModeStore()
-    const isHidden = ref(props.post.hidden || props.post._shouldHide || false)
+    const isHidden = ref(props.post.isHidden || props.post.hidden || props.post._shouldHide || false)
     
     // Определяем, является ли пост от имени самого канала или группы обсуждения
     const isOwner = computed(() => {
