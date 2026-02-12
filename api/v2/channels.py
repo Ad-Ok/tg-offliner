@@ -81,7 +81,8 @@ def get_channel_posts(channel_id):
     hidden_map = get_hidden_posts_map(channel_id, discussion_id_str)
     
     # Строим content units (посты + группы + комментарии)
-    all_units = build_content_units(channel_id, sort_order)
+    # include_hidden передаём в build_content_units чтобы включить скрытые посты
+    all_units = build_content_units(channel_id, sort_order, include_hidden=include_hidden)
     
     # Применяем chunking если запрошен
     if url_chunk is not None:

@@ -12,20 +12,25 @@ from models import Post, Channel, Edit
 from utils.post_filtering import should_hide_post
 
 
-def get_visible_posts(channel_id):
+def get_visible_posts(channel_id, include_hidden=False):
     """
-    Получает все видимые посты канала (не скрытые)
+    Получает посты канала
     
     Args:
         channel_id: ID канала
+        include_hidden: Включать скрытые посты
         
     Returns:
-        list[Post]: Список видимых постов, отсортированных по дате (новые первыми)
+        list[Post]: Список постов, отсортированных по дате (новые первыми)
     """
     posts = Post.query.filter_by(channel_id=channel_id).all()
-    edits = Edit.query.filter_by(channel_id=channel_id).all()
     
-    visible = [p for p in posts if not should_hide_post(p, edits)]
+    if include_hidden:
+        visible = posts
+    else:
+        edits = Edit.query.filter_by(channel_id=channel_id).all()
+        visible = [p for p in posts if not should_hide_post(p, edits)]
+    
     visible.sort(key=lambda p: p.date, reverse=True)
     
     return visible
@@ -51,7 +56,7 @@ def get_comments_for_post(telegram_id, discussion_channel_id):
     ).all()
 
 
-def build_content_units(channel_id, sort_order='desc'):
+def build_content_units(channel_id, sort_order='desc', include_hidden=False):
     """
     Строит список ContentUnit из постов канала
     
@@ -67,6 +72,7 @@ def build_content_units(channel_id, sort_order='desc'):
     Args:
         channel_id: ID канала
         sort_order: 'desc' (новые первыми) или 'asc' (старые первыми)
+        include_hidden: Включать скрытые посты
         
     Returns:
         list[ContentUnit]: Список единиц контента, отсортированных по дате
@@ -77,8 +83,8 @@ def build_content_units(channel_id, sort_order='desc'):
     
     discussion_id = str(channel.discussion_group_id) if channel.discussion_group_id else None
     
-    # Получаем видимые посты
-    visible_posts = get_visible_posts(channel_id)
+    # Получаем посты (включая скрытые если нужно)
+    visible_posts = get_visible_posts(channel_id, include_hidden=include_hidden)
     
     # Группируем по grouped_id
     groups = {}  # grouped_id -> list[Post]

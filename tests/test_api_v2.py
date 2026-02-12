@@ -8,6 +8,7 @@ import pytest
 import json
 from database import create_app, init_db
 from models import db, Post, Channel, Layout, Edit
+from api.v2 import api_v2_bp
 
 
 @pytest.fixture
@@ -16,6 +17,9 @@ def app():
     app = create_app()
     app.config['TESTING'] = True
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    
+    # Регистрируем API v2 blueprint
+    app.register_blueprint(api_v2_bp)
     
     with app.app_context():
         init_db(app)
