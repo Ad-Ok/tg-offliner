@@ -18,12 +18,7 @@
     />
     
     <!-- Кнопка переключения порядка сортировки -->
-    <div v-if="!loading" class="mb-4 flex justify-between items-center print:hidden">
-      <div class="text-xs text-gray-500">
-        <span v-if="sortOrderSource === 'url'" class="text-blue-500">URL</span>
-        <span v-else-if="sortOrderSource === 'saved'" class="text-green-500">Saved</span>
-        <span v-else class="text-gray-400">Default</span>
-      </div>
+    <div v-if="!loading" class="mb-4 flex justify-end items-center print:hidden">
       <div class="flex gap-2">
         <button 
           v-if="sortOrderSource === 'url'"
@@ -68,6 +63,7 @@ import ChunkNavigation from '~/components/ChunkNavigation.vue'
 import { getChannelPosts, updateChannelSettings } from '~/services/apiV2'
 import { transformV2PostsToFlat } from '~/utils/v2Adapter'
 import { useEditModeStore } from '~/stores/editMode'
+import { eventBus } from '~/eventBus'
 
 const route = useRoute()
 const router = useRouter()
@@ -166,9 +162,13 @@ async function fetchPosts() {
     // Синхронизируем локальный chunk
     localCurrentChunk.value = response.pagination.current_chunk ?? 0
     
+    // Показываем источник сортировки через общую шину сообщений
+    showSortSourceMessage()
+    
   } catch (e) {
     error.value = e
     console.error('[posts.vue v2] Error fetching posts:', e)
+    eventBus.showAlert(e.message || 'Ошибка загрузки постов', 'danger')
   } finally {
     loading.value = false
   }
@@ -203,6 +203,18 @@ async function handleSaveSettings() {
   } catch (e) {
     console.error('[posts.vue v2] Error saving settings:', e)
   }
+}
+
+function showSortSourceMessage() {
+  const source = sortOrderSource.value
+  const order = currentSortOrder.value === 'desc' ? 'новые сначала' : 'старые сначала'
+  
+  if (source === 'url') {
+    eventBus.showAlert(`Сортировка из URL: ${order}`, 'info')
+  } else if (source === 'saved') {
+    eventBus.showAlert(`Сохранённая сортировка: ${order}`, 'success')
+  }
+  // default — не показываем, это штатное поведение
 }
 
 function onChunkSelected(chunkIndex) {
@@ -252,6 +264,13 @@ if (initialData.value) {
   localCurrentChunk.value = initialData.value.pagination.current_chunk ?? 0
   loading.value = false
 }
+
+// Показываем сообщение об источнике сортировки после гидратации на клиенте
+onMounted(() => {
+  if (initialData.value) {
+    showSortSourceMessage()
+  }
+})
 
 // === Watchers ===
 
