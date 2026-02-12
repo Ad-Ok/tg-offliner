@@ -66,6 +66,7 @@ import Wall from '~/components/Wall.vue'
 import ChannelCover from '~/components/ChannelCover.vue'
 import ChunkNavigation from '~/components/ChunkNavigation.vue'
 import { getChannelPosts, updateChannelSettings } from '~/services/apiV2'
+import { transformV2PostsToFlat } from '~/utils/v2Adapter'
 import { useEditModeStore } from '~/stores/editMode'
 
 const route = useRoute()
@@ -153,7 +154,9 @@ async function fetchPosts() {
     
     console.log('[posts.vue v2] Response applied_params:', response.applied_params)
     
-    posts.value = response.posts
+    // Трансформируем v2 формат в плоский формат для компонентов
+    const discussionId = response.channel?.discussion_group_id ? String(response.channel.discussion_group_id) : null
+    posts.value = transformV2PostsToFlat(response.posts, discussionId)
     channel.value = response.channel
     pagination.value = response.pagination
     appliedParams.value = response.applied_params
@@ -238,7 +241,8 @@ const { data: initialData } = await useAsyncData(
 
 // Инициализируем state из SSR данных
 if (initialData.value) {
-  posts.value = initialData.value.posts
+  const discussionId = initialData.value.channel?.discussion_group_id ? String(initialData.value.channel.discussion_group_id) : null
+  posts.value = transformV2PostsToFlat(initialData.value.posts, discussionId)
   channel.value = initialData.value.channel
   pagination.value = initialData.value.pagination
   appliedParams.value = initialData.value.applied_params
