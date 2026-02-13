@@ -198,6 +198,42 @@ docker compose logs app
 SQLALCHEMY_DATABASE_URI = 'sqlite:///posts.db?check_same_thread=False'
 ```
 
+### ⚠️ Доступ к БД из терминала (КРИТИЧЕСКИ ВАЖНО!)
+
+**НЕ используй `create_app()` / `init_db()` для чтения данных!** Это может создать пустую БД или перезаписать данные.
+
+**✅ ПРАВИЛЬНО — прямой доступ через sqlite3:**
+```bash
+# С хоста (macOS)
+python3 -c '
+import sqlite3
+conn = sqlite3.connect("instance/posts.db")
+c = conn.cursor()
+c.execute("SELECT id, name FROM channels")
+print(c.fetchall())
+'
+
+# Из Docker контейнера
+docker compose exec app python3 -c '
+import sqlite3
+conn = sqlite3.connect("instance/posts.db")
+c = conn.cursor()
+c.execute("SELECT id, name FROM channels")
+print(c.fetchall())
+'
+```
+
+**❌ НЕПРАВИЛЬНО — Flask app context для простых запросов:**
+```python
+# НЕ ДЕЛАЙ ТАК для проверки данных!
+app = create_app()
+init_db(app)  # ← может создать пустые таблицы!
+with app.app_context():
+    channels = Channel.query.all()  # ← может смотреть не туда
+```
+
+Flask `create_app()` + `init_db()` нужны только в коде приложения, НЕ для ad-hoc запросов из терминала.
+
 ### Модели (models.py)
 
 #### Post (таблица: posts)
@@ -275,6 +311,20 @@ with app.app_context():
     new_post = Post(telegram_id=123, channel_id='test', date='2025-12-25')
     db.session.add(new_post)
     db.session.commit()
+```
+
+### 🧪 Тестовый канал
+
+**Канал для тестирования:** `llamatest` (username в Telegram)
+- Discussion group ID: `2573960761`
+- Содержит ~80 постов с комментариями, медиа-группами (альбомами), gallery layouts
+- Медиа скачано в `downloads/llamatest/`
+- **Используй для тестирования функциональности без импорта новых каналов**
+
+**Проверка наличия данных:**
+```bash
+# Быстрая проверка БД
+python3 -c 'import sqlite3; c = sqlite3.connect("instance/posts.db").cursor(); c.execute("SELECT id, name FROM channels"); print(c.fetchall())'
 ```
 
 ---
