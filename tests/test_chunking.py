@@ -397,7 +397,7 @@ class ChunksAPITests(unittest.TestCase):
         
         # Регистрируем blueprint для chunks API
         from api.chunks import chunks_bp
-        self.app.register_blueprint(chunks_bp)
+        self.app.register_blueprint(chunks_bp, url_prefix='/api')
         
         self.client = self.app.test_client()
         

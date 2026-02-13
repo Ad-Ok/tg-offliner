@@ -116,48 +116,38 @@
 <script setup>
 import { useRoute } from 'vue-router'
 import { api, mediaBase } from '~/services/api'
+import { getChannelPosts } from '~/services/apiV2'
+import { transformV2PostsToFlat } from '~/utils/v2Adapter'
+import { PAGE_SIZES } from '~/utils/units'
 
 const route = useRoute()
 const channelId = route.params.channelId
 
-// Загрузка информации о канале
-const { data: channelInfo } = await useAsyncData(
-  `channel-info-${channelId}`,
-  () => api.get(`/api/channels/${channelId}`).then(res => res.data)
+// Загрузка постов и channel info через V2 API (один запрос)
+const { data: v2Response } = await useAsyncData(
+  `posts-${channelId}`,
+  () => getChannelPosts(channelId, {
+    includeHidden: true,
+    includeComments: true,
+  })
 )
 
-// Загрузка frozen layout
+// Channel info из V2 response
+const channelInfo = computed(() => v2Response.value?.channel || null)
+
+// Посты в flat формате для отображения
+const postsData = computed(() => {
+  if (!v2Response.value?.posts) return []
+  return transformV2PostsToFlat(
+    v2Response.value.posts,
+    v2Response.value.channel?.discussion_group_id
+  )
+})
+
+// Загрузка frozen layout (V1 — нет V2 аналога для pages)
 const { data: frozenData, pending, error } = await useAsyncData(
   `frozen-${channelId}`,
   () => api.get(`/api/pages/${channelId}/frozen`).then(res => res.data)
-)
-
-// Загрузка постов из базы для отображения текста
-const { data: postsData } = await useAsyncData(
-  `posts-${channelId}`,
-  async () => {
-    // Загружаем посты канала
-    const mainPosts = await api.get(`/api/posts?channel_id=${channelId}`).then(res => res.data)
-    
-    // Проверяем наличие discussion group
-    const channelInfo = await api.get(`/api/channels/${channelId}`).then(res => res.data)
-    
-    let allPosts = mainPosts
-    
-    // Если есть discussion group, загружаем и его посты
-    if (channelInfo?.discussion_group_id) {
-      const discussionPosts = await api.get(`/api/posts?channel_id=${channelInfo.discussion_group_id}`).then(res => res.data)
-      
-      // Объединяем посты, удаляя дубликаты
-      allPosts = [...mainPosts, ...discussionPosts]
-      const uniquePosts = allPosts.filter((post, index, array) => 
-        array.findIndex(p => p.id === post.id) === index
-      )
-      allPosts = uniquePosts
-    }
-    
-    return allPosts
-  }
 )
 
 // Создаем мапу постов для быстрого доступа
@@ -178,14 +168,24 @@ const getPostFromDb = (telegram_id, channel_id) => {
   return postsMap.value[key]
 }
 
-// Стили для страницы (A4 по умолчанию)
-const pageStyle = computed(() => ({
-  width: '210mm',
-  height: '297mm',
-  position: 'relative',
-  margin: '0 auto 2rem',
-  padding: '20mm'
-}))
+// Стили для страницы (динамические из print_settings канала)
+const pageStyle = computed(() => {
+  const exportSettings = channelInfo.value?.settings?.export
+  const pageSizeKey = exportSettings?.page_size || 'A4'
+  const pageSize = PAGE_SIZES[pageSizeKey] || PAGE_SIZES.A4
+  const margins = exportSettings?.margins || [20, 20, 20, 20]
+
+  return {
+    width: `${pageSize.width}mm`,
+    height: `${pageSize.height}mm`,
+    position: 'relative',
+    margin: '0 auto 2rem',
+    paddingTop: `${margins[0]}mm`,
+    paddingRight: `${margins[1]}mm`,
+    paddingBottom: `${margins[2]}mm`,
+    paddingLeft: `${margins[3]}mm`
+  }
+})
 
 // Стили для поста с абсолютным позиционированием
 const getPostStyle = (post) => ({

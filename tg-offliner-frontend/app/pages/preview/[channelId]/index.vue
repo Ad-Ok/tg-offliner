@@ -11,13 +11,14 @@
     <!-- Основная область с preview -->
     <div class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900" ref="previewContainer" :style="previewContainerStyle">
       <div class="mx-auto" :class="pageFormatClass" style="width: var(--preview-width);  padding-left: var(--preview-padding-left); padding-right: var(--preview-padding-right);">
-        <!-- Информация о канале - скрыто в preview -->
-        <!-- <ChannelCover 
-          v-if="channelInfo" 
-          :channel="channelInfo" 
-          :postsCount="realPostsCount"
-          :commentsCount="totalCommentsCount"
-        /> -->
+        <!-- Навигация по chunks -->
+        <ChunkNavigation
+          v-if="chunksInfo && chunksInfo.total_chunks > 1"
+          :chunksInfo="chunksInfo"
+          v-model:currentChunk="currentChunk"
+          :loading="pending"
+          @chunkSelected="onChunkSelected"
+        />
         
         <!-- Лента постов в режиме preview с разрывами страниц -->
         <div ref="wallContainer">
@@ -38,8 +39,11 @@
 import { useRoute } from 'vue-router'
 import Wall from '~/components/Wall.vue'
 import ChannelCover from '~/components/ChannelCover.vue'
+import ChunkNavigation from '~/components/ChunkNavigation.vue'
 import PrintSettingsSidebar from '~/components/system/PrintSettingsSidebar.vue'
 import { api } from '~/services/api'
+import { getChannelPosts, getChannelChunks } from '~/services/apiV2'
+import { transformV2PostsToFlat } from '~/utils/v2Adapter'
 import { PAGE_SIZES, mmToPx, pxToMm } from '~/utils/units'
 import { useEditModeStore } from '~/stores/editMode'
 import { usePostFiltering } from '~/composables/usePostFiltering'
@@ -55,6 +59,10 @@ const wallContainer = ref(null)
 const previewContainer = ref(null)
 const totalPages = ref(0)
 const pageBreaksData = ref([])
+
+// Chunk state
+const currentChunk = ref(null) // null = все посты
+const chunksInfo = ref(null)
 
 // Состояние для сортировки постов
 const sortOrder = ref('desc')
@@ -91,38 +99,19 @@ const freezeCurrentLayout = async () => {
     return
   }
   
-  // Этап 1.5: Предварительно загружаем все layouts галерей для получения border_width
-  console.log('📦 Preloading gallery layouts...')
+  // Этап 1.5: Используем layouts из уже загруженных V2 данных
+  console.log('📦 Using preloaded gallery layouts from V2 response...')
   const galleryLayouts = new Map() // grouped_id -> layout
-  const allGalleryContainers = contentContainer.querySelectorAll('[data-grouped-id]')
-  const uniqueGroupedIds = new Set()
   
-  allGalleryContainers.forEach(container => {
-    const groupedId = container.dataset.groupedId
-    const channelId = container.dataset.channelId
-    if (groupedId && channelId) {
-      uniqueGroupedIds.add(`${groupedId}:${channelId}`)
-    }
-  })
-  
-  // Загружаем все layouts параллельно
-  await Promise.all(
-    Array.from(uniqueGroupedIds).map(async (key) => {
-      const [groupedId, channel_id] = key.split(':')
-      try {
-        const layoutResponse = await api.get(`/api/layouts/${groupedId}?channel_id=${encodeURIComponent(channel_id)}`)
-        const layout = layoutResponse.data
-        if (layout) {
-          galleryLayouts.set(groupedId, layout)
-          console.log(`  ✅ Loaded layout for gallery ${groupedId}: border_width=${layout.border_width || '0'}`)
-        }
-      } catch (error) {
-        console.warn(`  ⚠️ Failed to load layout for gallery ${groupedId}`, error)
+  if (posts.value) {
+    posts.value.forEach(post => {
+      if (post.grouped_id && post.layout) {
+        galleryLayouts.set(String(post.grouped_id), post.layout)
       }
     })
-  )
+  }
   
-  console.log(`📦 Preloaded ${galleryLayouts.size} gallery layouts`)
+  console.log(`📦 Found ${galleryLayouts.size} gallery layouts from V2 data`)
   
   // Этап 2: Для каждой страницы извлечь посты и их координаты
   const frozenPages = []
@@ -320,99 +309,71 @@ if (typeof window !== 'undefined') {
   window.__previewRecalculatePages = recalculatePages
 }
 
-// Загрузка данных (копируем логику из posts.vue)
-const { data: posts, pending } = await useAsyncData(
+// Загрузка данных через V2 API (один запрос вместо N+1)
+const { data: v2Response, pending, refresh: refreshPosts } = await useAsyncData(
   'preview-posts',
   async () => {
-    const mainPosts = await api.get(`/api/posts?channel_id=${channelId}`).then(res => res.data);
-    
-    const channelInfo = await api.get(`/api/channels/${channelId}`).then(res => res.data);
-    
-    let allPosts = mainPosts;
-    if (channelInfo?.discussion_group_id) {
-      const discussionPosts = await api.get(`/api/posts?channel_id=${channelInfo.discussion_group_id}`).then(res => res.data);
-      
-      allPosts = [...mainPosts, ...discussionPosts];
-      const uniquePosts = allPosts.filter((post, index, array) => 
-        array.findIndex(p => p.id === post.id) === index
-      );
-      allPosts = uniquePosts;
+    const options = {
+      includeHidden: true,
+      includeComments: true,
     }
-    
-    try {
-      const editsPromises = allPosts.map(async (post) => {
-        try {
-          const response = await api.get(`/api/edits/${post.telegram_id}/${post.channel_id}`);
-          const hiddenState = response.data?.edit?.changes?.hidden === 'true' || response.data?.edit?.changes?.hidden === true;
-          return { postId: post.telegram_id, channelId: post.channel_id, hidden: hiddenState };
-        } catch (error) {
-          return { postId: post.telegram_id, channelId: post.channel_id, hidden: false };
-        }
-      });
-      
-      const editsStates = await Promise.all(editsPromises);
-      
-      allPosts.forEach(post => {
-        const editState = editsStates.find(e => e.postId === post.telegram_id && e.channelId === post.channel_id);
-        post.isHidden = editState ? editState.hidden : false;
-      });
-      
-      // Применяем фильтры для определения скрытых медиа и постов
-      allPosts = applyFilters(allPosts);
-      
-    } catch (error) {
-      console.error('Error loading hidden states:', error);
+    // Если выбран конкретный chunk
+    if (currentChunk.value !== null) {
+      options.chunk = currentChunk.value
     }
-
-    try {
-      const uniqueGroupKeys = new Map()
-
-      allPosts.forEach(post => {
-        if (!post.grouped_id || post.media_type !== 'MessageMediaPhoto') {
-          return
-        }
-        const key = `${post.channel_id}:${post.grouped_id}`
-        if (!uniqueGroupKeys.has(key)) {
-          uniqueGroupKeys.set(key, { channelId: post.channel_id, groupedId: post.grouped_id })
-        }
-      })
-
-      if (uniqueGroupKeys.size) {
-        await Promise.all(Array.from(uniqueGroupKeys.values()).map(async ({ channelId: groupChannelId, groupedId }) => {
-          try {
-            const response = await api.get(`/api/layouts/${groupedId}?channel_id=${encodeURIComponent(groupChannelId)}`)
-            const layout = response.data
-            if (layout) {
-              allPosts.forEach(post => {
-                if (post.channel_id === groupChannelId && post.grouped_id === groupedId) {
-                  post.layout = layout
-                }
-              })
-            }
-          } catch (error) {
-            console.warn('Failed to preload layout for group', groupedId, 'channel', groupChannelId, error?.response?.data || error)
-          }
-        }))
-      }
-    } catch (error) {
-      console.error('Error preloading gallery layouts:', error)
-    }
-    
-    return allPosts;
+    const response = await getChannelPosts(channelId, options)
+    return response
   }
 )
 
-const { data: channelInfo } = await useAsyncData(
-  'preview-channelInfo',
-  () => api.get(`/api/channels/${channelId}`).then(res => res.data)
-)
+// Посты: трансформируем V2 → flat формат для компонентов + фильтры
+const posts = computed(() => {
+  if (!v2Response.value?.posts) return []
+  const flat = transformV2PostsToFlat(
+    v2Response.value.posts,
+    v2Response.value.channel?.discussion_group_id
+  )
+  return applyFilters(flat)
+})
+
+// Channel info из V2 response (отдельный запрос не нужен)
+const channelInfo = computed(() => v2Response.value?.channel || null)
 
 // Инициализируем sortOrder из настроек канала
 watch(channelInfo, (newChannelInfo) => {
-  if (newChannelInfo?.changes?.sortOrder) {
-    sortOrder.value = newChannelInfo.changes.sortOrder
+  const savedSort = newChannelInfo?.settings?.display?.sort_order
+    || newChannelInfo?.changes?.sortOrder
+  if (savedSort) {
+    sortOrder.value = savedSort
   }
 }, { immediate: true })
+
+// Загрузка chunks metadata и обработчик выбора chunk
+const onChunkSelected = async (chunkIndex) => {
+  currentChunk.value = chunkIndex
+  await refreshPosts()
+  // Пересчитываем разрывы страниц после загрузки нового chunk
+  nextTick(() => {
+    calculatePageBreaks()
+  })
+}
+
+// Загружаем chunks metadata при монтировании
+onMounted(async () => {
+  // Загружаем chunks metadata для навигации
+  try {
+    const meta = await getChannelChunks(channelId)
+    if (meta && meta.total_chunks > 1) {
+      chunksInfo.value = meta
+    }
+  } catch (e) {
+    console.warn('[preview] Failed to load chunks metadata:', e)
+  }
+  
+  nextTick(() => {
+    calculatePageBreaks()
+  })
+})
 
 const realPostsCount = computed(() => {
   if (!posts.value) return 0
@@ -579,13 +540,6 @@ const savePageBreaks = async (pagesData) => {
     console.error('Error saving page breaks:', error)
   }
 }
-
-// Пересчитываем при монтировании
-onMounted(() => {
-  nextTick(() => {
-    calculatePageBreaks()
-  })
-})
 
 // Cleanup function to remove window references
 const cleanup = () => {

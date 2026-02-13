@@ -132,6 +132,8 @@ import ChannelCover from '~/components/ChannelCover.vue'
 import Page from '~/components/system/Page.vue'
 import PageSkeleton from '~/components/system/PageSkeleton.vue'
 import { api } from '~/services/api'
+import { getChannelPosts } from '~/services/apiV2'
+import { transformV2PostsToFlat } from '~/utils/v2Adapter'
 import { usePages } from '~/composables/usePages'
 
 const route = useRoute()
@@ -152,23 +154,21 @@ const loadingPages = ref(new Set()) // Страницы, которые сейч
 
 const { loadChannelPages, saveLayout } = usePages()
 
-// Загрузка информации о канале
-const { data: channelInfo } = await useAsyncData(
-  'channelInfo',
-  () => api.get(`/api/channels/${channelId}`).then(res => res.data)
+// V2: одним запросом загружаем и канал, и посты
+const { data: v2Response } = await useAsyncData(
+  'pages-channel-posts',
+  () => getChannelPosts(channelId, { includeComments: true, includeHidden: true })
 )
 
-// Загрузка постов канала
-const loadChannelPosts = async () => {
-  try {
-    const response = await api.get(`/api/posts?channel_id=${channelId}`)
-    channelPosts.value = response.data
-  } catch (error) {
-    console.error('Error loading channel posts:', error)
-  }
-}
+// Extract channel info and posts from V2 response
+const channelInfo = computed(() => v2Response.value?.channel || null)
 
-await loadChannelPosts()
+// Инициализируем channelPosts из V2 данных
+if (v2Response.value?.posts) {
+  const discussionId = v2Response.value.channel?.discussion_group_id
+    ? String(v2Response.value.channel.discussion_group_id) : null
+  channelPosts.value = transformV2PostsToFlat(v2Response.value.posts, discussionId)
+}
 
 // Вычисляем максимальное количество страниц на основе постов
 const MAX_PAGES = computed(() => {

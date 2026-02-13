@@ -111,11 +111,10 @@ watch(selectedBorder, async (newBorder, oldBorder) => {
   if (!isInitialized.value || isProcessing.value) return
   
   try {
-    const { layoutsService } = await import('~/services/layoutsService.js')
-    const response = await layoutsService.updateBorder(
+    const { updateLayout } = await import('~/services/apiV2')
+    const response = await updateLayout(
       props.groupedId, 
-      props.channelId, 
-      newBorder
+      { channelId: props.channelId, borderWidth: newBorder }
     )
     
     emit('borderUpdated', response?.layout ?? null)
@@ -132,14 +131,17 @@ const reloadLayout = async () => {
   isError.value = false
 
   try {
-    const { layoutsService } = await import('~/services/layoutsService.js')
+    const { updateLayout } = await import('~/services/apiV2')
     const columns = selectedColumns.value === 'auto' ? null : parseInt(selectedColumns.value)
-    const response = await layoutsService.reloadLayout(
+    const response = await updateLayout(
       props.groupedId, 
-      props.channelId, 
-      columns, 
-      noCrop.value,
-      selectedBorder.value
+      {
+        channelId: props.channelId,
+        columns,
+        noCrop: noCrop.value,
+        borderWidth: selectedBorder.value,
+        regenerate: true
+      }
     )
 
     emit('layoutReloaded', response?.layout ?? null)
@@ -147,7 +149,7 @@ const reloadLayout = async () => {
   } catch (error) {
     console.error('Failed to reload layout:', error)
     isError.value = true
-    feedbackMessage.value = error?.response?.data?.error || 'Failed to regenerate layout'
+    feedbackMessage.value = error?.message || 'Failed to regenerate layout'
   } finally {
     isProcessing.value = false
   }

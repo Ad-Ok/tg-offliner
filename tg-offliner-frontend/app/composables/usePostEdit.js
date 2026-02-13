@@ -4,27 +4,10 @@ export const usePostEdit = (post) => {
   const isLoading = ref(false)
   
   const loadHiddenState = async () => {
+    // V2: isHidden уже приходит в response, отдельный запрос не нужен
+    // Оставляем для обратной совместимости — просто читаем из post
     if (post.isHidden !== undefined) {
-      return
-    }
-    
-    try {
-      isLoading.value = true
-      
-      const { editsService } = await import('~/services/editsService.js')
-      
-      const hiddenState = await editsService.getPostHiddenState(
-        post.telegram_id,
-        post.channel_id
-      )
-      
-      isHidden.value = hiddenState
-      
-    } catch (error) {
-      console.error('Error loading post hidden state:', error)
-      
-    } finally {
-      isLoading.value = false
+      isHidden.value = post.isHidden
     }
   }
 
@@ -32,11 +15,11 @@ export const usePostEdit = (post) => {
     try {
       isSaving.value = true
       
-      const { editsService } = await import('~/services/editsService.js')
+      const { setPostVisibility } = await import('~/services/apiV2')
       
-      await editsService.setPostHidden(
-        post.telegram_id,
+      await setPostVisibility(
         post.channel_id,
+        post.telegram_id,
         hidden
       )
       

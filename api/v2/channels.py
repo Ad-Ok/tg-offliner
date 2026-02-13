@@ -114,9 +114,16 @@ def get_channel_posts(channel_id):
         )
         total_comments = sum(len(u['comments']) for u in all_units)
         
+        # Calculate real total_chunks so frontend knows chunking is available
+        try:
+            real_chunks = calculate_chunks(channel_id, items_per_chunk, 0.2, sort_order)
+            real_total_chunks = len(real_chunks) if real_chunks else 1
+        except Exception:
+            real_total_chunks = 1
+        
         pagination = {
             "current_chunk": None,
-            "total_chunks": 1,
+            "total_chunks": real_total_chunks,
             "total_posts": total_posts,
             "total_comments": total_comments,
             "items_per_chunk": items_per_chunk,

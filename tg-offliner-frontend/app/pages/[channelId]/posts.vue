@@ -60,7 +60,7 @@ import { useRoute, useRouter } from 'vue-router'
 import Wall from '~/components/Wall.vue'
 import ChannelCover from '~/components/ChannelCover.vue'
 import ChunkNavigation from '~/components/ChunkNavigation.vue'
-import { getChannelPosts, updateChannelSettings } from '~/services/apiV2'
+import { getChannelPosts, getChannelChunks, updateChannelSettings } from '~/services/apiV2'
 import { transformV2PostsToFlat } from '~/utils/v2Adapter'
 import { useEditModeStore } from '~/stores/editMode'
 import { eventBus } from '~/eventBus'
@@ -79,9 +79,10 @@ const pagination = ref(null)
 const appliedParams = ref(null)
 const loading = ref(true)
 const error = ref(null)
+const chunksMetadata = ref(null)
 
 // Локальное состояние для ChunkNavigation
-const localCurrentChunk = ref(0)
+const localCurrentChunk = ref(null) // null = все посты
 
 // === Computed ===
 
@@ -108,14 +109,15 @@ const pageFormatClass = computed(() => {
   return `page-format-${pageSize.toLowerCase()}`
 })
 
-// Совместимость с ChunkNavigation
+// Совместимость с ChunkNavigation — объединяем pagination (total_chunks etc) и chunks metadata (chunks array)
 const chunksInfoCompat = computed(() => {
   if (!pagination.value) return null
   return {
     total_chunks: pagination.value.total_chunks,
     total_posts: pagination.value.total_posts,
     total_comments: pagination.value.total_comments,
-    items_per_chunk: pagination.value.items_per_chunk
+    items_per_chunk: pagination.value.items_per_chunk,
+    chunks: chunksMetadata.value?.chunks || []
   }
 })
 
@@ -160,7 +162,16 @@ async function fetchPosts() {
     appliedParams.value = response.applied_params
     
     // Синхронизируем локальный chunk
-    localCurrentChunk.value = response.pagination.current_chunk ?? 0
+    localCurrentChunk.value = response.pagination.current_chunk ?? null
+    
+    // Загружаем chunks metadata если есть больше 1 chunk
+    if (response.pagination.total_chunks > 1 && !chunksMetadata.value) {
+      try {
+        chunksMetadata.value = await getChannelChunks(channelId)
+      } catch (e) {
+        console.warn('[posts.vue v2] Failed to load chunks metadata:', e)
+      }
+    }
     
     // Показываем источник сортировки через общую шину сообщений
     showSortSourceMessage()
@@ -261,14 +272,23 @@ if (initialData.value) {
   channel.value = initialData.value.channel
   pagination.value = initialData.value.pagination
   appliedParams.value = initialData.value.applied_params
-  localCurrentChunk.value = initialData.value.pagination.current_chunk ?? 0
+  localCurrentChunk.value = initialData.value.pagination.current_chunk ?? null
   loading.value = false
 }
 
 // Показываем сообщение об источнике сортировки после гидратации на клиенте
-onMounted(() => {
+onMounted(async () => {
   if (initialData.value) {
     showSortSourceMessage()
+    
+    // Загружаем chunks metadata для ChunkNavigation (если больше 1 chunk)
+    if (pagination.value?.total_chunks > 1 && !chunksMetadata.value) {
+      try {
+        chunksMetadata.value = await getChannelChunks(channelId)
+      } catch (e) {
+        console.warn('[posts.vue v2] Failed to load chunks metadata:', e)
+      }
+    }
   }
 })
 

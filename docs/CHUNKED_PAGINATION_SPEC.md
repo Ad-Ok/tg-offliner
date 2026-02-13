@@ -7,9 +7,9 @@
 - Экспорта в несколько файлов (PDF, IDML)
 - Корректного отображения превью каждой части
 
-> **Версия:** 2.0 (API v2)
-> **Дата:** 12 февраля 2026
-> **Статус:** Частично реализовано. Posts page мигрирована на v2. Preview и Pages — ещё на v1.
+> **Версия:** 2.2 (API v2)
+> **Дата:** 13 февраля 2026
+> **Статус:** Миграция завершена. Все страницы используют V2 API для данных. Pages CRUD остаётся на V1 (нет V2 аналога).
 
 ---
 
@@ -18,15 +18,20 @@
 | Компонент | API | Статус |
 |-----------|-----|--------|
 | **Backend: `utils/chunking.py`** | Shared | ✅ Готов (используется обеими API) |
-| **Backend: `api/chunks.py` (v1)** | v1 | ⚠️ Legacy, используется preview |
-| **Backend: `api/v2/channels.py`** | v2 | ✅ Готов (chunking интегрирован в unified endpoint) |
-| **Frontend: `posts.vue`** | v2 | ✅ Мигрирован |
-| **Frontend: `useChannelPostsV2.js`** | v2 | ✅ Готов |
+| **Backend: `api/chunks.py` (v1)** | v1 | ⚠️ Legacy, можно удалить после финального аудита |
+| **Backend: `api/v2/channels.py`** | v2 | ✅ Готов (chunking интегрирован в unified endpoint, real total_chunks) |
+| **Frontend: `posts.vue`** | v2 | ✅ Мигрирован + ChunkNavigation |
+| **Frontend: `preview/index.vue`** | v2 | ✅ Мигрирован + ChunkNavigation |
+| **Frontend: `preview/frozen.vue`** | v2 | ✅ Мигрирован (динамические page sizes) |
+| **Frontend: `pages.vue`** | v2+v1 | ✅ Посты/канал через V2, Pages CRUD через V1 |
+| **Frontend: `GroupEditor.vue`** | v2 | ✅ Мигрирован (apiV2.updateLayout) |
+| **Frontend: `usePostEdit.js`** | v2 | ✅ Мигрирован (apiV2.setPostVisibility) |
 | **Frontend: `apiV2.js`** | v2 | ✅ Готов |
-| **Frontend: `preview/index.vue`** | v1 | ❌ Нужна миграция |
-| **Frontend: `preview/frozen.vue`** | v1 | ❌ Нужна миграция |
-| **Frontend: `chunksService.js` (v1)** | v1 | ⚠️ Legacy, используется preview |
-| **Frontend: `useChannelPosts.js` (v1)** | v1 | ⚠️ Legacy, используется preview |
+| **Frontend: `ChunkNavigation.vue`** | — | ✅ Работает в posts.vue и preview |
+| ~~Frontend: `chunksService.js` (v1)~~ | v1 | 🗑️ Удалён |
+| ~~Frontend: `useChannelPosts.js` (v1)~~ | v1 | 🗑️ Удалён |
+| ~~Frontend: `editsService.js` (v1)~~ | v1 | 🗑️ Удалён |
+| ~~Frontend: `layoutsService.js` (v1)~~ | v1 | 🗑️ Удалён |
 
 ---
 
@@ -52,9 +57,10 @@
 
 ### 3. Порог переполнения
 
-- Настраиваемый порог: `overflow_threshold` (по умолчанию 0.2 = 20%)
+- Хардкод: `overflow_threshold = 0.2` (20%) в `calculate_chunks()`
 - Если chunk заполнен на 80%+ и следующая единица не влезает → начинаем новый chunk
 - Если chunk почти пустой, а единица огромная → добавляем как есть (один огромный пост = отдельный chunk)
+- **Не выносится как параметр API** — достаточно константы
 
 ### 4. Скрытые посты
 
@@ -96,22 +102,24 @@
 
 | Страница | API | Composable | Примечание |
 |----------|-----|------------|------------|
-| `pages/[channelId]/posts.vue` | **v2** | `useChannelPostsV2` | ✅ Мигрировано |
-| `pages/preview/[channelId]/index.vue` | **v1** | Нет (inline) | ❌ N+1 запросов на edits/layouts |
-| `pages/preview/[channelId]/frozen.vue` | **v1** | Нет (inline) | ❌ V1 API |
-| `pages/[channelId]/pages.vue` | **v1** | `usePages` | ❌ V1 API |
+| `pages/[channelId]/posts.vue` | **v2** | inline | ✅ Мигрировано + ChunkNavigation |
+| `pages/preview/[channelId]/index.vue` | **v2** | inline | ✅ Мигрировано + ChunkNavigation |
+| `pages/preview/[channelId]/frozen.vue` | **v2** | inline | ✅ Мигрировано (динамические page sizes) |
+| `pages/[channelId]/pages.vue` | **v2+v1** | `usePages` | ✅ Посты/канал через V2, Pages CRUD через V1 |
+| `components/system/GroupEditor.vue` | **v2** | inline | ✅ Мигрировано (apiV2.updateLayout) |
 
 ### Frontend Services и Composables
 
 | Файл | API | Статус |
 |------|-----|--------|
 | `services/apiV2.js` | v2 | ✅ Основной клиент V2 |
-| `composables/useChannelPostsV2.js` | v2 | ✅ Composable для posts page |
 | `utils/v2Adapter.js` | — | ✅ Трансформация V2 → flat формат для компонентов |
-| `services/chunksService.js` | v1 | ⚠️ Legacy. Заменён `apiV2.getChannelPosts(?chunk=N)` |
-| `composables/useChannelPosts.js` | v1 | ⚠️ Legacy. Заменён `useChannelPostsV2.js` |
-| `services/editsService.js` | v1 | ⚠️ Legacy. Заменён `apiV2.setPostVisibility()` |
-| `services/layoutsService.js` | v1 | ⚠️ Legacy. Заменён `apiV2.updateLayout()` |
+| `composables/usePostEdit.js` | v2 | ✅ Мигрирован (apiV2.setPostVisibility) |
+| `composables/usePages.js` | v1 | ⚠️ Pages CRUD остаётся V1 (нет V2 pages endpoint) |
+| ~~`services/chunksService.js`~~ | v1 | 🗑️ Удалён |
+| ~~`composables/useChannelPosts.js`~~ | v1 | 🗑️ Удалён |
+| ~~`services/editsService.js`~~ | v1 | 🗑️ Удалён |
+| ~~`services/layoutsService.js`~~ | v1 | 🗑️ Удалён |
 
 ### Ключевое отличие V1 vs V2
 
@@ -417,14 +425,29 @@ const frozenData = await api.get(`/api/pages/${channelId}/frozen`)
 
 #### 3. Chunking в Preview
 
-**Вопрос:** Нужен ли chunking в preview?
+**Решение:** Вариант **B** — Preview с chunking. Пользователь видит ту часть, которую экспортирует.
 
-**Варианты:**
-- **A) Без chunking:** Preview загружает все посты одним запросом (`chunk=null`). Подходит для каналов < 500 постов.
-- **B) С chunking:** Preview загружает по chunk'ам. Каждый chunk = отдельный файл при экспорте в PDF/IDML. Пользователь выбирает chunk для preview.
-- **C) Гибридный:** По умолчанию без chunking, но при включении "Export mode" → chunking.
+**Реализация в два этапа:**
+1. **Этап 1 (текущий):** Миграция preview на V2 API без chunking (все посты одним запросом). Устранение N+1 запросов.
+2. **Этап 2 (следующий):** Добавление chunk selector в preview. Каждый chunk = отдельный файл при экспорте.
 
-**Рекомендация:** Вариант **B** — Preview с chunking. Пользователь видит ту часть, которую экспортирует.
+#### 4. Frozen Preview: динамические настройки страницы
+
+**Проблема:** `frozen.vue` использует хардкод A4 (`210mm × 297mm`, `20mm` padding) вместо `channel.print_settings`.
+
+**Решение:** Читать `page_size` и `margins` из `channel.settings.export` (V2 response) и применять динамически.
+
+#### 5. Preview: дублирование запроса channel info
+
+**Проблема:** `preview/index.vue` загружает channel info **дважды** — один раз внутри `useAsyncData('preview-posts')`, второй раз отдельным `useAsyncData('preview-channelInfo')`. Это расточительно и не нужно.
+
+**Решение:** При миграции на V2 channel info приходит в response `getChannelPosts()` — отдельный запрос не нужен.
+
+#### 6. GroupEditor: миграция layoutsService → apiV2
+
+**Проблема:** `GroupEditor.vue` использует `layoutsService.js` (V1: `POST /api/layouts/{id}/reload`, `PATCH /api/layouts/{id}/border`), а V2 объединяет всё в `PUT /api/v2/layouts/{id}` с параметрами `regenerate`, `border_width`, `columns`, `no_crop`.
+
+**Решение:** Заменить `layoutsService` на `apiV2.updateLayout()` в `GroupEditor.vue`.
 
 ### Legacy код для удаления (после миграции)
 
@@ -441,171 +464,47 @@ Backend V1 endpoints (`api/chunks.py`, `api/posts.py`) **НЕ удаляем** �
 
 ## 📋 План миграции на API v2 (Frontend)
 
-### Фаза 1: Preview → V2 (приоритет)
+### Фаза 1: Preview → V2 (приоритет) ✅ ЗАВЕРШЕНО
 
 **Цель:** Мигрировать `preview/[channelId]/index.vue` на API v2, убрать N+1 запросов.
 
-#### Шаг 1.1: Создать composable `usePreviewPostsV2.js`
+> **Решение:** Используем `getChannelPosts()` напрямую в `useAsyncData`. N+1 запросов устранены.
 
-```javascript
-// composables/usePreviewPostsV2.js
-// Специализированный composable для preview:
-// - Загружает ВСЕ посты (без chunking) или по chunk'ам
-// - include_hidden: true (для показа скрытых с маркером)
-// - include_comments: true
-// - Применяет usePostFiltering для фильтрации unsupported media
-// - Предоставляет методы для работы с visibility
+**Выполнено:**
+- [x] Заменить загрузку данных в `useAsyncData` — один V2 запрос вместо waterfall
+- [x] Убрать inline цикл загрузки edits (N+1 → 0 запросов)
+- [x] Убрать inline цикл загрузки layouts (M → 0 запросов)
+- [x] Page break calculation работает с V2 данными
+- [x] PrintSettingsSidebar работает (использует channel info из V2 response)
+- [x] Добавлен ChunkNavigation компонент в preview
+- [x] При выборе chunk — refresh данных + пересчёт page breaks
 
-import { getChannelPosts } from '~/services/apiV2'
-import { transformV2PostsToFlat } from '~/utils/v2Adapter'
+### Фаза 2: Frozen Preview → V2 ✅ ЗАВЕРШЕНО
 
-export function usePreviewPostsV2(channelId, options = {}) {
-  const posts = ref([])
-  const channel = ref(null)
-  const pagination = ref(null)
-  const loading = ref(false)
+**Выполнено:**
+- [x] Заменена загрузка постов на V2 (`getChannelPosts()`)
+- [x] Убрано дублирование channel info запроса
+- [x] Динамические page size и margins из `PAGE_SIZES` (print-config.json)
+- [x] Absolute positioning работает с V2 данными
+- Frozen layout загружается через V1 `/api/pages/` — V2 аналога пока нет (опционально)
 
-  async function loadAllPosts() {
-    loading.value = true
-    const response = await getChannelPosts(channelId, {
-      includeHidden: true,
-      includeComments: true,
-      // chunk: null → все посты
-    })
-    posts.value = transformV2PostsToFlat(
-      response.posts, 
-      response.channel.discussion_group_id
-    )
-    channel.value = response.channel
-    pagination.value = response.pagination
-    loading.value = false
-    return response
-  }
+### Фаза 3: usePostEdit + GroupEditor → V2 ✅ ЗАВЕРШЕНО
 
-  async function loadChunk(chunkIndex) {
-    loading.value = true
-    const response = await getChannelPosts(channelId, {
-      includeHidden: true,
-      includeComments: true,
-      chunk: chunkIndex,
-    })
-    posts.value = transformV2PostsToFlat(
-      response.posts,
-      response.channel.discussion_group_id
-    )
-    channel.value = response.channel
-    pagination.value = response.pagination
-    loading.value = false
-    return response
-  }
+**Выполнено:**
+- [x] `usePostEdit.js` обновлён на V2 (`apiV2.setPostVisibility()`)
+- [x] `GroupEditor.vue` обновлён на V2 (`apiV2.updateLayout()`)
+- [x] Emit events работают с V2 response
 
-  return { posts, channel, pagination, loading, loadAllPosts, loadChunk }
-}
-```
+### Фаза 4: Очистка legacy кода ✅ ЗАВЕРШЕНО
 
-**Задачи:**
-- [ ] Создать `composables/usePreviewPostsV2.js`
-- [ ] Интегрировать `usePostFiltering` в composable (или в preview page)
-- [ ] Убедиться что `v2Adapter` правильно маппит `isHidden` для preview
+**Удалены все legacy файлы:**
+- [x] `services/chunksService.js`
+- [x] `composables/useChannelPosts.js`
+- [x] `services/editsService.js`
+- [x] `services/layoutsService.js`
+- [x] `__tests__/layoutsService.test.js`
 
-#### Шаг 1.2: Мигрировать `preview/index.vue`
-
-**Что менять:**
-1. Заменить `useAsyncData('preview-posts', ...)` — убрать V1 waterfall (posts → edits × N → layouts × M)
-2. Использовать `usePreviewPostsV2` или напрямую `getChannelPosts()`
-3. Убрать inline загрузку edits/layouts — они уже в V2 response
-4. Оставить всю остальную логику: page breaks, freeze, sidebar
-
-```diff
-- // V1: 3 + N + M запросов
-- const postsResponse = await api.get(`/api/posts?channel_id=${channelId}`)
-- for (const post of allPosts) {
--   const edit = await api.get(`/api/edits/${post.telegram_id}/${post.channel_id}`)
-- }
-- for (const gid of groups) {
--   const layout = await api.get(`/api/layouts/${gid}?channel_id=${channelId}`)
-- }
-
-+ // V2: 1 запрос
-+ const response = await getChannelPosts(channelId, {
-+   includeHidden: true,
-+   includeComments: true,
-+ })
-+ const allPosts = transformV2PostsToFlat(response.posts, response.channel.discussion_group_id)
-```
-
-**Задачи:**
-- [ ] Заменить загрузку данных в `useAsyncData`
-- [ ] Убрать inline цикл загрузки edits (N+1 → 0 запросов)
-- [ ] Убрать inline цикл загрузки layouts (M → 0 запросов)
-- [ ] Проверить что page break calculation работает с V2 данными
-- [ ] Проверить что freeze layout работает с V2 данными
-- [ ] Проверить что PrintSettingsSidebar работает (использует channel info)
-
-#### Шаг 1.3: Добавить chunking в Preview (опционально)
-
-Если preview должен поддерживать chunking:
-
-```vue
-<!-- ChunkSelector для preview -->
-<div v-if="pagination?.total_chunks > 1" class="print:hidden mb-4">
-  <select v-model="selectedChunk" @change="loadChunkPosts">
-    <option v-for="i in pagination.total_chunks" :key="i-1" :value="i-1">
-      Часть {{ i }} ({{ chunkDateRange(i-1) }})
-    </option>
-  </select>
-</div>
-```
-
-**Задачи:**
-- [ ] Добавить UI для выбора chunk в preview
-- [ ] При экспорте в PDF — экспортировать текущий выбранный chunk
-- [ ] Обновить `freezeCurrentLayout()` для работы с chunk'ами
-
-### Фаза 2: Frozen Preview → V2
-
-#### Шаг 2.1: Мигрировать `preview/frozen.vue`
-
-**Что менять:**
-1. Заменить `api.get('/api/posts?...')` на `getChannelPosts()`
-2. Оставить загрузку frozen layout через V1 (`/api/pages/{id}/frozen`) — V2 аналога пока нет
-
-**Задачи:**
-- [ ] Заменить загрузку постов на V2
-- [ ] Проверить что absolute positioning работает с V2 данными
-- [ ] Протестировать с реальными frozen layouts
-
-### Фаза 3: Очистка legacy кода
-
-#### Шаг 3.1: Удалить V1 frontend код
-
-После того как ВСЕ страницы мигрированы:
-
-- [ ] Удалить `services/chunksService.js`
-- [ ] Удалить `composables/useChannelPosts.js`
-- [ ] Проверить что `services/editsService.js` не используется нигде
-- [ ] Проверить что `services/layoutsService.js` не используется нигде
-- [ ] Удалить неиспользуемые сервисы
-
-#### Шаг 3.2: Обновить `usePostEdit.js`
-
-`usePostEdit.js` сейчас использует V1 `editsService`. Мигрировать на `apiV2.setPostVisibility()`:
-
-```diff
-- import('~/services/editsService').then(({ setPostHidden }) => {
--   setPostHidden(channelId, telegramId, hidden)
-- })
-
-+ import('~/services/apiV2').then(({ setPostVisibility }) => {
-+   setPostVisibility(channelId, telegramId, hidden)
-+ })
-```
-
-**Задачи:**
-- [ ] Обновить `usePostEdit.js` на V2 API
-- [ ] Убедиться что все компоненты используют V2 для visibility
-
-### Фаза 4: Backend cleanup (по желанию)
+### Фаза 5: Backend cleanup (по желанию)
 
 - [ ] Добавить deprecation headers в V1 endpoints
 - [ ] Рассмотреть V2 endpoint для pages (`/api/v2/pages/`)
@@ -618,33 +517,31 @@ export function usePreviewPostsV2(channelId, options = {}) {
 ### ✅ Готово
 
 - [x] `utils/chunking.py` — ядро chunking
-- [x] `api/v2/channels.py` — unified endpoint с chunking
+- [x] `api/v2/channels.py` — unified endpoint с chunking + real total_chunks
 - [x] `api/v2/serializers.py` — единая сериализация + hidden/layouts maps
 - [x] `api/v2/posts.py` — visibility endpoint
 - [x] `api/v2/layouts.py` — layouts endpoint
 - [x] `services/apiV2.js` — V2 клиент
-- [x] `composables/useChannelPostsV2.js` — composable с chunking
 - [x] `utils/v2Adapter.js` — трансформация V2 → flat
-- [x] `pages/[channelId]/posts.vue` — мигрирован на V2
-- [x] `tests/test_chunking.py` — unit тесты chunking
-- [x] `tests/test_api_v2.py` — тесты V2 endpoints
-
-### ❌ Нужно сделать (Frontend)
-
-- [ ] Создать `composables/usePreviewPostsV2.js`
-- [ ] Мигрировать `preview/[channelId]/index.vue` на V2
-- [ ] Мигрировать `preview/[channelId]/frozen.vue` на V2
-- [ ] Обновить `composables/usePostEdit.js` на V2
-- [ ] Добавить chunking selector в preview (опционально)
-- [ ] Удалить `services/chunksService.js` (legacy V1)
-- [ ] Удалить `composables/useChannelPosts.js` (legacy V1)
-- [ ] Добавить V2 тесты для chunking в unified endpoint
+- [x] `pages/[channelId]/posts.vue` — мигрирован на V2 + ChunkNavigation
+- [x] `pages/preview/[channelId]/index.vue` — мигрирован на V2 + ChunkNavigation
+- [x] `pages/preview/[channelId]/frozen.vue` — мигрирован на V2 (динамические page sizes)
+- [x] `pages/[channelId]/pages.vue` — посты/канал через V2 (Pages CRUD остаётся V1)
+- [x] `composables/usePostEdit.js` — мигрирован на V2 (apiV2.setPostVisibility)
+- [x] `components/system/GroupEditor.vue` — мигрирован на V2 (apiV2.updateLayout)
+- [x] Удалён `services/chunksService.js` (legacy V1)
+- [x] Удалён `composables/useChannelPosts.js` (legacy V1)
+- [x] Удалён `services/editsService.js` (legacy V1)
+- [x] Удалён `services/layoutsService.js` (legacy V1)
+- [x] Удалён `__tests__/layoutsService.test.js`
+- [x] `tests/test_chunking.py` — unit тесты chunking (27/27 pass)
+- [x] `tests/test_api_v2.py` — тесты V2 endpoints (19/19 pass)
 
 ### ❌ Нужно сделать (Backend, опционально)
 
 - [ ] V2 endpoint для pages (`/api/v2/pages/`)
 - [ ] Deprecation warnings на V1 endpoints
-- [ ] Тесты `?chunk=N` в V2 endpoints
+- [ ] Рассмотреть удаление `api/chunks.py` после финального аудита
 
 ---
 
