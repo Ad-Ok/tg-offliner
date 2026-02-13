@@ -59,38 +59,35 @@ app.register_blueprint(chunks_bp, url_prefix='/api')
 # API v2 - новые унифицированные endpoints
 app.register_blueprint(api_v2_bp)
 
-# Глобальные переменные для управления загрузкой
-download_status = {}  # Статус загрузки для каждого канала
-download_lock = threading.Lock()  # Блокировка для thread-safe операций
+# Управление загрузкой — делегируем в utils.import_state (shared state)
+from utils.import_state import (
+    set_status as _import_set_status,
+    update_progress as _import_update_progress,
+    get_status as _import_get_status,
+    should_stop as _import_should_stop,
+    get_all_statuses as _import_get_all_statuses,
+    clear_status as _import_clear_status,
+)
+
+# Backward-compatible wrappers (используются в api/downloads.py и других модулях)
+download_status = {}  # Deprecated: actual state in utils.import_state
+download_lock = threading.Lock()  # Deprecated: lock in utils.import_state
 
 def set_download_status(channel_id, status, details=None):
     """Устанавливает статус загрузки канала"""
-    with download_lock:
-        download_status[channel_id] = {
-            'status': status,  # 'downloading', 'stopped', 'completed', 'error'
-            'details': details or {},
-            'timestamp': time.time()
-        }
+    _import_set_status(channel_id, status, details)
 
 def update_download_progress(channel_id, posts_processed=0, total_posts=0, comments_processed=0):
     """Обновляет прогресс загрузки канала"""
-    with download_lock:
-        if channel_id in download_status:
-            download_status[channel_id]['details'].update({
-                'posts_processed': posts_processed,
-                'total_posts': total_posts,
-                'comments_processed': comments_processed
-            })
+    _import_update_progress(channel_id, posts_processed, total_posts, comments_processed)
 
 def get_download_status(channel_id):
     """Получает статус загрузки канала"""
-    with download_lock:
-        return download_status.get(channel_id)
+    return _import_get_status(channel_id)
 
 def should_stop_download(channel_id):
     """Проверяет, нужно ли остановить загрузку"""
-    status = get_download_status(channel_id)
-    return status and status.get('status') == 'stopped'
+    return _import_should_stop(channel_id)
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0')

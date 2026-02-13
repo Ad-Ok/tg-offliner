@@ -15,6 +15,7 @@ from message_processing.message_transform import (
 )
 from utils.gallery_layout import generate_gallery_layout
 from utils.entity_validation import get_entity_by_username_or_id
+from utils.import_state import should_stop as _state_should_stop, update_progress as _state_update_progress
 
 # Настройка логирования
 logging.basicConfig(
@@ -26,42 +27,83 @@ logging.basicConfig(
 DOWNLOADS_DIR = TRANSFORM_DOWNLOADS_DIR
 
 def should_stop_import(channel_id):
-    """Проверяет, нужно ли остановить импорт"""
+    """Проверяет, нужно ли остановить импорт (через shared state, без HTTP)"""
     if not channel_id:
         return False
-    
-    try:
-        # Импортируем функцию проверки из app.py
-        import requests
-        response = requests.get(f"http://localhost:5000/api/download/status/{channel_id}")
-        if response.status_code == 200:
-            status_data = response.json()
-            return status_data.get('status') == 'stopped'
-    except Exception as e:
-        logging.warning(f"Не удалось проверить статус остановки: {e}")
-    
-    return False
+    return _state_should_stop(channel_id)
 
 def update_import_progress(channel_id, processed_posts, processed_comments, total_posts=None):
-    """Обновляет прогресс импорта"""
+    """Обновляет прогресс импорта (через shared state, без HTTP)"""
     if not channel_id:
         return
-    
+    _state_update_progress(channel_id, processed_posts, total_posts or 0, processed_comments)
+
+BATCH_SIZE = 50
+
+
+def _flush_batch(batch):
+    """Записывает пачку постов в БД за один commit (без HTTP)."""
+    if not batch:
+        return
+    from app import app
+    from models import db, Post
+
+    with app.app_context():
+        for data in batch:
+            new_post = Post(
+                telegram_id=data['telegram_id'],
+                channel_id=data['channel_id'],
+                date=data['date'],
+                message=data.get('message', ''),
+                media_url=data.get('media_url'),
+                thumb_url=data.get('thumb_url'),
+                media_type=data.get('media_type'),
+                mime_type=data.get('mime_type'),
+                author_name=data.get('author_name'),
+                author_avatar=data.get('author_avatar'),
+                author_link=data.get('author_link'),
+                repost_author_name=data.get('repost_author_name'),
+                repost_author_avatar=data.get('repost_author_avatar'),
+                repost_author_link=data.get('repost_author_link'),
+                reactions=data.get('reactions'),
+                grouped_id=data.get('grouped_id'),
+                reply_to=data.get('reply_to'),
+            )
+            db.session.add(new_post)
+        db.session.commit()
+    logging.info(f"Batch: записано {len(batch)} постов в БД")
+
+
+def _save_channel(channel_info):
+    """Сохраняет канал в БД напрямую (без HTTP). Возвращает True при успехе."""
     try:
-        import requests
-        data = {
-            'posts_processed': processed_posts,
-            'comments_processed': processed_comments
-        }
-        if total_posts is not None:
-            data['total_posts'] = total_posts
-            
-        requests.post(f"http://localhost:5000/api/download/progress/{channel_id}", 
-                     json=data, timeout=5)
+        from app import app
+        from models import db, Channel
+
+        with app.app_context():
+            existing = Channel.query.filter_by(id=channel_info['id']).first()
+            if existing:
+                logging.info(f"Канал {channel_info['id']} уже существует в БД")
+                return True
+            new_channel = Channel(
+                id=channel_info['id'],
+                name=channel_info['name'],
+                avatar=channel_info.get('avatar'),
+                creation_date=channel_info.get('creation_date'),
+                subscribers=channel_info.get('subscribers'),
+                description=channel_info.get('description'),
+                posts_count=channel_info.get('posts_count'),
+                comments_count=channel_info.get('comments_count'),
+                discussion_group_id=channel_info.get('discussion_group_id'),
+                changes=channel_info.get('changes', {})
+            )
+            db.session.add(new_channel)
+            db.session.commit()
+        return True
     except Exception as e:
-        logging.warning(f"Не удалось обновить прогресс: {e}")
-        # Здесь можно добавить API для обновления прогресса, пока просто логируем
-        logging.info(f"Прогресс импорта {channel_id}: {processed_posts} постов, {processed_comments} комментариев")
+        logging.error(f"Ошибка сохранения канала {channel_info.get('id')}: {e}")
+        return False
+
 
 def import_channel_direct(channel_username, channel_id=None, export_settings=None):
     """
@@ -104,13 +146,9 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
         channel_info = get_channel_info(client, entity, output_dir="downloads", folder_name=folder_name)
         logging.info(f"Информация о канале: {channel_info}")
         
-        # Добавляем канал в базу данных через API
-        api_url = "http://localhost:5000/api/channels"
-        response = requests.post(api_url, json=channel_info)
-        
-        if response.status_code not in [200, 201]:
-            logging.error(f"Ошибка добавления канала в БД: {response.text}")
-            return {"success": False, "error": f"Ошибка БД: {response.text}"}
+        # Добавляем канал в базу данных напрямую
+        if not _save_channel(channel_info):
+            return {"success": False, "error": "Ошибка добавления канала в БД"}
         
         # Импортируем сообщения
         # Используем переданные настройки или значения по умолчанию
@@ -150,12 +188,15 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
         logging.info(f"Начинаем обработку постов из канала {channel_username}")
         
         post_iteration = 0
+        batch = []
         for post in all_posts:
             post_iteration += 1
             logging.info(f"Итерация {post_iteration}: обрабатываем пост {post.id}")
             try:
                 # Проверяем, нужно ли остановить импорт
                 if should_stop_import(channel_id):
+                    _flush_batch(batch)
+                    batch = []
                     logging.info(f"Импорт канала {channel_username} остановлен пользователем")
                     return {"success": True, "processed": processed_count, "comments": comments_count, "stopped": True}
                 
@@ -174,7 +215,7 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
                     logging.info(f"Пропущен опрос с ID {post.id}")
                     continue
                 
-                # Обрабатываем сообщение так же, как в main()
+                # Обрабатываем сообщение
                 logging.info(f"Обрабатываем пост {post.id} из канала {channel_username}")
                 try:
                     post_data = process_message_for_api(post, real_id, client, folder_name)
@@ -182,26 +223,24 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
                     logging.error(f"Ошибка в process_message_for_api для поста {post.id}: {str(e)}")
                     post_data = None
                 if post_data:
-                    logging.info(f"Пост {post.id} обработан успешно, добавляем в базу")
-                    # Добавляем пост через API
-                    api_url = "http://localhost:5000/api/posts"
-                    response = requests.post(api_url, json=post_data)
-                    if response.status_code in [200, 201]:
-                        processed_count += 1
-                        logging.info(f"Пост {post.id} добавлен в базу, всего обработано: {processed_count}")
-                    else:
-                        logging.error(f"Ошибка добавления поста {post.id}: {response.text}")
+                    batch.append(post_data)
+                    processed_count += 1
+                    logging.info(f"Пост {post.id} добавлен в batch, всего: {processed_count}")
+                    
+                    if len(batch) >= BATCH_SIZE:
+                        _flush_batch(batch)
+                        batch = []
                 else:
                     logging.warning(f"process_message_for_api вернул None для поста {post.id}")
                 
                 # Обновляем прогресс каждые 5 постов или на каждом посте, если постов мало
                 if processed_count % 5 == 0 or total_posts < 50:
                     update_import_progress(channel_id, processed_count, comments_count, total_posts)
-                    
-                # Небольшая задержка между постами, чтобы избежать rate limits
-                time.sleep(0.1)
             except Exception as e:
                 logging.error(f"Ошибка при обработке сообщения: {str(e)}")
+        
+        # Flush оставшихся постов в batch
+        _flush_batch(batch)
         
         logging.info(f"Обработано сообщений: {processed_count}")
         logging.info(f"Канал {channel_username} импортирован: {processed_count} сообщений")
@@ -234,8 +273,8 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
 
 def import_all_discussion_comments(client, channel_id, discussion_group_id):
     """
-    Импортирует ВСЕ комментарии из группы обсуждений за один проход.
-    Оптимизированная версия вместо import_discussion_comments.
+    Импортирует ВСЕ комментарии из группы обсуждений за один проход (streaming).
+    Использует reverse_mapping для O(1) lookup и batch insert.
     
     :param client: Подключённый клиент Telethon
     :param channel_id: ID канала
@@ -259,88 +298,98 @@ def import_all_discussion_comments(client, channel_id, discussion_group_id):
         
         folder_name = f"channel_{discussion_group_id}"
         
-        # Шаг 1: Получаем ВСЕ сообщения из группы и строим мапинг форвардов
-        logging.info("Шаг 1/2: Сканирование всех сообщений группы обсуждений...")
+        # Streaming: один проход с reverse=True (старые сообщения первыми)
+        # Forwards (копии постов канала) идут хронологически раньше комментариев → меньше pending
+        logging.info("Streaming импорт комментариев (один проход, reverse=True)...")
         
-        forward_mapping = {}  # {saved_from_msg_id: forwarded_msg_id}
-        all_messages = []
-        message_count = 0
-        
-        for message in client.iter_messages(discussion_entity):
-            message_count += 1
-            all_messages.append(message)
-            
-            # Если это форвард из канала, запоминаем маппинг
-            if hasattr(message, 'fwd_from') and message.fwd_from:
-                if hasattr(message.fwd_from, 'saved_from_msg_id'):
-                    saved_id = message.fwd_from.saved_from_msg_id
-                    forward_mapping[saved_id] = message.id
-                    logging.debug(f"Форвард: пост {saved_id} -> message {message.id}")
-            
-            if message_count % 500 == 0:
-                logging.info(f"  Обработано {message_count} сообщений, найдено {len(forward_mapping)} форвардов")
-        
-        logging.info(f"Всего сообщений в группе: {message_count}")
-        logging.info(f"Найдено форвардов из канала: {len(forward_mapping)}")
-        
-        # Шаг 2: Проходим по всем сообщениям и импортируем комментарии
-        logging.info("Шаг 2/2: Импорт комментариев...")
-        
+        reverse_mapping = {}   # forwarded_msg_id → original_post_id (O(1) lookup)
+        pending = []           # Комментарии, для которых forward ещё не встретился
+        batch = []
         comments_imported = 0
+        message_count = 0
+        forwards_count = 0
         
-        for message in all_messages:
-            # Пропускаем форварды (они не комментарии)
+        for message in client.iter_messages(discussion_entity, reverse=True):
+            message_count += 1
+            
+            # Если это форвард из канала — запоминаем маппинг
             if hasattr(message, 'fwd_from') and message.fwd_from:
+                if hasattr(message.fwd_from, 'saved_from_msg_id') and message.fwd_from.saved_from_msg_id:
+                    saved_id = message.fwd_from.saved_from_msg_id
+                    reverse_mapping[message.id] = saved_id
+                    forwards_count += 1
+                    logging.debug(f"Форвард: пост {saved_id} -> msg {message.id}")
+                continue  # Форварды пропускаем (не комментарии)
+            
+            # Пропускаем не-ответы
+            if not (hasattr(message, 'reply_to') and message.reply_to and
+                    hasattr(message.reply_to, 'reply_to_msg_id')):
                 continue
             
-            # Проверяем, является ли это ответом
-            if not (hasattr(message, 'reply_to') and message.reply_to):
-                continue
-            
-            if not hasattr(message.reply_to, 'reply_to_msg_id'):
-                continue
-            
-            # Находим корневой пост канала
-            # Проверяем reply_to_top_id (корень треда) или reply_to_msg_id (прямой ответ)
+            # Ищем оригинальный пост канала через reverse_mapping (O(1))
             original_post_id = None
             
-            # Если есть reply_to_top_id - это ответ в треде, проверяем корень
-            if hasattr(message.reply_to, 'reply_to_top_id') and message.reply_to.reply_to_top_id:
-                top_id = message.reply_to.reply_to_top_id
-                for saved_id, fwd_id in forward_mapping.items():
-                    if top_id == fwd_id:
-                        original_post_id = saved_id
-                        break
+            # reply_to_top_id — корень треда (обычно это forwarded message)
+            top_id = getattr(message.reply_to, 'reply_to_top_id', None)
+            if top_id:
+                original_post_id = reverse_mapping.get(top_id)
             
-            # Если нет reply_to_top_id, проверяем прямой ответ
+            # Fallback: прямой ответ
             if original_post_id is None:
                 reply_to_msg_id = message.reply_to.reply_to_msg_id
-                for saved_id, fwd_id in forward_mapping.items():
-                    if reply_to_msg_id == fwd_id:
-                        original_post_id = saved_id
-                        break
+                original_post_id = reverse_mapping.get(reply_to_msg_id)
             
             if original_post_id is None:
+                pending.append(message)
                 continue
             
             # Обрабатываем комментарий
             try:
                 comment_data = process_message_for_api(message, str(discussion_group_id), client, folder_name)
                 if comment_data:
-                    # Устанавливаем связь с оригинальным постом канала
                     comment_data['reply_to'] = original_post_id
+                    batch.append(comment_data)
+                    comments_imported += 1
                     
-                    # Добавляем комментарий в базу
-                    api_url = "http://localhost:5000/api/posts"
-                    response = requests.post(api_url, json=comment_data)
-                    if response.status_code in [200, 201]:
-                        comments_imported += 1
-                        if comments_imported % 50 == 0:
-                            logging.info(f"  Импортировано {comments_imported} комментариев")
-                    else:
-                        logging.error(f"Ошибка добавления комментария {message.id}: {response.text}")
+                    if len(batch) >= BATCH_SIZE:
+                        _flush_batch(batch)
+                        batch = []
             except Exception as e:
                 logging.error(f"Ошибка обработки комментария {message.id}: {e}")
+            
+            if message_count % 500 == 0:
+                logging.info(f"  Обработано {message_count} сообщений, {forwards_count} форвардов, {comments_imported} комментариев, {len(pending)} pending")
+        
+        logging.info(f"Первый проход завершён: {message_count} сообщений, {forwards_count} форвардов, {comments_imported} комментариев, {len(pending)} pending")
+        
+        # Обрабатываем pending — теперь все forwards собраны
+        if pending:
+            logging.info(f"Обрабатываем {len(pending)} pending комментариев...")
+            for message in pending:
+                original_post_id = None
+                
+                top_id = getattr(message.reply_to, 'reply_to_top_id', None)
+                if top_id:
+                    original_post_id = reverse_mapping.get(top_id)
+                
+                if original_post_id is None:
+                    reply_to_msg_id = message.reply_to.reply_to_msg_id
+                    original_post_id = reverse_mapping.get(reply_to_msg_id)
+                
+                if original_post_id is None:
+                    continue
+                
+                try:
+                    comment_data = process_message_for_api(message, str(discussion_group_id), client, folder_name)
+                    if comment_data:
+                        comment_data['reply_to'] = original_post_id
+                        batch.append(comment_data)
+                        comments_imported += 1
+                except Exception as e:
+                    logging.error(f"Ошибка обработки pending комментария {message.id}: {e}")
+        
+        # Flush remaining batch
+        _flush_batch(batch)
         
         logging.info(f"✅ Импортировано {comments_imported} комментариев")
         return comments_imported
@@ -488,13 +537,11 @@ def save_discussion_group_info(client, discussion_entity):
         # Убираем discussion_group_id, так как дискуссионная группа не должна ссылаться на другую группу
         discussion_info["discussion_group_id"] = None
         
-        # Сохраняем в базу данных
-        api_url = "http://localhost:5000/api/channels"
-        response = requests.post(api_url, json=discussion_info)
-        if response.status_code in [200, 201]:
+        # Сохраняем в базу данных напрямую
+        if _save_channel(discussion_info):
             logging.info(f"Информация о дискуссионной группе {discussion_entity.id} сохранена")
         else:
-            logging.warning(f"Не удалось сохранить информацию о дискуссионной группе {discussion_entity.id}: {response.text}")
+            logging.warning(f"Не удалось сохранить информацию о дискуссионной группе {discussion_entity.id}")
     except Exception as e:
         logging.error(f"Ошибка сохранения информации о дискуссионной группе {discussion_entity.id}: {e}")
 def clear_downloads(channel_name):
