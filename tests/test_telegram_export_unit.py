@@ -209,15 +209,19 @@ class TelegramExportTests(unittest.TestCase):
         self.assertEqual(result["reactions"]["recent_reactions"], [{"reaction": "👍", "count": 5}])
 
     def test_should_stop_import_true(self):
-        with mock.patch("telegram_export.requests.get") as mock_get:
-            mock_get.return_value.status_code = 200
-            mock_get.return_value.json.return_value = {"status": "stopped"}
-            self.assertTrue(telegram_export.should_stop_import("channel123"))
+        from utils.import_state import set_status, clear_status
+        set_status("channel123", "stopped")
+        self.assertTrue(telegram_export.should_stop_import("channel123"))
+        clear_status("channel123")
 
-    def test_update_import_progress_post_called(self):
-        with mock.patch("telegram_export.requests.post") as mock_post:
-            telegram_export.update_import_progress("channel123", 10, 5, total_posts=100)
-            mock_post.assert_called_once()
+    def test_update_import_progress_updates_state(self):
+        from utils.import_state import set_status, get_status, clear_status
+        set_status("channel123", "downloading")
+        telegram_export.update_import_progress("channel123", 10, 5, total_posts=100)
+        status = get_status("channel123")
+        self.assertEqual(status["details"]["posts_processed"], 10)
+        self.assertEqual(status["details"]["total_posts"], 100)
+        clear_status("channel123")
 
     def test_clear_downloads_removes_existing_folder(self):
         channel_folder = os.path.join(self.temp_dir, "existing")
@@ -411,15 +415,15 @@ class TelegramExportTests(unittest.TestCase):
 
         with ExitStack() as stack:
             stack.enter_context(mock.patch.object(telegram_export, "get_channel_info", return_value=info))
-            post_mock = stack.enter_context(mock.patch("telegram_export.requests.post", return_value=SimpleNamespace(status_code=200)))
+            save_mock = stack.enter_context(mock.patch.object(telegram_export, "_save_channel", return_value=True))
 
             telegram_export.save_discussion_group_info(client, discussion_entity)
 
-        self.assertTrue(post_mock.called)
-        updated_payload = post_mock.call_args.kwargs["json"]
-        self.assertEqual(updated_payload["id"], str(discussion_entity.id))
-        self.assertIsNone(updated_payload["discussion_group_id"])
-        self.assertTrue(updated_payload["name"].startswith("💬"))
+        self.assertTrue(save_mock.called)
+        saved_info = save_mock.call_args[0][0]
+        self.assertEqual(saved_info["id"], str(discussion_entity.id))
+        self.assertIsNone(saved_info["discussion_group_id"])
+        self.assertTrue(saved_info["name"].startswith("💬"))
 
     def test_import_channel_direct_success(self):
         mock_client = mock.Mock()
@@ -436,12 +440,12 @@ class TelegramExportTests(unittest.TestCase):
             stack.enter_context(mock.patch.object(telegram_export, "clear_downloads"))
             stack.enter_context(mock.patch.object(telegram_export, "get_channel_info", return_value={"discussion_group_id": 777}))
             stack.enter_context(mock.patch.object(telegram_export, "process_message_for_api", side_effect=[{"telegram_id": 1}, {"telegram_id": 2}]))
-            stack.enter_context(mock.patch.object(telegram_export, "import_discussion_comments", return_value=1))
+            stack.enter_context(mock.patch.object(telegram_export, "import_all_discussion_comments", return_value=3))
             stack.enter_context(mock.patch.object(telegram_export, "should_stop_import", return_value=False))
             stack.enter_context(mock.patch.object(telegram_export, "update_import_progress"))
             stack.enter_context(mock.patch.object(telegram_export, "generate_gallery_layouts_for_channel"))
-            stack.enter_context(mock.patch("telegram_export.requests.post", return_value=SimpleNamespace(status_code=200)))
-            stack.enter_context(mock.patch("telegram_export.time.sleep"))
+            stack.enter_context(mock.patch.object(telegram_export, "_save_channel", return_value=True))
+            stack.enter_context(mock.patch.object(telegram_export, "_flush_batch"))
 
             mock_client.iter_messages.return_value = posts
 
@@ -449,7 +453,7 @@ class TelegramExportTests(unittest.TestCase):
 
         self.assertTrue(result["success"])
         self.assertEqual(result["processed"], 2)
-        self.assertEqual(result["comments"], 2)
+        self.assertEqual(result["comments"], 3)
 
     def test_import_channel_direct_stops_on_request(self):
         mock_client = mock.Mock()
@@ -464,8 +468,8 @@ class TelegramExportTests(unittest.TestCase):
             stack.enter_context(mock.patch.object(telegram_export, "get_channel_info", return_value={"discussion_group_id": None}))
             stack.enter_context(mock.patch.object(telegram_export, "should_stop_import", return_value=True))
             stack.enter_context(mock.patch.object(telegram_export, "generate_gallery_layouts_for_channel"))
-            stack.enter_context(mock.patch("telegram_export.requests.post", return_value=SimpleNamespace(status_code=200)))
-            stack.enter_context(mock.patch("telegram_export.time.sleep"))
+            stack.enter_context(mock.patch.object(telegram_export, "_save_channel", return_value=True))
+            stack.enter_context(mock.patch.object(telegram_export, "_flush_batch"))
             update_mock = stack.enter_context(mock.patch.object(telegram_export, "update_import_progress"))
 
             mock_client.iter_messages.return_value = posts

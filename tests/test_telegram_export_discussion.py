@@ -70,12 +70,12 @@ class DiscussionImportTests(TelegramExportUnitTestCase):
 
         with ExitStack() as stack:
             stack.enter_context(mock.patch.object(telegram_export, "get_channel_info", return_value=info))
-            post_mock = stack.enter_context(mock.patch("telegram_export.requests.post", return_value=SimpleNamespace(status_code=200)))
+            save_mock = stack.enter_context(mock.patch.object(telegram_export, "_save_channel", return_value=True))
 
             telegram_export.save_discussion_group_info(client, discussion_entity)
 
-        self.assertTrue(post_mock.called)
-        updated_payload = post_mock.call_args.kwargs["json"]
-        self.assertEqual(updated_payload["id"], str(discussion_entity.id))
-        self.assertIsNone(updated_payload["discussion_group_id"])
-        self.assertTrue(updated_payload["name"].startswith("💬"))
+        self.assertTrue(save_mock.called)
+        saved_info = save_mock.call_args[0][0]
+        self.assertEqual(saved_info["id"], str(discussion_entity.id))
+        self.assertIsNone(saved_info["discussion_group_id"])
+        self.assertTrue(saved_info["name"].startswith("💬"))

@@ -8,15 +8,19 @@ from tests._telegram_export_base import TelegramExportUnitTestCase, telegram_exp
 
 class TelegramExportUtilityTests(TelegramExportUnitTestCase):
     def test_should_stop_import_true(self):
-        with mock.patch("telegram_export.requests.get") as mock_get:
-            mock_get.return_value.status_code = 200
-            mock_get.return_value.json.return_value = {"status": "stopped"}
-            self.assertTrue(telegram_export.should_stop_import("channel123"))
+        from utils.import_state import set_status, clear_status
+        set_status("channel123", "stopped")
+        self.assertTrue(telegram_export.should_stop_import("channel123"))
+        clear_status("channel123")
 
-    def test_update_import_progress_post_called(self):
-        with mock.patch("telegram_export.requests.post") as mock_post:
-            telegram_export.update_import_progress("channel123", 10, 5, total_posts=100)
-            mock_post.assert_called_once()
+    def test_update_import_progress_updates_state(self):
+        from utils.import_state import set_status, get_status, clear_status
+        set_status("channel123", "downloading")
+        telegram_export.update_import_progress("channel123", 10, 5, total_posts=100)
+        status = get_status("channel123")
+        self.assertEqual(status["details"]["posts_processed"], 10)
+        self.assertEqual(status["details"]["total_posts"], 100)
+        clear_status("channel123")
 
     def test_clear_downloads_removes_existing_folder(self):
         channel_folder = os.path.join(self.temp_dir, "existing")
