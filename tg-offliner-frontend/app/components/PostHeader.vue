@@ -6,7 +6,7 @@
       :link="authorLink"
       :class="['flex-auto', { 'minimal:hidden': isOwner }]"
     />
-    <span class="post-date text-xs text-gray-400">{{ formattedDate }}</span>
+    <span v-if="!isComment" class="post-date ml-auto text-xs text-gray-400">{{ formattedDate }}</span>
   </div>
 </template>
 
