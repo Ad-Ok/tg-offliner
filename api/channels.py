@@ -463,6 +463,10 @@ def process_html_for_standalone(html_content):
     for link in soup.find_all('link', rel='stylesheet'):
         link.decompose()
     
+    # Удаляем modulepreload и preload ссылки (они указывают на Nuxt dev-сервер)
+    for link in soup.find_all('link', rel=lambda r: r and ('modulepreload' in r or 'preload' in r)):
+        link.decompose()
+    
     # Добавляем ссылку на локальный CSS файл
     head = soup.find('head')
     if head:

@@ -82,57 +82,90 @@ def generate_gallery_layout(image_paths, width=100, border=10, columns=None, no_
             no_cols = min(columns, len(photos))
         else:
             no_cols = min(3, len(photos))
-        page = collage.Page(width, target_ratio, no_cols)
 
-        # Добавляем фото в page
-        for photo in photos:
-            page.add_cell(photo)
+        # Try photocollage, but fall back to our own algorithm if it fails
+        layout_data = None
+        try:
+            page = collage.Page(width, target_ratio, no_cols)
 
-        # Финальные корректировки: приводим колонки к общей высоте и подгоняем размеры
-        # В режиме no_crop пропускаем adjust и scale_to_fit, чтобы избежать кропирования
-        if not no_crop:
-            page.adjust()
-            page.scale_to_fit(width)
+            # Добавляем фото в page
+            for photo in photos:
+                page.add_cell(photo)
 
-        # Собираем все cells из всех колонок, но гарантируем уникальность photos
-        all_cells = []
-        used_photos = set()
-        for col in page.cols:
-            for cell in col.cells:
-                if getattr(cell, "is_extension", lambda: False)():
-                    continue
-                if cell.photo not in used_photos:
-                    all_cells.append(cell)
-                    used_photos.add(cell.photo)
-                    # Ограничиваем количество изображений до исходного количества
-                    if len(all_cells) >= len(photos):
-                        break
-            if len(all_cells) >= len(photos):
-                break
+            # Финальные корректировки: приводим колонки к общей высоте и подгоняем размеры
+            # В режиме no_crop пропускаем adjust и scale_to_fit, чтобы избежать кропирования
+            if not no_crop:
+                page.adjust()
+                page.scale_to_fit(width)
 
-        # Создаем mapping photo -> index
-        photo_to_index = {photo: idx for idx, photo in enumerate(photos)}
+            # Собираем все cells из всех колонок, но гарантируем уникальность photos
+            all_cells = []
+            used_photos = set()
+            for col in page.cols:
+                for cell in col.cells:
+                    if getattr(cell, "is_extension", lambda: False)():
+                        continue
+                    if cell.photo not in used_photos:
+                        all_cells.append(cell)
+                        used_photos.add(cell.photo)
+                        # Ограничиваем количество изображений до исходного количества
+                        if len(all_cells) >= len(photos):
+                            break
+                if len(all_cells) >= len(photos):
+                    break
 
-        # Генерируем layout data
-        layout_data = {
-            'total_width': page.w,
-            'total_height': page.h,
-            'image_count': len(photos),
-            'cells': []
-        }
+            # Создаем mapping photo -> index
+            photo_to_index = {photo: idx for idx, photo in enumerate(photos)}
 
-        for cell in all_cells:
-            photo_index = photo_to_index.get(cell.photo, 0)
-            cell_data = {
-                'image_index': photo_index,
-                'x': cell.x,
-                'y': cell.y,
-                'width': cell.w,
-                'height': cell.h
+            # Генерируем layout data
+            layout_data = {
+                'total_width': page.w,
+                'total_height': page.h,
+                'image_count': len(photos),
+                'cells': []
             }
-            layout_data['cells'].append(cell_data)
+
+            for cell in all_cells:
+                photo_index = photo_to_index.get(cell.photo, 0)
+                cell_data = {
+                    'image_index': photo_index,
+                    'x': cell.x,
+                    'y': cell.y,
+                    'width': cell.w,
+                    'height': cell.h
+                }
+                layout_data['cells'].append(cell_data)
+
+            # Validate: check for broken cells (zero dimensions) or missing images
+            has_broken_cells = any(
+                c['width'] <= 0 or c['height'] <= 0
+                for c in layout_data['cells']
+            )
+            missing_images = len(layout_data['cells']) < len(photos)
+
+            if has_broken_cells or missing_images:
+                print(f"photocollage produced invalid layout (broken_cells={has_broken_cells}, missing={missing_images}), using fallback")
+                layout_data = None
+
+        except Exception as pc_err:
+            print(f"photocollage failed: {pc_err}, using fallback")
+            layout_data = None
+
+        # Fallback: simple grid layout based on actual image proportions
+        if layout_data is None:
+            layout_data = _generate_fallback_layout(images_info, width, no_cols)
 
         _normalize_layout(layout_data)
+
+        # Clamp total_height to max 150% of total_width to avoid overly tall layouts
+        max_height = width * 1.5
+        if layout_data['total_height'] > max_height:
+            scale = max_height / layout_data['total_height']
+            layout_data['total_height'] = max_height
+            for cell in layout_data['cells']:
+                cell['y'] *= scale
+                cell['height'] *= scale
+            _normalize_layout(layout_data)
 
         print(f"Generated layout with {len(layout_data['cells'])} cells")
         print(f"Gallery layout generated for {len(photos)} images")
@@ -141,6 +174,72 @@ def generate_gallery_layout(image_paths, width=100, border=10, columns=None, no_
     except Exception as e:
         print(f"Error generating gallery layout: {e}")
         return None
+
+
+def _generate_fallback_layout(images_info, width, no_cols):
+    """
+    Simple fallback layout when photocollage fails or produces broken results.
+    
+    Strategy for 2 images: side by side, heights equalized.
+    Strategy for 3+ images: first image takes left portion, rest stack on the right.
+    All cells use object-fit:cover so exact proportions are less critical.
+    """
+    n = len(images_info)
+    
+    if n == 2:
+        # Side by side, each takes 50% width, heights proportional then equalized
+        r0 = images_info[0]['height'] / images_info[0]['width']
+        r1 = images_info[1]['height'] / images_info[1]['width']
+        col_w = width / 2
+        h0 = col_w * r0
+        h1 = col_w * r1
+        row_h = (h0 + h1) / 2  # average height
+        # Clamp to reasonable range
+        row_h = max(col_w * 0.4, min(col_w * 2.0, row_h))
+        
+        return {
+            'total_width': width,
+            'total_height': row_h,
+            'image_count': n,
+            'cells': [
+                {'image_index': 0, 'x': 0, 'y': 0, 'width': col_w, 'height': row_h},
+                {'image_index': 1, 'x': col_w, 'y': 0, 'width': col_w, 'height': row_h},
+            ]
+        }
+    
+    # 3+ images: first image on the left (2/3 width), rest stacked on the right (1/3 width)
+    left_w = width * 2 / 3
+    right_w = width - left_w
+    right_count = n - 1
+    
+    # Calculate total height based on the first image's proportions
+    r0 = images_info[0]['height'] / images_info[0]['width']
+    left_h = left_w * r0
+    # Clamp left height to reasonable range
+    left_h = max(width * 0.3, min(width * 1.4, left_h))
+    
+    total_h = left_h
+    right_cell_h = total_h / right_count
+    
+    cells = [
+        {'image_index': 0, 'x': 0, 'y': 0, 'width': left_w, 'height': total_h}
+    ]
+    
+    for i in range(right_count):
+        cells.append({
+            'image_index': i + 1,
+            'x': left_w,
+            'y': i * right_cell_h,
+            'width': right_w,
+            'height': right_cell_h
+        })
+    
+    return {
+        'total_width': width,
+        'total_height': total_h,
+        'image_count': n,
+        'cells': cells
+    }
 
 
 def _normalize_layout(layout_data, precision=6):

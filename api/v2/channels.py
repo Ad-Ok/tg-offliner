@@ -163,7 +163,11 @@ def get_channel_posts(channel_id):
             for comment in unit['comments']:
                 c_hidden = (comment.channel_id, comment.telegram_id) in hidden_map
                 if not c_hidden or include_hidden:
-                    comments.append(serialize_post_basic(comment, is_hidden=c_hidden))
+                    # Attach layout for comments that are part of media groups
+                    c_layout = None
+                    if comment.grouped_id:
+                        c_layout = layouts_map.get(comment.grouped_id)
+                    comments.append(serialize_post_basic(comment, is_hidden=c_hidden, layout=c_layout))
         
         # Создаём полный объект поста
         post_data = serialize_post_full(
