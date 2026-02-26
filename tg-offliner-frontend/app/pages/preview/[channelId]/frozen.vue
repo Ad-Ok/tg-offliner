@@ -179,17 +179,21 @@ const pageStyle = computed(() => {
     width: `${pageSize.width}mm`,
     height: `${pageSize.height}mm`,
     position: 'relative',
-    margin: '0 auto 2rem',
-    paddingTop: `${margins[0]}mm`,
-    paddingRight: `${margins[1]}mm`,
-    paddingBottom: `${margins[2]}mm`,
-    paddingLeft: `${margins[3]}mm`
+    margin: '0 auto 2rem'
   }
+})
+
+// Top margin для вертикального смещения (bounds.top не включает верхнее поле,
+// в отличие от bounds.left, который уже включает левое поле)
+const topMargin = computed(() => {
+  const exportSettings = channelInfo.value?.settings?.export
+  const margins = exportSettings?.margins || [20, 20, 20, 20]
+  return margins[0]
 })
 
 // Стили для поста с абсолютным позиционированием
 const getPostStyle = (post) => ({
-  top: `${post.bounds.top}mm`,
+  top: `${post.bounds.top + topMargin.value}mm`,
   left: `${post.bounds.left}mm`,
   width: `${post.bounds.width}mm`,
   height: `${post.bounds.height}mm`,
@@ -203,7 +207,7 @@ const getMediaStyle = (media) => {
   const borderStyle = borderWidth !== '0' ? `${borderWidth}px solid white` : 'none'
   
   return {
-    top: `${media.bounds.top}mm`,
+    top: `${media.bounds.top + topMargin.value}mm`,
     left: `${media.bounds.left}mm`,
     width: `${media.bounds.width}mm`,
     height: `${media.bounds.height}mm`,
@@ -280,42 +284,4 @@ const shouldShowAuthor = (post) => {
 }
 </script>
 
-<style scoped>
-.frozen-page {
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-}
 
-/* .frozen-post {
-  overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  line-height: 1.5;
-}
-
-.post-body :deep(strong) {
-  font-weight: 600;
-}
-
-.post-body :deep(em) {
-  font-style: italic;
-}
-
-.post-body :deep(code) {
-  font-family: monospace;
-  background: rgba(0, 0, 0, 0.05);
-  padding: 2px 4px;
-  border-radius: 3px;
-}
-
-.post-body :deep(a) {
-  color: #3b82f6;
-  text-decoration: underline;
-}
-
-@media print {
-  .frozen-page {
-    page-break-after: always;
-    box-shadow: none;
-    margin: 0;
-  }
-} */
-</style>
