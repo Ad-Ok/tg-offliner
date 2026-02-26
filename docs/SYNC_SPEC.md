@@ -368,10 +368,326 @@ def _update_channel_metadata(client, entity, channel_id):
 
 ### Фаза 4: Тестирование
 
-- [ ] Unit тесты: `_get_max_telegram_id`, `compare_channel_metadata`
-- [ ] Integration тест: sync с mock Telethon
-- [ ] Тест на тестовом канале `llamatest`: добавить пост в канал → sync → проверить
-- [ ] Тест остановки и повторного запуска
+- [ ] `tests/test_sync.py` — unit тесты sync_channel, check, helpers
+- [ ] `tests/test_api_sync.py` — API endpoint тесты (Flask test client)
+- [ ] Ручной тест на `llamatest`: добавить пост → sync → проверить
+
+---
+
+## 🧪 Тесты
+
+### Файловая структура
+
+```
+tests/
+├── test_sync.py          # Unit тесты: sync_channel, helpers, edge cases
+└── test_api_sync.py      # API endpoint тесты: check, start, stop
+```
+
+### `test_sync.py` — Unit тесты синхронизации
+
+**Фреймворк:** `unittest.TestCase` + наследование от `TelegramExportUnitTestCase`  
+**Паттерн:** `contextlib.ExitStack` для стека `mock.patch`, `SimpleNamespace` для Telethon объектов
+
+#### Тест-кейсы: `_get_max_telegram_id()`
+
+```python
+class TestGetMaxTelegramId(unittest.TestCase):
+    """Тесты для _get_max_telegram_id() — чистая DB-функция."""
+    
+    def setUp(self):
+        self.app = Flask(__name__)
+        self.app.config['TESTING'] = True
+        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        db.init_app(self.app)
+        with self.app.app_context():
+            db.create_all()
+    
+    def tearDown(self):
+        with self.app.app_context():
+            db.session.remove()
+            db.drop_all()
+```
+
+| # | Тест | Что проверяет | Seed data | Ожидание |
+|---|------|---------------|-----------|----------|
+| 1 | `test_returns_max_id` | Корректный max по channel_id | Posts: id=10, 50, 85 для `ch1` | `85` |
+| 2 | `test_returns_zero_for_empty` | Пустая таблица | Нет постов | `0` |
+| 3 | `test_isolates_by_channel` | Не смешивает каналы | `ch1`: id=100, `ch2`: id=200 | ch1→`100`, ch2→`200` |
+| 4 | `test_ignores_comments` | Комментарии не влияют на max поста | `ch1`: id=50; `disc_group`: id=999 | ch1→`50` |
+
+#### Тест-кейсы: `sync_channel()`
+
+```python
+class TestSyncChannel(TelegramExportUnitTestCase):
+    """
+    Тесты sync_channel(). 
+    Паттерн: ExitStack + mock всех внешних зависимостей.
+    """
+```
+
+**Мокаемые зависимости (аналогично `import_channel_direct`):**
+
+| Функция | Mock | Значение |
+|---------|------|----------|
+| `connect_to_telegram` | `mock.patch.object(telegram_export, ...)` | Mock client |
+| `get_entity_by_username_or_id` | `mock.patch("utils.entity_validation....")` | `(entity, None)` |
+| `_get_max_telegram_id` | `mock.patch.object(telegram_export, ...)` | `85` |
+| `process_message_for_api` | `mock.patch.object(telegram_export, ...)` | `side_effect=[...]` |
+| `_flush_batch` | `mock.patch.object(telegram_export, ...)` | — |
+| `_update_channel_metadata` | `mock.patch.object(telegram_export, ...)` | — |
+| `sync_discussion_comments` | `mock.patch.object(telegram_export, ...)` | `5` |
+| `generate_gallery_layouts_for_channel` | `mock.patch.object(telegram_export, ...)` | — |
+| `should_stop_import` | `mock.patch.object(telegram_export, ...)` | `False` |
+| `update_import_progress` | `mock.patch.object(telegram_export, ...)` | — |
+
+| # | Тест | Сценарий | Проверка |
+|---|------|----------|----------|
+| 1 | `test_sync_new_posts_success` | 3 новых поста, discussion group есть | `result["success"] == True`, `result["processed"] == 3`, `iter_messages` вызван с `min_id=85` |
+| 2 | `test_sync_no_new_posts` | `iter_messages` возвращает `[]` | `result["success"] == True`, `result["processed"] == 0` |
+| 3 | `test_sync_stops_on_request` | `should_stop_import` возвращает `True` после 1-го поста | `result["stopped"] == True`, `result["processed"] == 1` |
+| 4 | `test_sync_entity_not_found` | `get_entity_by_username_or_id` → `(None, "error")` | `result["success"] == False` |
+| 5 | `test_sync_calls_min_id` | Проверить что `iter_messages` вызван с `min_id=max_id` | `mock_client.iter_messages.assert_called_with(entity, min_id=85, reverse=True)` |
+| 6 | `test_sync_skips_clear_downloads` | `clear_downloads` НЕ вызывается | `clear_mock.assert_not_called()` |
+| 7 | `test_sync_updates_metadata` | Метаданные канала обновляются | `_update_channel_metadata.assert_called_once()` |
+| 8 | `test_sync_handles_discussion_comments` | Discussion group ID есть | `sync_discussion_comments.assert_called_once_with(client, channel_id, disc_group_id)` |
+| 9 | `test_sync_no_discussion_comments_when_disabled` | `include_discussion_comments=False` | `sync_discussion_comments.assert_not_called()` |
+| 10 | `test_sync_generates_gallery_layouts` | Новые посты с grouped_id | `generate_gallery_layouts_for_channel.assert_called_once()` |
+| 11 | `test_sync_with_max_id_zero` | `_get_max_telegram_id` → `0` (первый импорт) | `iter_messages` вызван с `min_id=0` — скачивает всё |
+| 12 | `test_sync_batch_flush` | 60 новых постов (> BATCH_SIZE=50) | `_flush_batch` вызван минимум 2 раза |
+
+#### Тест-кейсы: `sync_discussion_comments()`
+
+| # | Тест | Сценарий | Проверка |
+|---|------|----------|----------|
+| 1 | `test_sync_comments_success` | 5 новых комментариев | Возвращает `5` |
+| 2 | `test_sync_comments_uses_min_id` | max_comment_id=1000 | `iter_messages` вызван с `min_id=1000` |
+| 3 | `test_sync_comments_empty` | Нет новых комментариев | Возвращает `0` |
+| 4 | `test_sync_comments_entity_error` | Discussion group недоступна | Возвращает `0`, без исключений |
+
+#### Тест-кейсы: `_update_channel_metadata()`
+
+| # | Тест | Сценарий | Проверка |
+|---|------|----------|----------|
+| 1 | `test_updates_subscribers` | Подписчики изменились | `channel.subscribers == "200"` |
+| 2 | `test_updates_description` | Описание изменилось | `channel.description == "new desc"` |
+| 3 | `test_preserves_name` | Имя канала не перезаписывается | `channel.name == "old name"` (не из Telegram) |
+| 4 | `test_preserves_print_settings` | print_settings не трогаются | `channel.print_settings` без изменений |
+| 5 | `test_updates_avatar` | Аватар изменился | `channel.avatar == "new_path"` |
+
+#### Тест-кейсы: `compare_channel_metadata()`
+
+| # | Тест | Ожидание |
+|---|------|----------|
+| 1 | `test_detects_subscriber_change` | `{"subscribers": {"old": "100", "new": "200"}}` |
+| 2 | `test_detects_description_change` | `{"description": {"changed": True}}` |
+| 3 | `test_no_changes` | `{}` (пустой dict) |
+| 4 | `test_ignores_unchanged_fields` | Только изменённые поля в результате |
+| 5 | `test_handles_none_values` | old=None, new="value" → фиксируется как изменение |
+
+### `test_api_sync.py` — API endpoint тесты
+
+**Фреймворк:** `pytest` + fixtures  
+**Паттерн:** Flask test client, in-memory SQLite, mock Telegram
+
+#### Fixtures
+
+```python
+@pytest.fixture
+def app():
+    """Flask app с in-memory SQLite и sync blueprint."""
+    app = create_app()
+    app.config['TESTING'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    
+    from api.sync import sync_bp
+    app.register_blueprint(sync_bp, url_prefix='/api')
+    
+    with app.app_context():
+        init_db(app)
+        db.create_all()
+        # Seed: канал + посты
+        channel = Channel(id='llamatest', name='Test', subscribers='100',
+                         description='Old desc', discussion_group_id=2573960761)
+        db.session.add(channel)
+        for i in [10, 20, 30, 40, 50]:
+            db.session.add(Post(telegram_id=i, channel_id='llamatest',
+                               date='2026-01-01', message=f'Post {i}'))
+        db.session.commit()
+        yield app
+        db.session.remove()
+        db.drop_all()
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+
+@pytest.fixture
+def mock_telegram():
+    """Mock Telegram client + entity для всех sync тестов."""
+    with ExitStack() as stack:
+        entity = SimpleNamespace(username='llamatest', id=42, count=60)
+        mock_client = mock.Mock()
+        
+        stack.enter_context(mock.patch(
+            'api.sync.connect_to_telegram', return_value=mock_client))
+        stack.enter_context(mock.patch(
+            'api.sync.get_entity_by_username_or_id', return_value=(entity, None)))
+        
+        yield mock_client, entity
+```
+
+#### Тест-кейсы: `GET /api/sync/check/<channel_id>`
+
+```python
+class TestSyncCheck:
+```
+
+| # | Тест | Сценарий | Mock | Ожидание |
+|---|------|----------|------|----------|
+| 1 | `test_check_has_updates` | 10 новых постов | `get_messages(min_id=50, limit=0).total = 10` | 200, `status: "has_updates"`, `new_posts_count: 10` |
+| 2 | `test_check_up_to_date` | Нет новых | `.total = 0` | 200, `status: "up_to_date"`, `new_posts_count: 0` |
+| 3 | `test_check_channel_not_found` | channel_id не в БД | — | 404 |
+| 4 | `test_check_telegram_error` | `get_entity_by_username_or_id` → `(None, "error")` | — | 503 |
+| 5 | `test_check_returns_local_stats` | Проверяем `local` в response | — | `posts_count: 5`, `max_post_id: 50` |
+| 6 | `test_check_metadata_changes` | Подписчики изменились | entity + full_chat mock | `metadata_changes.subscribers` present |
+| 7 | `test_check_concurrent_operation` | `import_state` уже `downloading` | `set_status('llamatest', 'downloading')` | 409 |
+| 8 | `test_check_comments_estimate` | Discussion group, 20 новых | `get_messages(disc_entity, min_id=...).total = 20` | `new_comments_estimate: 20` |
+
+#### Тест-кейсы: `POST /api/sync/start/<channel_id>`
+
+```python
+class TestSyncStart:
+```
+
+| # | Тест | Сценарий | Mock | Ожидание |
+|---|------|----------|------|----------|
+| 1 | `test_start_success` | 3 новых поста | `sync_channel` → success dict | 200, `processed_posts: 3` |
+| 2 | `test_start_channel_not_found` | Несуществующий канал | — | 404 |
+| 3 | `test_start_concurrent` | Уже идёт sync/import | `set_status(downloading)` | 409 |
+| 4 | `test_start_with_export_settings` | Кастомные настройки в body | — | `sync_channel` вызван с settings |
+| 5 | `test_start_sets_status` | Проверка `import_state` | — | `get_status()["type"] == "sync"` |
+| 6 | `test_start_telegram_error` | Telegram недоступен | `sync_channel` → error | 503 |
+
+#### Тест-кейсы: `POST /api/sync/stop/<channel_id>`
+
+```python
+class TestSyncStop:
+```
+
+| # | Тест | Сценарий | Ожидание |
+|---|------|----------|----------|
+| 1 | `test_stop_active_sync` | Статус `downloading` с `type: sync` | 200, статус → `stopped` |
+| 2 | `test_stop_no_active_sync` | Нет активного процесса | 404 |
+| 3 | `test_stop_already_stopped` | Статус `stopped` | 400 |
+
+### Примеры кода тестов
+
+#### Unit тест: `sync_channel` success
+
+```python
+def test_sync_new_posts_success(self):
+    """sync_channel скачивает только новые посты (min_id > max_id)."""
+    entity = SimpleNamespace(username="llamatest", id=42, count=100)
+    mock_client = mock.Mock()
+    
+    # 3 новых поста (telegram_id > 85)
+    new_posts = [
+        self._build_basic_post(id=86, message="New 1"),
+        self._build_basic_post(id=87, message="New 2"),
+        self._build_basic_post(id=88, message="New 3"),
+    ]
+    mock_client.iter_messages.return_value = new_posts
+    
+    with ExitStack() as stack:
+        stack.enter_context(mock.patch.object(
+            telegram_export, "connect_to_telegram", return_value=mock_client))
+        stack.enter_context(mock.patch(
+            "utils.entity_validation.get_entity_by_username_or_id",
+            return_value=(entity, None)))
+        stack.enter_context(mock.patch.object(
+            telegram_export, "_get_max_telegram_id", return_value=85))
+        pma_mock = stack.enter_context(mock.patch.object(
+            telegram_export, "process_message_for_api",
+            side_effect=[
+                {"telegram_id": 86, "channel_id": "llamatest", "date": "2026-02-15"},
+                {"telegram_id": 87, "channel_id": "llamatest", "date": "2026-02-15"},
+                {"telegram_id": 88, "channel_id": "llamatest", "date": "2026-02-15"},
+            ]))
+        flush_mock = stack.enter_context(mock.patch.object(
+            telegram_export, "_flush_batch"))
+        stack.enter_context(mock.patch.object(
+            telegram_export, "_update_channel_metadata"))
+        stack.enter_context(mock.patch.object(
+            telegram_export, "sync_discussion_comments", return_value=5))
+        stack.enter_context(mock.patch.object(
+            telegram_export, "generate_gallery_layouts_for_channel"))
+        stack.enter_context(mock.patch.object(
+            telegram_export, "should_stop_import", return_value=False))
+        stack.enter_context(mock.patch.object(
+            telegram_export, "update_import_progress"))
+        
+        result = telegram_export.sync_channel("llamatest")
+    
+    self.assertTrue(result["success"])
+    self.assertEqual(result["processed"], 3)
+    # Проверяем что iter_messages вызван с min_id
+    mock_client.iter_messages.assert_called_once_with(
+        entity, min_id=85, reverse=True)
+```
+
+#### API тест: check endpoint
+
+```python
+class TestSyncCheck:
+    def test_check_has_updates(self, client, mock_telegram):
+        mock_client, entity = mock_telegram
+        
+        # Telegram говорит что 10 новых постов
+        messages_result = mock.Mock()
+        messages_result.total = 10
+        mock_client.get_messages.return_value = messages_result
+        
+        response = client.get('/api/sync/check/llamatest')
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['status'] == 'has_updates'
+        assert data['remote']['new_posts_count'] == 10
+        assert data['local']['max_post_id'] == 50
+        assert data['local']['posts_count'] == 5
+
+    def test_check_channel_not_in_db(self, client, mock_telegram):
+        response = client.get('/api/sync/check/nonexistent')
+        assert response.status_code == 404
+
+    def test_check_up_to_date(self, client, mock_telegram):
+        mock_client, _ = mock_telegram
+        messages_result = mock.Mock()
+        messages_result.total = 0
+        mock_client.get_messages.return_value = messages_result
+        
+        response = client.get('/api/sync/check/llamatest')
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['status'] == 'up_to_date'
+```
+
+### Сводная таблица тестов
+
+| Файл | Класс | Кол-во тестов | Стиль |
+|------|-------|---------------|-------|
+| `test_sync.py` | `TestGetMaxTelegramId` | 4 | unittest + in-memory DB |
+| `test_sync.py` | `TestSyncChannel` | 12 | unittest + ExitStack mocks |
+| `test_sync.py` | `TestSyncDiscussionComments` | 4 | unittest + ExitStack mocks |
+| `test_sync.py` | `TestUpdateChannelMetadata` | 5 | unittest + in-memory DB |
+| `test_sync.py` | `TestCompareChannelMetadata` | 5 | unittest (чистая функция) |
+| `test_api_sync.py` | `TestSyncCheck` | 8 | pytest + Flask test client |
+| `test_api_sync.py` | `TestSyncStart` | 6 | pytest + Flask test client |
+| `test_api_sync.py` | `TestSyncStop` | 3 | pytest + Flask test client |
+| | | **Итого: 47** | |
 
 ---
 

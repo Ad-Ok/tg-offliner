@@ -34,3 +34,4 @@ zopfli==0.2.3.post1
 weasyprint==66.0
 photocollage
 lxml>=4.9.0
+pytest

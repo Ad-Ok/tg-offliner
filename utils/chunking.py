@@ -137,7 +137,7 @@ def build_content_units(channel_id, sort_order='desc', include_hidden=False):
     return units
 
 
-def calculate_chunks(channel_id, items_per_chunk=50, overflow_threshold=0.2, sort_order='desc'):
+def calculate_chunks(channel_id, items_per_chunk=50, overflow_threshold=0.2, sort_order='desc', include_hidden=False):
     """
     Разбивает канал на chunks
     
@@ -146,6 +146,7 @@ def calculate_chunks(channel_id, items_per_chunk=50, overflow_threshold=0.2, sor
         items_per_chunk: Целевое количество единиц на chunk (по умолчанию 50)
         overflow_threshold: Допустимое превышение (по умолчанию 0.2 = 20%)
         sort_order: 'desc' (новые первыми) или 'asc' (старые первыми)
+        include_hidden: Включать скрытые посты в чанки
         
     Returns:
         list[Chunk]: Список chunks
@@ -160,7 +161,7 @@ def calculate_chunks(channel_id, items_per_chunk=50, overflow_threshold=0.2, sor
         'date_to': str             # Дата последнего поста
     }
     """
-    units = build_content_units(channel_id, sort_order)
+    units = build_content_units(channel_id, sort_order, include_hidden=include_hidden)
     
     if not units:
         return []

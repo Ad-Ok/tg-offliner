@@ -86,7 +86,7 @@ def get_channel_posts(channel_id):
     
     # Применяем chunking если запрошен
     if url_chunk is not None:
-        chunks = calculate_chunks(channel_id, items_per_chunk, 0.2, sort_order)
+        chunks = calculate_chunks(channel_id, items_per_chunk, 0.2, sort_order, include_hidden=include_hidden)
         
         if url_chunk >= len(chunks):
             return jsonify({
@@ -116,7 +116,7 @@ def get_channel_posts(channel_id):
         
         # Calculate real total_chunks so frontend knows chunking is available
         try:
-            real_chunks = calculate_chunks(channel_id, items_per_chunk, 0.2, sort_order)
+            real_chunks = calculate_chunks(channel_id, items_per_chunk, 0.2, sort_order, include_hidden=include_hidden)
             real_total_chunks = len(real_chunks) if real_chunks else 1
         except Exception:
             real_total_chunks = 1
