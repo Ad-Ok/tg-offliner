@@ -26,11 +26,6 @@ export const usePostFiltering = () => {
       }
     }
 
-    // webp формат не поддерживается InDesign
-    if (post.media_url.toLowerCase().endsWith('.webp')) {
-      return true
-    }
-
     return false
   }
 

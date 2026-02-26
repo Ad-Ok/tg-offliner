@@ -24,7 +24,7 @@
           :repost-author-link="post.repost_author_link"
         />
 
-        <div v-if="post.media_url && post.media_type" class="mt-2 pl-11" :class="{ 'minimal:hidden': post.media_type === 'MessageMediaDocument' || post.media_type === 'MessageMediaWebPage' }">
+        <div v-if="post.media_url && post.media_type" class="mt-2 pl-11" :class="{ 'minimal:hidden': shouldHideMediaInMinimal }">
           <PostMedia
             :mediaUrl="post.media_url"
             :mediaType="post.media_type"
@@ -168,6 +168,20 @@ export default {
       editModeStore.checkAndSetExportMode()
     })
     
+    // Определяем, нужно ли скрывать медиа в minimal-режиме (preview/print)
+    // Скрываем: WebPage, а также Document если это НЕ изображение (аудио, видео, PDF и т.д.)
+    // НЕ скрываем: MessageMediaPhoto и MessageMediaDocument с image/* (картинки-файлы)
+    const shouldHideMediaInMinimal = computed(() => {
+      const { media_type, mime_type } = props.post
+      if (media_type === 'MessageMediaWebPage') return true
+      if (media_type === 'MessageMediaDocument') {
+        // Document с image/* MIME — это картинка, отправленная как файл, показываем
+        if (mime_type && mime_type.startsWith('image/')) return false
+        return true
+      }
+      return false
+    })
+    
     return {
       editModeStore,
       isHidden,
@@ -175,7 +189,8 @@ export default {
       postContainerClasses,
       mediaCaption,
       isOwner,
-      isComment
+      isComment,
+      shouldHideMediaInMinimal
     }
   }
 };

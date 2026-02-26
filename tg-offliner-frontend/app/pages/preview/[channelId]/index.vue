@@ -176,6 +176,13 @@ const freezeCurrentLayout = async () => {
         if (mediaType === 'MessageMediaPhoto' || 
             (mediaType === 'MessageMediaDocument' && mimeType && mimeType.startsWith('image/'))) {
           const containerRect = container.getBoundingClientRect()
+          
+          // Пропускаем скрытые элементы (display:none возвращает нулевой rect)
+          if (containerRect.width <= 0 || containerRect.height <= 0) {
+            console.log(`      ⏭️ Skipping hidden/zero-size media element: ${mediaType} (${containerRect.width}x${containerRect.height})`)
+            return
+          }
+          
           mediaElements.push({
             type: 'image',
             bounds: {
@@ -230,6 +237,12 @@ const freezeCurrentLayout = async () => {
           if (mediaType === 'MessageMediaPhoto' || 
               (mediaType === 'MessageMediaDocument' && mimeType && mimeType.startsWith('image/'))) {
             const itemRect = item.getBoundingClientRect()
+            
+            // Пропускаем скрытые элементы (display:none возвращает нулевой rect)
+            if (itemRect.width <= 0 || itemRect.height <= 0) {
+              console.log(`      ⏭️ Skipping hidden/zero-size gallery item: ${galleryPostId} (${itemRect.width}x${itemRect.height})`)
+              return
+            }
             
             const mediaItem = {
               type: 'image',

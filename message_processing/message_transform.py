@@ -127,11 +127,28 @@ def download_media_with_thumbnail(post, client, channel_folder: str) -> MediaInf
 	# Download media using Telethon client.
 	target_path = os.path.join(channel_folder, "media", f"{post.id}_media")
 	media_path = client.download_media(post.media, file=target_path)
+
+	# Конвертируем WebP → PNG (InDesign не поддерживает WebP)
+	if media_path and media_path.lower().endswith('.webp'):
+		try:
+			from PIL import Image
+			png_path = media_path.rsplit('.', 1)[0] + '.png'
+			with Image.open(media_path) as img:
+				img.save(png_path, 'PNG')
+			os.remove(media_path)
+			media_path = png_path
+			logging.info("Converted WebP to PNG: %s", png_path)
+		except Exception as exc:
+			logging.warning("Failed to convert WebP to PNG: %s", exc)
+
 	if media_path:
 		info.media_url = os.path.relpath(media_path, DOWNLOADS_DIR)
 
 	if isinstance(post.media, MessageMediaDocument) and isinstance(getattr(post.media, "document", None), Document):
 		info.mime_type = getattr(post.media.document, "mime_type", None)
+		# Если сконвертировали webp → png, обновляем mime_type
+		if info.media_url and info.media_url.endswith('.png') and info.mime_type == 'image/webp':
+			info.mime_type = 'image/png'
 
 	if info.media_url and isinstance(post.media, MessageMediaPhoto):
 		full_media_path = os.path.join(DOWNLOADS_DIR, info.media_url)

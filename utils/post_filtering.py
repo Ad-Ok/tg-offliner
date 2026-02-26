@@ -27,10 +27,6 @@ def should_hide_media(post):
         if not post.mime_type or not post.mime_type.startswith('image/'):
             return True
     
-    # webp формат не поддерживается InDesign
-    if post.media_url.lower().endswith('.webp'):
-        return True
-    
     return False
 
 

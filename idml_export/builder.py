@@ -129,12 +129,16 @@ class IDMLBuilder:
             }
             
             spread_id = self.next_id('spread_')
+            # Каждый следующий spread сдвигается вниз на page_height относительно предыдущего
+            # spread_index (0-based): 0 = cover (Y=0), 1 = pages 2-3, 2 = pages 4-5, ...
+            spread_index = len(self.spreads)
+            spread_y = spread_index * self.page_height
             spread = {
                 'id': spread_id,
                 'pages': [new_page],
                 'page_count': 1,  # Пока одна страница, будет 2 после добавления правой
                 'binding_location': 1,  # Разворот
-                'item_transform': f'1 0 0 1 0 {self.page_height + center_offset}'  # Сдвиг разворота вниз
+                'item_transform': f'1 0 0 1 0 {spread_y}'
             }
             self.spreads.append(spread)
             
@@ -525,6 +529,17 @@ class IDMLBuilder:
         media_elements = post_data.get('media', [])
         for media_elem in media_elements:
             if media_elem['type'] == 'image':
+                # Проверяем валидность bounds перед обработкой
+                media_bounds_mm = media_elem.get('bounds', {})
+                media_w = media_bounds_mm.get('width', 0)
+                media_h = media_bounds_mm.get('height', 0)
+                media_t = media_bounds_mm.get('top', 0)
+                media_l = media_bounds_mm.get('left', 0)
+                
+                if media_w <= 0 or media_h <= 0 or media_t < -10 or media_l < -10:
+                    print(f"⏭️ Skipping media with invalid bounds: top={media_t}, left={media_l}, w={media_w}, h={media_h}")
+                    continue
+                
                 # Для галерей: media_elem['telegram_id'] содержит ID отдельной картинки
                 # Для одиночных изображений: используем telegram_id поста
                 media_telegram_id = media_elem.get('telegram_id', telegram_id)
