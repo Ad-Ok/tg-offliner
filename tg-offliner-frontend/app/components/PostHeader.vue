@@ -1,12 +1,12 @@
 <template>
-  <div class="post-header flex items-center justify-between gap-1 mb-2" :class="{ 'minimal:hidden': isOwner && isComment }">
+  <div class="post-header flex items-center gap-1 mb-2" :class="{ 'minimal:hidden': isOwner && isComment }">
     <PostAuthor
       :name="authorName"
       :avatar="authorAvatar"
       :link="authorLink"
-      :class="{ 'minimal:hidden': isOwner }"
+      :class="['flex-auto', { 'minimal:hidden': isOwner }]"
     />
-    <span v-if="!isComment" class="post-date ml-auto text-xs text-gray-400">{{ formattedDate }}</span>
+    <span class="post-date text-xs text-gray-400">{{ formattedDate }}</span>
   </div>
 </template>
 
