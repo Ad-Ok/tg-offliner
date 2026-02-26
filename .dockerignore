@@ -1,0 +1,39 @@
+# Database - NEVER copy into image
+instance/
+*.db
+
+# Telegram session
+*.session
+
+# Media downloads
+downloads/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Virtual environment
+.venv/
+venv/
+
+# Test reports
+test_reports/
+.pytest_cache/
+
+# Node modules (frontend has its own Dockerfile)
+tg-offliner-frontend/node_modules/
+
+# Docs
+docs/

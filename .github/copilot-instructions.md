@@ -39,30 +39,40 @@ TG-Offliner — веб-приложение для загрузки и эксп�
 tg-offliner/
 ├── app.py                      # Flask приложение, главный entry point
 ├── config.py                   # Конфигурация из .env
-├── database.py                 # Инициализация SQLAlchemy
+├── database.py                 # Инициализация SQLAlchemy (принимает database_uri)
 ├── models.py                   # SQLAlchemy модели (Post, Channel, Edit, Layout, Page)
 ├── telegram_client.py          # Singleton клиент Telethon
 ├── telegram_export.py          # Логика импорта из Telegram
 ├── authorize_telegram.py       # Первичная авторизация
 ├── check_auth.py              # Проверка авторизации
+├── start.sh                    # Entrypoint: автобэкап → авторизация → запуск Flask
 ├── print-config.json           # ⭐ ЕДИНЫЙ ИСТОЧНИК настроек печати (Python + JS)
 ├── .env                        # Credentials (НЕ в Git!)
 ├── session_name.session        # Telegram сессия (НЕ в Git!)
 ├── instance/                   # SQLite база данных
-│   └── posts.db
+│   ├── posts.db
+│   └── backups/               # 💾 Бэкапы БД (автоматические и ручные)
 ├── downloads/                  # Скачанные медиа по каналам
 │   └── {channel_id}/
 │       ├── avatars/
 │       ├── media/
 │       └── thumbs/
-├── api/                        # Flask blueprints
-│   ├── channels.py            # Управление каналами
+├── api/                        # Flask blueprints (v1)
+│   ├── channels.py            # Управление каналами + экспорт
 │   ├── posts.py               # CRUD постов
-│   ├── downloads.py           # Загрузка из Telegram
+│   ├── downloads.py           # Импорт из Telegram, статусы
 │   ├── media.py               # Статика медиа-файлов
 │   ├── edits.py               # История изменений
 │   ├── layouts.py             # Gallery layouts
-│   └── pages.py               # Управление страницами
+│   ├── pages.py               # Управление страницами
+│   ├── chunks.py              # Чанки/пагинация контента
+│   ├── backup.py              # 💾 Бэкапы базы данных
+│   └── v2/                    # ⭐ API v2 — унифицированные endpoints
+│       ├── __init__.py        # Регистрация v2 blueprint
+│       ├── channels.py        # Посты, настройки, чанки
+│       ├── posts.py           # Видимость постов
+│       ├── layouts.py         # Gallery layouts
+│       └── serializers.py     # Сериализация, настройки, resolve_param
 ├── message_processing/        # Обработка Telegram сообщений
 │   ├── channel_info.py        # Метаданные канала
 │   ├── message_transform.py   # Трансформация сообщений для API
@@ -73,7 +83,11 @@ tg-offliner/
 │   ├── entity_validation.py   # Валидация Telegram entities
 │   ├── text_format.py         # Форматирование текста
 │   ├── date_utils.py          # Работа с датами
-│   └── time_utils.py          # Работа со временем
+│   ├── time_utils.py          # Работа со временем
+│   ├── chunking.py            # ⭐ Система чанков: build_content_units, calculate_chunks
+│   ├── import_state.py        # Потокобезопасное состояние импорта
+│   ├── post_filtering.py      # Фильтрация постов (скрытие медиа/постов)
+│   └── backup.py              # 💾 Утилиты бэкапов БД
 ├── idml_export/               # Экспорт в InDesign
 │   ├── builder.py             # IDMLBuilder класс
 │   ├── constants.py           # Загружает из print-config.json
@@ -81,19 +95,23 @@ tg-offliner/
 │   ├── styles.py              # XML стили
 │   ├── resources.py           # Ресурсы (шрифты, графика)
 │   └── templates/             # XML шаблоны
-├── tests/                     # Тесты
+├── tests/                     # Тесты (pytest)
 └── tg-offliner-frontend/      # Nuxt.js фронтенд
     ├── nuxt.config.ts
     ├── package.json
+    ├── tailwind.config.js     # Tailwind для основного UI
+    ├── tailwind.pdf.config.js # Tailwind для PDF экспорта
     ├── app/
     │   ├── components/        # Vue компоненты
-    │   ├── pages/             # Nuxt страницы
+    │   ├── pages/             # Nuxt страницы (file-based routing)
     │   ├── stores/            # Pinia хранилища
-    │   ├── services/          # API клиенты
+    │   ├── services/          # ⭐ API клиенты (api.js, apiV2.js, dateService.js)
     │   ├── utils/
     │   │   └── units.js       # ⭐ Загружает из print-config.json
     │   └── composables/       # Vue composables
-    └── public/                # Статика
+    ├── assets/
+    │   └── tailwind.css       # ⭐ ИСХОДНЫЙ файл стилей (редактировать ТОЛЬКО его!)
+    └── public/                # Статика (styles.css, styles-pdf.css — НЕ ТРОГАТЬ!)
 ```
 
 ---
@@ -197,6 +215,8 @@ docker compose logs app
 # database.py
 SQLALCHEMY_DATABASE_URI = 'sqlite:///posts.db?check_same_thread=False'
 ```
+
+**`create_app(database_uri=None)`** — принимает опциональный URI. Если передан — использует его, иначе подключается к реальной `instance/posts.db`. Это критично для тестов: **ВСЕГДА передавай `database_uri='sqlite:///:memory:'` в тестах!**
 
 ### ⚠️ Доступ к БД из терминала (КРИТИЧЕСКИ ВАЖНО!)
 
@@ -381,54 +401,123 @@ client = TelegramClient('new_session', api_id, api_hash)
 
 ## 🌐 API ENDPOINTS
 
-### Blueprints
+### Регистрация blueprints (app.py)
 
-API разбит на blueprints в папке `api/`:
+```python
+app.register_blueprint(posts_bp,      url_prefix='/api')
+app.register_blueprint(channels_bp,   url_prefix='/api')
+app.register_blueprint(downloads_bp,  url_prefix='/api')
+app.register_blueprint(media_bp)                         # без префикса
+app.register_blueprint(edits_bp)                         # без префикса (routes содержат /api)
+app.register_blueprint(layouts_bp,    url_prefix='/api')
+app.register_blueprint(pages_bp,      url_prefix='/api')
+app.register_blueprint(chunks_bp,     url_prefix='/api')
+app.register_blueprint(backup_bp,     url_prefix='/api')
+app.register_blueprint(api_v2_bp)                        # /api/v2 (в __init__.py)
+```
 
-#### channels.py (`/api/*`)
-- `GET /api/channels` - Список каналов
-- `POST /api/channels` - Добавить канал в БД
-- `GET /api/channels/<channel_id>` - Получить канал
-- `PUT /api/channels/<channel_id>` - Обновить канал
-- `DELETE /api/channels/<channel_id>` - Удалить канал
-- `GET /api/channels/<channel_id>/preview` - Предпросмотр канала
-- `GET /api/channels/<channel_id>/export` - Экспорт в HTML
-- `GET /api/channels/<channel_id>/export-pdf` - Экспорт в PDF
-- `GET /api/channels/<channel_id>/export-idml` - Экспорт в IDML
+### API v1 Blueprints
 
-#### posts.py (`/api/*`)
-- `GET /api/posts/<channel_id>` - Посты канала
-- `GET /api/posts/<channel_id>/<telegram_id>` - Получить пост
-- `PUT /api/posts/<channel_id>/<telegram_id>` - Обновить пост
-- `DELETE /api/posts/<channel_id>/<telegram_id>` - Удалить пост
-- `POST /api/posts/<channel_id>/<telegram_id>/hide` - Скрыть пост
-- `POST /api/posts/<channel_id>/<telegram_id>/unhide` - Показать пост
+#### channels.py (`url_prefix='/api'`)
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/channels` | Список каналов |
+| `POST` | `/api/channels` | Добавить канал в БД |
+| `POST` | `/api/add_channel` | Импорт канала из Telegram |
+| `GET` | `/api/channels/<channel_id>` | Получить канал |
+| `PUT` | `/api/channels/<channel_id>` | Обновить канал |
+| `DELETE` | `/api/channels/<channel_id>` | Удалить канал |
+| `GET` | `/api/channel_preview` | SSR HTML preview |
+| `GET` | `/api/channels/<channel_id>/export-html` | Экспорт в HTML |
+| `GET` | `/api/channels/<channel_id>/print` | Экспорт в PDF |
+| `GET` | `/api/channels/<channel_id>/export-idml` | Экспорт в IDML |
+| `GET` | `/api/channels/<channel_id>/extract-layout` | Извлечь координаты |
 
-#### downloads.py (`/api/*`)
-- `POST /api/download/import` - Импорт канала
-- `POST /api/download/stop/<channel_id>` - Остановить загрузку
-- `GET /api/download/status/<channel_id>` - Статус загрузки
-- `POST /api/download/progress/<channel_id>` - Обновить прогресс
+#### posts.py (`url_prefix='/api'`)
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/posts` | Посты канала (query: `channel_id`) |
+| `GET` | `/api/posts/check` | Проверка существования поста |
+| `POST` | `/api/posts` | Создать пост |
+| `DELETE` | `/api/posts` | Удалить пост |
 
-#### edits.py (`/api/*`)
-- `GET /api/edits/<channel_id>/<telegram_id>` - История изменений поста
-- `GET /api/edits/all` - Все изменения
+#### downloads.py (`url_prefix='/api'`)
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/download/status` | Все статусы загрузок |
+| `GET` | `/api/download/status/<channel_id>` | Статус загрузки канала |
+| `POST` | `/api/download/progress/<channel_id>` | Обновить прогресс |
+| `POST` | `/api/download/stop/<channel_id>` | Остановить загрузку |
+| `POST` | `/api/download/cancel/<channel_id>` | Отменить и очистить |
+| `POST` | `/api/download/clear/<channel_id>` | Очистить статус |
 
-#### layouts.py (`/api/*`)
-- `GET /api/layouts/<grouped_id>` - Получить layout
-- `POST /api/layouts/<grouped_id>` - Сохранить layout
-- `PUT /api/layouts/<grouped_id>` - Обновить layout
-- `DELETE /api/layouts/<grouped_id>` - Удалить layout
+#### edits.py (без `url_prefix`, пути содержат `/api`)
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `POST` | `/api/edits` | Создать/обновить редакцию |
+| `GET` | `/api/edits/<telegram_id>/<channel_id>` | История изменений поста |
+| `GET` | `/api/edits` | Все изменения |
+| `GET` | `/api/edits/<channel_id>` | Изменения канала |
+| `DELETE` | `/api/edits/<channel_id>` | Удалить изменения канала |
 
-#### pages.py (`/api/*`)
-- `GET /api/pages/<channel_id>` - Получить страницы канала
-- `POST /api/pages/<channel_id>` - Создать страницу
-- `PUT /api/pages/<channel_id>/<page_id>` - Обновить страницу
-- `DELETE /api/pages/<channel_id>/<page_id>` - Удалить страницу
+#### layouts.py (`url_prefix='/api'`)
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/layouts/<grouped_id>` | Получить layout |
+| `POST` | `/api/layouts/<grouped_id>/reload` | Перегенерировать layout |
+| `PATCH` | `/api/layouts/<grouped_id>/border` | Обновить толщину рамки |
+
+#### pages.py (`url_prefix='/api'`)
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/pages` | Страницы (query: `channel_id`) |
+| `GET` | `/api/pages/<page_id>` | Получить страницу |
+| `POST` | `/api/pages` | Создать страницу |
+| `PUT` | `/api/pages/<page_id>` | Обновить страницу |
+| `DELETE` | `/api/pages/<page_id>` | Удалить страницу |
+| `POST` | `/api/pages/<channel_id>` | Создать frozen layout |
+| `GET` | `/api/pages/<channel_id>/frozen` | Получить frozen страницы |
+
+#### chunks.py (`url_prefix='/api'`)
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/chunks/<channel_id>` | Метаданные чанков |
+| `GET` | `/api/chunks/<channel_id>/<chunk_index>/posts` | Посты в чанке |
+
+#### backup.py (`url_prefix='/api'`)
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/backups` | Список бэкапов |
+| `POST` | `/api/backups` | Создать бэкап |
+| `POST` | `/api/backups/<name>/restore` | Восстановить из бэкапа |
+| `DELETE` | `/api/backups/<name>` | Удалить бэкап |
 
 #### media.py (без префикса)
-- `GET /media/<path:filename>` - Статика медиа
-- `GET /downloads/<path:filepath>` - Статика downloads
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/media/<path:filename>` | Статика медиа |
+| `GET` | `/downloads/<path:filename>` | Статика downloads |
+
+### ⭐ API v2 (`/api/v2`)
+
+**Новые унифицированные endpoints** — используют сериализаторы, include_hidden, встроенные layouts.
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/v2/channels/<channel_id>/posts` | Посты с полной информацией (layouts, hidden, comments) |
+| `PUT` | `/api/v2/channels/<channel_id>/settings` | Обновить display/export настройки |
+| `GET` | `/api/v2/channels/<channel_id>/chunks` | Метаданные чанков для навигации |
+| `POST` | `/api/v2/posts/<channel_id>/<telegram_id>/visibility` | Скрыть/показать пост |
+| `GET` | `/api/v2/layouts/<grouped_id>` | Получить gallery layout |
+| `PUT` | `/api/v2/layouts/<grouped_id>` | Обновить/перегенерировать layout |
+
+**V2 сериализаторы** (`api/v2/serializers.py`):
+- `serialize_post_full()` — пост с `is_hidden`, `layout`, `group_posts`, `comments`
+- `serialize_channel()` — канал с merged `settings`
+- `get_channel_settings(channel)` — читает из `settings` / fallback `changes` + `print_settings`
+- `resolve_param(url, saved, default)` → `(value, source)` — приоритет: URL > Saved > Default
+- `get_hidden_posts_map(channel_id)` — единый запрос для скрытых постов
+- `get_layouts_map(channel_id)` — единый запрос для всех layouts
 
 ---
 
@@ -514,19 +603,111 @@ downloads/
 - **vue-grid-layout-v3** (drag & drop сетки)
 - **@tanstack/vue-virtual** (виртуализация длинных списков)
 
-### Основные компоненты
+### ⭐ API сервисы (КРИТИЧЕСКИ ВАЖНО!)
 
-- `ChannelCover.vue` - Обложка канала
-- `Group.vue` - Группа постов
-- Другие компоненты в `app/components/`
+**Файлы:** `app/services/api.js`, `app/services/apiV2.js`, `app/services/dateService.js`
+
+#### apiBase / mediaBase — разные URL для SSR и браузера
+
+```javascript
+// app/services/api.js
+
+// apiBase: используется для всех fetch() запросов к Flask
+export const apiBase =
+  typeof window === 'undefined'
+    ? 'http://app:5000'       // SSR: Docker-внутренний hostname контейнера app
+    : 'http://localhost:5000'; // Браузер: пробрасываемый порт
+
+// mediaBase: используется для <img src>, <video src> и т.д.
+export const mediaBase =
+  typeof window !== 'undefined'
+    ? 'http://localhost:5000'  // Браузер: всегда localhost
+    : isPdfSsr()
+      ? 'http://app:5000'     // SSR + PDF: WeasyPrint ходит внутри Docker
+      : 'http://localhost:5000'; // SSR обычный: img загружаются браузером
+```
+
+**Почему:**
+- Nuxt SSR-сервер (`ssr` контейнер) при серверном рендере ходит к Flask по Docker-сети → `http://app:5000`
+- Браузер пользователя ходит к Flask через проброс порта → `http://localhost:5000`
+- medialBase для PDF-рендера (WeasyPrint) использует Docker-сеть, т.к. он тоже внутри Docker
+
+#### api — HTTP клиент (v1)
+
+```javascript
+import { api, apiBase, mediaBase } from '~/services/api'
+
+// Методы: get, post, put, patch, delete
+// Возвращают Promise<{ data }>
+const { data } = await api.get('/api/channels')
+await api.post('/api/posts', { channel_id: 'test', ... })
+await api.put('/api/channels/test', { name: 'New Name' })
+await api.delete('/api/posts', { body: ... })
+```
+
+#### apiV2 — клиент для v2 endpoints
+
+```javascript
+import apiV2 from '~/services/apiV2'
+// или импорт отдельных функций:
+import { getChannelPosts, getChannelChunks, updateChannelSettings, setPostVisibility, updateLayout } from '~/services/apiV2'
+
+// Посты с полной информацией (layouts, hidden, comments)
+const data = await getChannelPosts(channelId, { chunk, sort_order, include_hidden })
+
+// Метаданные чанков для навигации
+const chunks = await getChannelChunks(channelId, { sort_order, include_hidden })
+
+// Обновить настройки отображения/экспорта
+await updateChannelSettings(channelId, { display: { sort_order: 'asc' } })
+
+// Скрыть/показать пост
+await setPostVisibility(channelId, telegramId, true)
+
+// Обновить gallery layout
+await updateLayout(groupedId, { action: 'regenerate' })
+```
+
+**❌ НЕ создавай новых fetch-обёрток!** Используй `api` из `api.js` или `apiV2` из `apiV2.js`.
+**❌ НЕ хардкодь URL!** Используй `apiBase` / `mediaBase`.
+
+### Страницы (file-based routing)
+
+| Файл | Маршрут | Описание |
+|------|---------|----------|
+| `pages/index.vue` | `/` | Главная — список каналов |
+| `pages/backups.vue` | `/backups` | 💾 Управление бэкапами |
+| `pages/[channelId]/posts.vue` | `/:channelId/posts` | Стена постов канала |
+| `pages/[channelId]/pages.vue` | `/:channelId/pages` | Grid-страницы канала |
+| `pages/preview/[channelId]/index.vue` | `/preview/:channelId` | Preview для экспорта |
+| `pages/preview/[channelId]/frozen.vue` | `/preview/:channelId/frozen` | Frozen layout preview |
+
+### Composables
+
+| Файл | Экспорт | Описание |
+|------|---------|----------|
+| `useChannelPostsV2.js` | `useChannelPostsV2(channelId)` | **Основной**: посты, чанки, сортировка, навигация. Использует V2 API |
+| `useConfirmDialog.js` | `useConfirmDialog()` | Модальные подтверждения |
+| `useDisplayMode.js` | `useDisplayMode()` | `'default'` или `'minimal'` (preview) |
+| `usePages.js` | `usePages()` | CRUD grid-страниц, blocksToLayout/layoutToBlocks |
+| `usePostEdit.js` | `usePostEdit(post)` | Скрытие/показ постов через V2 API |
+| `usePostFiltering.js` | `usePostFiltering()` | Фильтрация неподдерживаемых медиа |
+
+### Компоненты
+
+**Контент:**
+`ChannelCover`, `ChunkNavigation`, `Group`, `PageBlock`, `Post`, `PostAuthor`, `PostBody`, `PostFooter`, `PostHeader`, `PostMedia`, `PostQuote`, `PostReactions`, `PrintUtilities`, `Wall`
+
+**Системные** (`components/system/`):
+`ChannelExports`, `ChannelsList`, `ConfirmDialog`, `DownloadStatus`, `GroupEditor`, `Navbar`, `Page`, `PageSkeleton`, `PostEditor`, `PrintSettingsSidebar`, `SystemAlert`
 
 ### Stores (Pinia)
 
+**`editMode.ts`** — управление режимами редактирования, экспорта, preview.
+- State: `isEditMode`, `isExportMode`, `isPreviewEditMode`
+- Getters: `showDeleteButtons`, `isPostsPage`, `isPreviewPage`
+
 **НЕ создавай дубликаты stores!** Используй существующие в `app/stores/`.
-
-### Services
-
-API клиенты в `app/services/` - используй их для запросов к backend.
 
 ### Tailwind конфигурация (КРИТИЧЕСКИ ВАЖНО!)
 
@@ -818,30 +999,53 @@ builder.save('output.idml')
 
 ```
 tests/
-├── test_telegram_export_unit.py        # Unit тесты
-├── test_telegram_export_integration.py # Integration тесты
-├── test_telegram_export_gallery.py     # Тесты gallery layout
-├── test_message_transform_helpers.py   # Тесты обработки сообщений
+├── test_api_v2.py                      # ⭐ Тесты V2 API + чанки (36 тестов)
+├── test_chunking.py                    # Тесты системы чанков (27 тестов)
+├── test_backup.py                      # 💾 Тесты бэкапов (29 тестов)
 ├── test_api_layouts.py                 # Тесты API layouts
 ├── test_api_edits.py                   # Тесты API edits
-└── _telegram_export_base.py            # Базовый класс для тестов
+├── test_gallery_layout.py             # Тесты gallery layout
+├── test_message_transform_helpers.py  # Тесты обработки сообщений
+├── test_telegram_export_unit.py       # Unit тесты экспорта
+├── test_telegram_export_integration.py # Integration тесты
+├── test_telegram_export_gallery.py    # Тесты gallery экспорта
+├── test_telegram_export_discussion.py # Тесты discussion groups
+├── test_telegram_export_*.py          # Другие тесты экспорта
+├── _telegram_export_base.py           # Базовый класс для тестов
+└── run_tests.py                       # Скрипт запуска
 ```
+
+### ⚠️ Безопасность тестов (КРИТИЧЕСКИ ВАЖНО!)
+
+**ВСЕГДА используй in-memory БД в тестах!** Иначе `db.drop_all()` в teardown
+уничтожит production данные в `instance/posts.db`.
+
+```python
+# ✅ ПРАВИЛЬНО — in-memory БД:
+from database import create_app
+app = create_app(database_uri='sqlite:///:memory:')
+
+# ❌ НЕПРАВИЛЬНО — без database_uri (затрёт production БД!):
+app = create_app()
+```
+
+`create_app()` принимает параметр `database_uri`. Если передан — использует его,
+иначе подключается к реальной `instance/posts.db`.
 
 ### Запуск тестов
 
 ```bash
-# Все тесты
-python -m pytest tests/
+# Все тесты (из Docker)
+docker compose exec app python -m pytest tests/ -v
 
 # Конкретный файл
-python -m pytest tests/test_telegram_export_unit.py
+docker compose exec app python -m pytest tests/test_backup.py -v
 
-# С выводом
-python -m pytest tests/ -v
+# Конкретный тест
+docker compose exec app python -m pytest tests/test_api_v2.py::TestGetChannelChunks -v
 
-# Из run_tests.py
-cd tests
-python run_tests.py
+# С коротким выводом ошибок
+docker compose exec app python -m pytest tests/ --tb=short
 ```
 
 ---
@@ -865,6 +1069,36 @@ python run_tests.py
 ### date_utils.py, time_utils.py
 - Работа с датами и временем
 - Форматирование в разных форматах
+
+### chunking.py
+**Система чанков для пагинации контента:**
+- `build_content_units(channel_id, include_hidden=False)` — собирает посты в логические единицы (пост + комментарии + медиа-группы)
+- `calculate_chunks(channel_id, items_per_chunk=50, ..., include_hidden=False)` — разбивает content units на чанки с учётом overflow threshold
+
+### import_state.py
+**Потокобезопасное состояние импорта (threading.Lock):**
+- `set_status(channel_id, status, details)` — установить статус (`'downloading'`, `'completed'`, `'error'`, `'stopped'`)
+- `get_status(channel_id)` — получить текущий статус
+- `get_all_statuses()` — все статусы каналов
+- `update_progress(channel_id, posts, total, comments)` — обновить прогресс
+- `should_stop(channel_id)` — проверить нужна ли остановка
+- `clear_status(channel_id)` — удалить запись статуса
+
+### post_filtering.py
+**Фильтрация постов (Python-side):**
+- `should_hide_media(post)` — скрывает WebPage, non-image Documents, .webp
+- `should_hide_post(post, edits)` — скрывает если пост hidden через edits или содержит только неподдерживаемый медиа без текста
+
+### backup.py
+**💾 Утилиты бэкапов базы данных:**
+- `create_backup(label=None)` — атомарный бэкап через `sqlite3.Connection.backup()`
+- `restore_backup(backup_name)` — восстановление с автоматическим safety-бэкапом
+- `list_backups()` — список бэкапов (новые первыми) со статистикой таблиц
+- `delete_backup(backup_name)` — удаление бэкапа
+- `rotate_backups(max_count=10)` — ротация, сохраняет safety-бэкапы (`before-restore`)
+- `auto_backup()` — автобэкап при старте (вызывается из `start.sh`)
+
+**Бэкапы хранятся в:** `instance/backups/posts_YYYY-MM-DD_HH-MM-SS_{label}.db`
 
 ---
 
@@ -950,6 +1184,13 @@ def should_stop_import(channel_id):
 8. **Frontend:**
    - ❌ Создавать дубликаты stores/services → ✅ Использовать существующие
    - ❌ Забывать про два Tailwind конфига → ✅ Помнить о `tailwind.config.js` и `tailwind.pdf.config.js`
+   - ❌ Хардкодить URL в fetch-запросах → ✅ Использовать `apiBase` / `mediaBase` из `~/services/api`
+   - ❌ Создавать новые fetch-обёртки → ✅ Использовать `api` из `api.js` или функции из `apiV2.js`
+
+9. **Тесты:**
+   - ❌ `create_app()` без `database_uri` → ✅ `create_app(database_uri='sqlite:///:memory:')`
+   - ❌ Использовать production БД в тестах → ✅ Всегда in-memory
+   - ❌ `db.drop_all()` без проверки URI → ✅ Передавать `database_uri` в `create_app()`
 
 ### ✅ ВСЕГДА делай так:
 
@@ -1236,7 +1477,23 @@ npm install
 docker compose restart ssr
 ```
 
+### Как создать бэкап базы данных?
+
+1. Через веб-интерфейс: http://localhost:3000/backups → кнопка «Создать бэкап»
+2. Через API: `POST http://localhost:5000/api/backups`
+3. Автоматически при каждом запуске контейнера (`start.sh`)
+4. Программно: `from utils.backup import create_backup; create_backup(label='manual')`
+
+Бэкапы хранятся в `instance/backups/` и автоматически ротируются (макс. 10).
+
+### Как восстановить базу из бэкапа?
+
+1. Через веб-интерфейс: http://localhost:3000/backups → кнопка «Восстановить»
+2. Через API: `POST http://localhost:5000/api/backups/<name>/restore`
+3. При восстановлении автоматически создаётся safety-бэкап (метка `before-restore`)
+4. **После восстановления** нужно перезапустить Flask: `docker compose restart app`
+
 ---
 
-**Версия инструкций:** 1.0  
-**Дата:** 25 декабря 2025
+**Версия инструкций:** 2.0  
+**Дата:** 26 февраля 2026

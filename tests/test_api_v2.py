@@ -14,9 +14,8 @@ from api.v2 import api_v2_bp
 @pytest.fixture
 def app():
     """Создаёт тестовое приложение"""
-    app = create_app()
+    app = create_app(database_uri='sqlite:///:memory:')
     app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     
     # Регистрируем API v2 blueprint
     app.register_blueprint(api_v2_bp)
@@ -538,9 +537,8 @@ class TestV2ChunkingIntegrationScenarios:
     @pytest.fixture
     def big_channel_app(self):
         """Flask app со 100 постами для интеграционных сценариев"""
-        app = create_app()
+        app = create_app(database_uri='sqlite:///:memory:')
         app.config['TESTING'] = True
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         
         app.register_blueprint(api_v2_bp)
         
@@ -597,9 +595,8 @@ class TestV2ChunkingIntegrationScenarios:
     @pytest.fixture
     def comments_channel_app(self):
         """Flask app с 50 постами и комментариями"""
-        app = create_app()
+        app = create_app(database_uri='sqlite:///:memory:')
         app.config['TESTING'] = True
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         
         app.register_blueprint(api_v2_bp)
         
@@ -671,9 +668,8 @@ class TestV2ChunkingIntegrationScenarios:
     @pytest.fixture
     def huge_comments_app(self):
         """Flask app с 2 постами по 100+ комментариев"""
-        app = create_app()
+        app = create_app(database_uri='sqlite:///:memory:')
         app.config['TESTING'] = True
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         
         app.register_blueprint(api_v2_bp)
         

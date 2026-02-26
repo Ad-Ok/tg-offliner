@@ -5,9 +5,12 @@ import multiprocessing
 # Устанавливаем метод запуска процессов "fork"
 multiprocessing.set_start_method("fork", force=True)
 
-def create_app():
+def create_app(database_uri=None):
     app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///posts.db?check_same_thread=False'
+    if database_uri:
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
+    else:
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///posts.db?check_same_thread=False'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db.init_app(app)
     return app

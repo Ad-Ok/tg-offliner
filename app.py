@@ -43,6 +43,7 @@ from api.edits import edits_bp
 from api.layouts import layouts_bp
 from api.pages import pages_bp
 from api.chunks import chunks_bp
+from api.backup import backup_bp
 
 # API v2
 from api.v2 import api_v2_bp
@@ -55,6 +56,7 @@ app.register_blueprint(edits_bp)  # Без префикса, так как пу�
 app.register_blueprint(layouts_bp, url_prefix='/api')
 app.register_blueprint(pages_bp, url_prefix='/api')
 app.register_blueprint(chunks_bp, url_prefix='/api')
+app.register_blueprint(backup_bp, url_prefix='/api')
 
 # API v2 - новые унифицированные endpoints
 app.register_blueprint(api_v2_bp)

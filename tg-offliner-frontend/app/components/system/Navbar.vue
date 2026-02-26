@@ -145,6 +145,7 @@
           </svg>
         </div>
         <ul tabindex="0" class="menu dropdown-content z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+          <li><NuxtLink to="/backups">💾 Бэкапы</NuxtLink></li>
           <li><a>⚙️ Настройки</a></li>
           <li><a>📊 Статистика</a></li>
           <li><a>❓ Помощь</a></li>
