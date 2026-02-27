@@ -67,6 +67,12 @@
 
           <div class="flex gap-2">
             <ChannelExports :channelId="channel.id" />
+            <button 
+              v-if="!isDownloading(channel.id)"
+              @click="resumeChannel(channel)" 
+              class="btn btn-xs btn-outline btn-info"
+              title="Download new posts that appeared since last import"
+            >Resume</button>
             <button @click="removeChannel(channel.id)" class="btn btn-xs btn-outline btn-error">Delete download</button>
           </div>
         </li>
@@ -459,16 +465,43 @@ export default {
           export_settings: this.exportSettings,
         })
         .then((response) => {
-          eventBus.showAlert(response.data.message, "success");
-          // Remove from preview after successful loading
+          const msg = response.data.message;
+          const isResume = response.data.resume;
+          eventBus.showAlert(msg, "success");
+          // Remove from preview — progress tracked via polling
           this.previewChannels.splice(index, 1);
-          this.fetchChannels(); // Update channels list
+          // If not resume, channel list will update when status polling picks up completion
+          if (!isResume) {
+            this.fetchChannels();
+          }
         })
         .catch((error) => {
-          if (error.response && error.response.status === 400) {
+          if (error.response && error.response.status === 409) {
+            eventBus.showAlert(error.response.data.error, "warning");
+          } else if (error.response && error.response.status === 400) {
             eventBus.showAlert(error.response.data.error, "warning");
           } else {
             eventBus.showAlert("Error adding channel", "danger");
+          }
+        });
+    },
+    resumeChannel(channel) {
+      eventBus.showAlert(`Resuming download for ${channel.name}...`, "info");
+
+      api
+        .post('/api/add_channel', {
+          channel_username: channel.id,
+          export_settings: this.exportSettings,
+        })
+        .then((response) => {
+          eventBus.showAlert(response.data.message, "success");
+        })
+        .catch((error) => {
+          if (error.response && error.response.status === 409) {
+            eventBus.showAlert(error.response.data.error, "warning");
+          } else {
+            const msg = error.response?.data?.error || "Error resuming download";
+            eventBus.showAlert(msg, "danger");
           }
         });
     },
@@ -480,8 +513,19 @@ export default {
     // Methods for download management
     async checkDownloadStatuses() {
       try {
+        const oldStatuses = this.downloadStatuses;
         const response = await api.get('/api/download/status');
         this.downloadStatuses = response.data;
+        
+        // Auto-refresh channel list when any download transitions to 'completed'
+        for (const [channelId, status] of Object.entries(response.data)) {
+          const wasDownloading = oldStatuses[channelId]?.status === 'downloading';
+          const isNowDone = status.status === 'completed' || status.status === 'error';
+          if (wasDownloading && isNowDone) {
+            this.fetchChannels();
+            break;
+          }
+        }
       } catch (error) {
         console.error('Error getting download statuses:', error);
       }
@@ -542,14 +586,18 @@ export default {
       const status = this.downloadStatuses[channelId];
       if (!status || !status.details) return '';
       
-      const { posts_processed, total_posts, comments_processed } = status.details;
+      const { posts_processed, total_posts, comments_processed, resume } = status.details;
       let progress = '';
+      
+      if (resume) {
+        progress = '🔄 ';
+      }
       
       if (posts_processed !== undefined) {
         if (total_posts) {
-          progress = `${posts_processed} of ${total_posts} posts`;
+          progress += `${posts_processed} of ${total_posts} posts`;
         } else {
-          progress = `${posts_processed} posts`;
+          progress += `${posts_processed} posts`;
         }
         
         if (comments_processed !== undefined && comments_processed > 0) {

@@ -39,6 +39,9 @@ The TG-Offliner app is designed to download content from Telegram channels and e
 - **Docker-based deployment** — Easy setup with Docker Compose
 - **Persistent storage** — Database and media files preserved across restarts
 - **Real-time progress** — Live download status updates
+- **Background async import** — Channel imports run in a background thread, returning 202 Accepted immediately
+- **Resume downloads** — Resume interrupted imports without re-downloading existing posts and comments
+- **Retry with FloodWait handling** — Automatic retries with exponential backoff and Telegram FloodWaitError support
 - **Server logs** — View application logs directly from the UI
 - **RESTful API** — Backend API for programmatic access
 - **Modern frontend** — Nuxt.js-based responsive interface with Tailwind CSS
@@ -130,7 +133,7 @@ All services are managed via Docker Compose and work together out of the box.
 
 ## **Testing**
 
-The project has **98 tests** with full coverage of core functionality.
+The project has **121 tests** with full coverage of core functionality.
 
 ### **Backend Tests (Python)**
 
@@ -178,6 +181,6 @@ The project has **98 tests** with full coverage of core functionality.
 
 ### **Test Coverage**
 
-- **Backend:** 90 unit tests (unittest)
+- **Backend:** 113 unit tests (unittest)
 - **Frontend:** 8 tests (Vitest)
-- **New features:** Fully covered tests for layout generation, API endpoints, and frontend service
+- **Covers:** API endpoints, layout generation, chunking, backups, async import/resume/retry, FloodWait handling, concurrency

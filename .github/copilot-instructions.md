@@ -423,7 +423,7 @@ app.register_blueprint(api_v2_bp)                        # /api/v2 (в __init__.
 |-------|------|----------|
 | `GET` | `/api/channels` | Список каналов |
 | `POST` | `/api/channels` | Добавить канал в БД |
-| `POST` | `/api/add_channel` | Импорт канала из Telegram |
+| `POST` | `/api/add_channel` | Импорт канала из Telegram (202 Accepted, 409 если уже идёт, auto-resume) |
 | `GET` | `/api/channels/<channel_id>` | Получить канал |
 | `PUT` | `/api/channels/<channel_id>` | Обновить канал |
 | `DELETE` | `/api/channels/<channel_id>` | Удалить канал |
@@ -999,6 +999,7 @@ builder.save('output.idml')
 
 ```
 tests/
+├── test_async_import.py                # ⭐ Async import, resume, retry, FloodWait (23 теста)
 ├── test_api_v2.py                      # ⭐ Тесты V2 API + чанки (36 тестов)
 ├── test_chunking.py                    # Тесты системы чанков (27 тестов)
 ├── test_backup.py                      # 💾 Тесты бэкапов (29 тестов)
@@ -1106,24 +1107,48 @@ docker compose exec app python -m pytest tests/ --tb=short
 
 ### Основной модуль: telegram_export.py
 
-**Главная функция:** `import_channel_direct(channel_username, channel_id=None, export_settings=None)`
+**Главная функция:** `import_channel_direct(channel_username, channel_id=None, export_settings=None, resume=False)`
 
 **Что делает:**
 1. Подключается к Telegram через `telegram_client.py`
 2. Получает entity (канал или пользователь)
 3. Валидирует entity
-4. Скачивает сообщения и медиа
-5. Сохраняет в БД через `process_message_for_api()`
-6. Обновляет прогресс через API
+4. **resume=True**: загружает существующие ID из БД и пропускает уже скачанные посты
+5. Скачивает сообщения и медиа с retry и FloodWait handling
+6. Сохраняет в БД через батчевый `_flush_batch()`
+7. Обновляет прогресс через shared state (без HTTP)
 
-**Прогресс-трекинг:**
+**Ключевые функции:**
+```python
+def _get_existing_telegram_ids(channel_id):
+    """Возвращает set telegram_id постов уже в БД"""
+
+def _process_message_with_retry(post, real_id, client, folder_name, max_retries=3):
+    """Обрабатывает сообщение с retry, FloodWaitError → ждёт seconds+1, generic → exponential backoff"""
+
+def _flush_batch(batch):
+    """Сохраняет батч постов в БД (BATCH_SIZE=50)"""
+```
+
+**Прогресс-трекинг (shared state, без HTTP):**
 ```python
 def update_import_progress(channel_id, processed_posts, processed_comments, total_posts=None):
-    """Обновляет прогресс импорта через POST /api/download/progress/{channel_id}"""
+    """Обновляет прогресс через utils.import_state (shared state)"""
     
 def should_stop_import(channel_id):
-    """Проверяет через GET /api/download/status/{channel_id} нужно ли остановить"""
+    """Проверяет через utils.import_state нужно ли остановить"""
 ```
+
+**Константы:**
+- `MAX_RETRIES = 3` — максимум попыток обработки сообщения
+- `RETRY_BASE_DELAY = 2` — базовая задержка (секунды), удваивается с каждой попыткой
+- `BATCH_SIZE = 50` — размер батча для записи в БД
+
+**API endpoint `/api/add_channel`:**
+- Запускает импорт в `threading.Thread` и возвращает `202 Accepted` мгновенно
+- Автоматически определяет `resume=True` если канал уже есть в БД
+- Возвращает `409` если канал уже загружается
+- Прогресс доступен через `GET /api/download/status/<channel_id>`
 
 ### message_processing/
 

@@ -5,6 +5,8 @@ import os
 import re
 import time
 import shutil
+import threading
+import logging
 import requests
 from flask import Blueprint, jsonify, request, current_app
 from models import db, Post, Channel
@@ -162,7 +164,12 @@ def add_channel_to_db():
 
 @channels_bp.route('/add_channel', methods=['POST'])
 def run_channel_import():
-    """Импортирует канал или переписку с пользователем напрямую через API."""
+    """
+    Импортирует канал или переписку с пользователем.
+    Запускает импорт в фоновом потоке и возвращает 202 Accepted мгновенно.
+    Если канал уже существует — переходит в режим докачки (resume).
+    Прогресс доступен через GET /api/download/status/<channel_id>.
+    """
     current_app.logger.info('Добавление канала запущено')
     data = request.json
     current_app.logger.info(f"Получены данные: {data}")
@@ -188,64 +195,87 @@ def run_channel_import():
         # Определяем реальный ID для проверки в базе
         real_id = entity.username or str(entity.id)
         
-        # Импорт функций для статуса загрузки
-        import app
+        # Импорт функции для статуса загрузки
+        import app as app_module
+        
+        # Проверяем, не идёт ли уже загрузка этого канала
+        from utils.import_state import get_status
+        current_status = get_status(real_id)
+        if current_status and current_status.get('status') == 'downloading':
+            return jsonify({"error": f"Канал {real_id} уже загружается", "channel_id": real_id}), 409
+        
+        # Проверяем, существует ли канал по реальному ID → resume mode
+        existing_channel = Channel.query.filter_by(id=real_id).first()
+        resume = existing_channel is not None
+        
+        if resume:
+            current_app.logger.info(f"Канал {real_id} уже существует — режим докачки (resume)")
         
         # Устанавливаем статус начала загрузки
-        app.set_download_status(real_id, 'downloading', {
+        app_module.set_download_status(real_id, 'downloading', {
             'channel_name': channel_username,
             'started_at': time.time(),
             'processed_posts': 0,
-            'processed_comments': 0
+            'processed_comments': 0,
+            'resume': resume,
         })
         
-        # Проверяем, существует ли канал по реальному ID
-        existing_channel = Channel.query.filter_by(id=real_id).first()
-        if existing_channel:
-            current_app.logger.warning(f"Канал/пользователь {real_id} уже существует.")
-            return jsonify({"error": f"Канал/пользователь {real_id} уже импортирован"}), 400
-
-        # Импортируем канал напрямую через API
-        result = import_channel_direct(channel_username, real_id, export_settings)
+        # Запускаем импорт в фоновом потоке
+        def _import_task():
+            try:
+                result = import_channel_direct(channel_username, real_id, export_settings, resume=resume)
+                
+                if result['success']:
+                    processed_count = result.get('processed', 0)
+                    comments_count = result.get('comments', 0)
+                    skipped_count = result.get('skipped', 0)
+                    message = f"Канал {real_id}: импортировано {processed_count} сообщений"
+                    if skipped_count > 0:
+                        message += f" (пропущено {skipped_count} существующих)"
+                    if comments_count > 0:
+                        message += f" и {comments_count} комментариев"
+                    if result.get('stopped'):
+                        message += " (остановлено пользователем)"
+                    
+                    app_module.set_download_status(real_id, 'completed', {
+                        'channel_name': channel_username,
+                        'completed_at': time.time(),
+                        'processed_posts': processed_count,
+                        'processed_comments': comments_count,
+                        'skipped_posts': skipped_count,
+                        'resume': resume,
+                        'message': message,
+                        'stopped': result.get('stopped', False),
+                    })
+                    logging.info(message)
+                else:
+                    app_module.set_download_status(real_id, 'error', {
+                        'channel_name': channel_username,
+                        'error_at': time.time(),
+                        'error': result['error'],
+                        'resume': resume,
+                    })
+                    logging.error(f"Ошибка импорта канала: {result['error']}")
+                    
+            except Exception as e:
+                app_module.set_download_status(real_id, 'error', {
+                    'channel_name': channel_username,
+                    'error_at': time.time(),
+                    'error': str(e),
+                    'resume': resume,
+                })
+                logging.error(f"Исключение в фоновом импорте {real_id}: {e}")
         
-        if result['success']:
-            processed_count = result.get('processed', 0)
-            comments_count = result.get('comments', 0)
-            message = f"Канал/пользователь {real_id} успешно добавлен. Импортировано {processed_count} сообщений"
-            if comments_count > 0:
-                message += f" и {comments_count} комментариев"
-            
-            # Устанавливаем статус завершения
-            app.set_download_status(real_id, 'completed', {
-                'channel_name': channel_username,
-                'completed_at': time.time(),
-                'processed_posts': processed_count,
-                'processed_comments': comments_count,
-                'message': message
-            })
-            
-            current_app.logger.info(message)
-            return jsonify({"message": message}), 200
-        else:
-            # Устанавливаем статус ошибки
-            app.set_download_status(real_id, 'error', {
-                'channel_name': channel_username,
-                'error_at': time.time(),
-                'error': result['error']
-            })
-            
-            current_app.logger.error(f"Ошибка импорта канала: {result['error']}")
-            return jsonify({"error": result['error']}), 500
-            
+        thread = threading.Thread(target=_import_task, name=f"import-{real_id}", daemon=True)
+        thread.start()
+        
+        return jsonify({
+            "message": f"Импорт канала {real_id} запущен в фоне" + (" (докачка)" if resume else ""),
+            "channel_id": real_id,
+            "resume": resume,
+        }), 202
+        
     except Exception as e:
-        # Устанавливаем статус ошибки, если real_id определен
-        if 'real_id' in locals():
-            app.set_download_status(real_id, 'error', {
-                'channel_name': channel_username,
-                'error_at': time.time(),
-                'error': str(e)
-            })
-        
         current_app.logger.error(f"Исключение: {str(e)}")
         return jsonify({"error": str(e)}), 500
 

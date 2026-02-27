@@ -1,4 +1,5 @@
 from telethon.sync import TelegramClient
+from telethon.errors import FloodWaitError
 from config import EXPORT_SETTINGS
 from telegram_client import connect_to_telegram
 import time
@@ -25,6 +26,42 @@ logging.basicConfig(
 )
 
 DOWNLOADS_DIR = TRANSFORM_DOWNLOADS_DIR
+
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 2  # seconds
+
+
+def _get_existing_telegram_ids(channel_id):
+    """Returns a set of telegram_ids already in DB for this channel."""
+    from app import app
+    from models import Post
+    with app.app_context():
+        rows = Post.query.with_entities(Post.telegram_id).filter_by(channel_id=channel_id).all()
+        return {row[0] for row in rows}
+
+
+def _process_message_with_retry(post, real_id, client, folder_name, max_retries=MAX_RETRIES):
+    """
+    Обрабатывает сообщение с retry и обработкой FloodWaitError.
+    Возвращает post_data или None.
+    """
+    for attempt in range(1, max_retries + 1):
+        try:
+            return process_message_for_api(post, real_id, client, folder_name)
+        except FloodWaitError as e:
+            wait_time = e.seconds + 1
+            logging.warning(f"FloodWaitError на посте {post.id}, ждём {wait_time}с (попытка {attempt}/{max_retries})")
+            time.sleep(wait_time)
+        except Exception as e:
+            if attempt < max_retries:
+                delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                logging.warning(f"Ошибка обработки поста {post.id} (попытка {attempt}/{max_retries}): {e}. Retry через {delay}с")
+                time.sleep(delay)
+            else:
+                logging.error(f"Ошибка обработки поста {post.id} после {max_retries} попыток: {e}")
+                return None
+    return None
+
 
 def should_stop_import(channel_id):
     """Проверяет, нужно ли остановить импорт (через shared state, без HTTP)"""
@@ -105,7 +142,7 @@ def _save_channel(channel_info):
         return False
 
 
-def import_channel_direct(channel_username, channel_id=None, export_settings=None):
+def import_channel_direct(channel_username, channel_id=None, export_settings=None, resume=False):
     """
     Импортирует канал или переписку с пользователем напрямую, используя существующий клиент.
     Возвращает словарь с результатом.
@@ -113,6 +150,7 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
     :param channel_username: Имя канала или пользователя
     :param channel_id: ID канала для отслеживания статуса (опционально)
     :param export_settings: Настройки экспорта (опционально)
+    :param resume: Если True — докачка: пропускает существующие посты, не удаляет медиа
     """
     try:
         # Используем существующий глобальный клиент
@@ -139,8 +177,22 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
         logging.info(f"Реальный ID для {channel_username}: {real_id}")
         logging.info(f"Имя папки: {folder_name}")
         
-        # Очищаем папку канала по имени папки
-        clear_downloads(folder_name)
+        # В режиме resume не удаляем существующие файлы, а создаём недостающие папки
+        if resume:
+            channel_folder = os.path.join(DOWNLOADS_DIR, folder_name)
+            os.makedirs(os.path.join(channel_folder, 'media'), exist_ok=True)
+            os.makedirs(os.path.join(channel_folder, 'thumbs'), exist_ok=True)
+            os.makedirs(os.path.join(channel_folder, 'avatars'), exist_ok=True)
+            logging.info(f"Resume mode: папка {channel_folder} сохранена")
+        else:
+            # Очищаем папку канала по имени папки
+            clear_downloads(folder_name)
+        
+        # Загружаем существующие ID для дедупликации в режиме resume
+        existing_ids = set()
+        if resume:
+            existing_ids = _get_existing_telegram_ids(real_id)
+            logging.info(f"Resume mode: {len(existing_ids)} постов уже в БД, будут пропущены")
         
         # Сохраняем информацию о канале в базу
         channel_info = get_channel_info(client, entity, output_dir="downloads", folder_name=folder_name)
@@ -188,44 +240,44 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
         logging.info(f"Начинаем обработку постов из канала {channel_username}")
         
         post_iteration = 0
+        skipped_count = 0
         batch = []
         for post in all_posts:
             post_iteration += 1
-            logging.info(f"Итерация {post_iteration}: обрабатываем пост {post.id}")
             try:
                 # Проверяем, нужно ли остановить импорт
                 if should_stop_import(channel_id):
                     _flush_batch(batch)
                     batch = []
                     logging.info(f"Импорт канала {channel_username} остановлен пользователем")
-                    return {"success": True, "processed": processed_count, "comments": comments_count, "stopped": True}
+                    return {"success": True, "processed": processed_count, "comments": comments_count, "stopped": True, "skipped": skipped_count}
+                
+                # В режиме resume пропускаем уже скачанные посты
+                if post.id in existing_ids:
+                    skipped_count += 1
+                    processed_count += 1
+                    if skipped_count % 100 == 0:
+                        logging.info(f"Resume: пропущено {skipped_count} существующих постов")
+                        update_import_progress(channel_id, processed_count, comments_count, total_posts)
+                    continue
                 
                 # Пропускаем системные сообщения, если они отключены
                 if not include_system_messages and post.action:
-                    logging.info(f"Пропущено системное сообщение с ID {post.id}")
                     continue
 
                 # Пропускаем репосты, если они отключены
                 if not include_reposts and post.fwd_from:
-                    logging.info(f"Пропущен репост с ID {post.id}")
                     continue
 
                 # Пропускаем опросы, если они отключены
                 if not include_polls and post.poll:
-                    logging.info(f"Пропущен опрос с ID {post.id}")
                     continue
                 
-                # Обрабатываем сообщение
-                logging.info(f"Обрабатываем пост {post.id} из канала {channel_username}")
-                try:
-                    post_data = process_message_for_api(post, real_id, client, folder_name)
-                except Exception as e:
-                    logging.error(f"Ошибка в process_message_for_api для поста {post.id}: {str(e)}")
-                    post_data = None
+                # Обрабатываем сообщение с retry и обработкой FloodWaitError
+                post_data = _process_message_with_retry(post, real_id, client, folder_name)
                 if post_data:
                     batch.append(post_data)
                     processed_count += 1
-                    logging.info(f"Пост {post.id} добавлен в batch, всего: {processed_count}")
                     
                     if len(batch) >= BATCH_SIZE:
                         _flush_batch(batch)
@@ -236,22 +288,33 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
                 # Обновляем прогресс каждые 5 постов или на каждом посте, если постов мало
                 if processed_count % 5 == 0 or total_posts < 50:
                     update_import_progress(channel_id, processed_count, comments_count, total_posts)
+            except FloodWaitError as e:
+                wait_time = e.seconds + 1
+                logging.warning(f"FloodWaitError в iter_messages на посте {post.id}, ждём {wait_time}с")
+                time.sleep(wait_time)
             except Exception as e:
-                logging.error(f"Ошибка при обработке сообщения: {str(e)}")
+                logging.error(f"Ошибка при обработке сообщения {post.id}: {str(e)}")
         
         # Flush оставшихся постов в batch
         _flush_batch(batch)
         
-        logging.info(f"Обработано сообщений: {processed_count}")
+        logging.info(f"Обработано сообщений: {processed_count}, пропущено (resume): {skipped_count}")
         logging.info(f"Канал {channel_username} импортирован: {processed_count} сообщений")
         
         # Импортируем ВСЕ комментарии из группы обсуждений за один проход
         if discussion_group_id and include_discussion_comments:
+            # В режиме resume загружаем существующие ID комментариев для дедупликации
+            existing_comment_ids = set()
+            if resume:
+                existing_comment_ids = _get_existing_telegram_ids(str(discussion_group_id))
+                logging.info(f"Resume mode: {len(existing_comment_ids)} комментариев уже в БД")
+            
             logging.info(f"Начинаем импорт комментариев из группы обсуждений {discussion_group_id}...")
             comments_count = import_all_discussion_comments(
                 client,
                 real_id,
-                discussion_group_id
+                discussion_group_id,
+                existing_ids=existing_comment_ids
             )
             logging.info(f"Импортировано комментариев: {comments_count}")
         
@@ -265,13 +328,13 @@ def import_channel_direct(channel_username, channel_id=None, export_settings=Non
         if discussion_group_id:
             generate_gallery_layouts_for_channel(str(discussion_group_id))
         
-        return {"success": True, "processed": processed_count, "comments": comments_count}
+        return {"success": True, "processed": processed_count, "comments": comments_count, "skipped": skipped_count}
         
     except Exception as e:
         logging.error(f"Ошибка импорта канала {channel_username}: {str(e)}")
         return {"success": False, "error": str(e)}
 
-def import_all_discussion_comments(client, channel_id, discussion_group_id):
+def import_all_discussion_comments(client, channel_id, discussion_group_id, existing_ids=None):
     """
     Импортирует ВСЕ комментарии из группы обсуждений за один проход (streaming).
     Использует reverse_mapping для O(1) lookup и batch insert.
@@ -279,8 +342,11 @@ def import_all_discussion_comments(client, channel_id, discussion_group_id):
     :param client: Подключённый клиент Telethon
     :param channel_id: ID канала
     :param discussion_group_id: ID группы обсуждений
+    :param existing_ids: Set of telegram_ids already in DB (for resume mode)
     :return: Количество импортированных комментариев
     """
+    if existing_ids is None:
+        existing_ids = set()
     try:
         logging.info(f"Получаем все сообщения из группы обсуждений {discussion_group_id}")
         
@@ -343,9 +409,13 @@ def import_all_discussion_comments(client, channel_id, discussion_group_id):
                 pending.append(message)
                 continue
             
-            # Обрабатываем комментарий
+            # В режиме resume пропускаем уже существующие комментарии
+            if message.id in existing_ids:
+                continue
+            
+            # Обрабатываем комментарий с retry
             try:
-                comment_data = process_message_for_api(message, str(discussion_group_id), client, folder_name)
+                comment_data = _process_message_with_retry(message, str(discussion_group_id), client, folder_name)
                 if comment_data:
                     comment_data['reply_to'] = original_post_id
                     batch.append(comment_data)
@@ -379,8 +449,12 @@ def import_all_discussion_comments(client, channel_id, discussion_group_id):
                 if original_post_id is None:
                     continue
                 
+                # В режиме resume пропускаем уже существующие комментарии
+                if message.id in existing_ids:
+                    continue
+                
                 try:
-                    comment_data = process_message_for_api(message, str(discussion_group_id), client, folder_name)
+                    comment_data = _process_message_with_retry(message, str(discussion_group_id), client, folder_name)
                     if comment_data:
                         comment_data['reply_to'] = original_post_id
                         batch.append(comment_data)
